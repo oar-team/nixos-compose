@@ -76,6 +76,18 @@ with lib;
 
     boot.loader.timeout = 10;
 
+    boot.initrd.network.enable = true;
+    boot.initrd.extraUtilsCommands = ''
+      copy_bin_and_libs ${pkgs.jq}/bin/jq
+
+      #copy_bin_and_libs ${pkgs.strace}/bin/strace
+      #cp -pv ${pkgs.glibc}/lib/libgcc_s.so.1 $out/lib
+      
+      cp -pv ${pkgs.glibc}/lib/libnss_files.so.2 $out/lib
+      cp -pv ${pkgs.glibc}/lib/libresolv.so.2 $out/lib
+      cp -pv ${pkgs.glibc}/lib/libnss_dns.so.2 $out/lib
+    '';
+
     boot.postBootCommands = ''
       role=""
       if [[ -f /etc/role ]]; then
@@ -83,7 +95,11 @@ with lib;
       fi
       # After booting, register the contents of the Nix store
       # in the Nix database in the tmpfs.
-      ${config.nix.package}/bin/nix-store --load-db < /nix/store/nix-path-registration$role
+      nix_path_registration="/nix/store/nix-path-registration"
+      if [[ -f $nix_path_registration$role ]]; then
+          nix_path_registration=$nix_path_registration$role
+      fi
+      ${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
 
       # nixos-rebuild also requires a "system" profile and an
       # /etc/NIXOS tag.

@@ -1,10 +1,4 @@
-{ pkgs, config, ... }:
-let
-  sshKeys = import <nixpkgs/nixos/tests/ssh-keys.nix> pkgs;
-  snakeOilPrivateKey = sshKeys.snakeOilPrivateKey.text;
-  snakeOilPrivateKeyFile = pkgs.writeText "private-key" snakeOilPrivateKey;
-  snakeOilPublicKey = sshKeys.snakeOilPublicKey;
-in {
+{ pkgs, config, ... }: {
   system.build = rec {
     image =
       pkgs.runCommand "image" { buildInputs = [ pkgs.nukeReferences ]; } ''
@@ -56,7 +50,9 @@ in {
                 echo "Retrieve deployment configuration"
                 set -- $(IFS==; echo $o)
                 ip_addr=$(ip route get 1.0.0.0 | awk '{print $NF;exit}')
-                role_init=$(wget -q "$2" -O - | jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.init)\"")
+                mkdir -p /mnt-root/etc
+                wget -q "$2" -O /mnt-root/etc/deployment.json
+                role_init=$(cat  /mnt-root/etc/deployment.json | jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.init)\"")
                 set -- $(IFS=" "; echo $role_init)
                 role=$1
                 init=$2
@@ -65,6 +61,11 @@ in {
                 export stage2Init=$init
                 mkdir -p /mnt-root/etc
                 echo $role > /mnt-root/etc/role
+                ssh_key_pub=$(jq -r '."ssh_key.pub" // empty' /mnt-root/etc/deployment.json)
+                if [ ! -z "$ssh_key_pub" ]; then
+                   mkdir -p /mnt-root/root/.ssh/
+                   echo "$ssh_key_pub" >> /mnt-root/root/.ssh/authorized_keys
+                fi
                 ;;
             role=*)
                 set -- $(IFS==; echo $o)
@@ -72,8 +73,6 @@ in {
                 echo "$2" > /mnt-root/etc/role
          esac
      done
-     mkdir -p /mnt-root/root/.ssh/
-     echo ${snakeOilPublicKey} >> /mnt-root/root/.ssh/authorized_keys
   '';
   system.build.kexec_tarball =
     pkgs.callPackage <nixpkgs/nixos/lib/make-system-tarball.nix> {

@@ -9,11 +9,21 @@ let
 
   machines = builtins.attrNames nodes;
 
-  configMode = if mode == "kexec-vm" then
-    #{ lib, config, ... }: { vm-shared-dir.enable = true; }
+  modeConfig = if mode == "kexec-vm" then
+  #{ lib, config, ... }: { vm-shared-dir.enable = true; }
     import ./kexec-vm.nix
   else
-    { lib, config, ... }: { };
+    { lib, config, ... }: {
+      imports = [
+        <nixpkgs/nixos/modules/profiles/all-hardware.nix>
+        <nixpkgs/nixos/modules/profiles/base.nix>
+        <nixpkgs/nixos/modules/profiles/installation-device.nix>
+        <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
+        ./netboot.nix
+        ./kexec-base.nix
+        #"${toString modulesPath}/testing/test-instrumentation.nix"
+      ];
+    };
 
   vmSharedDirMod = { lib, config, ... }: {
     options = {
@@ -28,21 +38,12 @@ let
     };
   };
 
-  sshKeys = import <nixpkgs/nixos/tests/ssh-keys.nix> pkgs;
-  snakeOilPrivateKey = sshKeys.snakeOilPrivateKey.text;
-  snakeOilPrivateKeyFile = pkgs.writeText "private-key" snakeOilPrivateKey;
-  snakeOilPublicKey = sshKeys.snakeOilPublicKey;
+  #sshKeys = import <nixpkgs/nixos/tests/ssh-keys.nix> pkgs;
+  #snakeOilPrivateKey = sshKeys.snakeOilPrivateKey.text;
+  #snakeOilPrivateKeyFile = pkgs.writeText "private-key" snakeOilPrivateKey;
+  #snakeOilPublicKey = sshKeys.snakeOilPublicKey;
 
-  kexecVmConfiguration = { config, pkgs, lib, modulesPath, ... }: {
-    imports = [
-      "${toString modulesPath}/profiles/minimal.nix"
-      "${toString modulesPath}/profiles/qemu-guest.nix"
-      ./base-hardware.nix
-      ./installation-device.nix
-      ./netboot.nix
-      ./kexec-base.nix
-      #"${toString modulesPath}/testing/test-instrumentation.nix"
-    ];
+  kexecCommonConfig = { config, pkgs, lib, modulesPath, ... }: {
 
     boot.loader.grub.enable = false;
     #boot.kernelParams = [
@@ -87,7 +88,7 @@ let
           }/init";
         squashfs_img = "${config.system.build.squashfsStore}";
         qemu_script = "${kexec_qemu_script}";
-        sshkey_priv = "${snakeOilPrivateKeyFile}";
+        #sshkey_priv = "${snakeOilPrivateKeyFile}";
       };
 
       kexec_qemu_script = pkgs.writeTextFile {
@@ -103,12 +104,24 @@ let
           : ''${SHARED_DIR:=/tmp/shared-xchg}
           : ''${QEMU_VDE_SOCKET:=/tmp/kexec-qemu-vde1.ctl}
           : ''${SERVER_IP:=server=10.0.2.15}
+          
+          if [[ $DEPLOY == "1" ]]; then
+             DEPLOY="deploy=http://10.0.2.1:8000/deployment.json"
+             TAP=1
+          fi
 
-          #if [ ! -S $QEMU_VDE_SOCKET/ctl ]; then 
-          #  echo 'launch vde_switch'
-          #  vde_switch -s $QEMU_VDE_SOCKET --dirmode 0700 &
-          #  slirpvde -d -s /tmp/kexec-qemu-vde1.ctl -dhcp
-          #fi
+          if [ ! -S $QEMU_VDE_SOCKET/ctl ]; then 
+             if [ -z $TAP ]; then
+                echo 'launch vde_switch'
+                vde_switch -s $QEMU_VDE_SOCKET --dirmode 0700 &
+             else
+                echo 'launch vde_switch w/ tap0 (sudo needed)'
+                sudo vde_switch -tap tap0 -s $QEMU_VDE_SOCKET --dirmode 0770 --group users&
+                sudo ip addr add 10.0.2.1/24 dev tap0
+                sudo ip link set dev tap0 up
+             fi   
+             slirpvde -d -s $QEMU_VDE_SOCKET  -dhcp
+          fi
 
           mkdir -p /tmp/shared-xchg
 
@@ -119,17 +132,20 @@ let
           }/init}
 
           qemu-kvm -name $NAME -m $MEM -kernel $KERNEL -initrd $INITRD \
-          -append "loglevel=4 init=$INIT console=tty0 console=ttyS0,115200n8 $SERVER_IP $DEBUG_INITRD $QEMU_APPEND" \
+          -append "loglevel=4 init=$INIT console=tty0 console=ttyS0,115200n8 $SERVER_IP $DEBUG_INITRD $DEPLOY $QEMU_APPEND " \
           -nographic \
           -device virtio-rng-pci \
+          -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:0$VM_ID \
+          -netdev vde,id=vlan1,sock=$QEMU_VDE_SOCKET \
           -virtfs local,path=$SHARED_DIR,security_model=none,mount_tag=shared \
-          -device e1000,netdev=net0 \
-          -netdev user,id=net0,hostfwd=tcp::5555-:22 \
           $QEMU_OPTS
         '';
       };
     };
   };
+
+  # 
+  #
 
   #-device virtio-rng-pci \
   #-device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:0$VM_ID \
@@ -147,8 +163,7 @@ let
     import "${toString nixpkgs}/nixos/lib/eval-config.nix" {
       #inherit system;
       inherit pkgs;
-      modules =
-        [ configuration kexecVmConfiguration vmSharedDirMod configMode ];
+      modules = [ configuration kexecCommonConfig vmSharedDirMod modeConfig ];
     };
 
 in let
