@@ -8,5 +8,8 @@ let
   else
     "nixos-test";
 
-  f = if mode == "nixos-test" then import ./nixos-test.nix else import ./kexec-vm.nix;
+  f = if mode == "nixos-test" then
+    import ./nixos-test.nix
+  else
+    import ./kexec.nix;
 in f { inherit nixpkgs mode; } composition

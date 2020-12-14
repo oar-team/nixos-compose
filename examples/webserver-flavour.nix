@@ -1,4 +1,10 @@
-import <compose> <nixpkgs> ({ pkgs, ... }: {
+let
+flavour = {
+  nixpkgs = <nixpkgs>;
+  mode = "kexec-vm";
+};
+in
+import <compose> flavour ({ pkgs, ... }: {
   nodes = {
     server = { pkgs, ... }: {
       services.nginx = {
