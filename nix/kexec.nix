@@ -105,6 +105,9 @@ let
           : ''${QEMU_VDE_SOCKET:=/tmp/kexec-qemu-vde1.ctl}
           : ''${SERVER_IP:=server=10.0.2.15}
           
+          # zero padding: 2 digits vm_id 
+          VM_ID=$(printf "%02d\n" $VM_ID)
+
           if [[ $DEPLOY == "1" ]]; then
              DEPLOY="deploy=http://10.0.2.1:8000/deployment.json"
              TAP=1
@@ -135,7 +138,7 @@ let
           -append "loglevel=4 init=$INIT console=tty0 console=ttyS0,115200n8 $SERVER_IP $DEBUG_INITRD $DEPLOY $QEMU_APPEND " \
           -nographic \
           -device virtio-rng-pci \
-          -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:0$VM_ID \
+          -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID \
           -netdev vde,id=vlan1,sock=$QEMU_VDE_SOCKET \
           -virtfs local,path=$SHARED_DIR,security_model=none,mount_tag=shared \
           $QEMU_OPTS
