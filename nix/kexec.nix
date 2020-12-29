@@ -203,7 +203,7 @@ in let
     text = "${testScript}";
   };
 in {
-  machinesKexecInfoFile = pkgs.writeText "kexec-info.json" (builtins.toJSON {
+  ComposeInfoFile = pkgs.writeText "compose-info.json" (builtins.toJSON {
     nodes = machinesKexecInfo;
     test_script = testScriptFile;
   });
