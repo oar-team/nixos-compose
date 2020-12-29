@@ -6,8 +6,28 @@ let
 
   compositionSet = composition { pkgs = pkgs; };
   nodes = compositionSet.nodes;
-
+  testScriptRaw = compositionSet.testScript;
   machines = builtins.attrNames nodes;
+
+  # from nixpkgs/nixos/lib/testing-python.nix
+  testScript =
+    # Call the test script with the computed nodes.
+    if pkgs.lib.isFunction testScriptRaw then
+      testScriptRaw { inherit nodes; }
+    else
+      testScriptRaw;
+
+  modeConfigOK = { lib, config, ... }: {
+    imports = [
+      <nixpkgs/nixos/modules/profiles/all-hardware.nix>
+      <nixpkgs/nixos/modules/profiles/base.nix>
+      <nixpkgs/nixos/modules/profiles/installation-device.nix>
+      <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
+      ./netboot.nix
+      ./kexec-base.nix
+      #"${toString modulesPath}/testing/test-instrumentation.nix"
+    ];
+  };
 
   modeConfig = if mode == "kexec-vm" then
   #{ lib, config, ... }: { vm-shared-dir.enable = true; }
@@ -74,6 +94,10 @@ let
     #serviceConfig.Restart = "always"; # restart when session is closed
     #};
 
+    boot.initrd.availableKernelModules =
+      [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "i40e" "mlx5_core" ];
+    boot.kernelModules = [ "kvm-intel" ];
+
     services.sshd.enable = true;
     services.mingetty.autologinUser = lib.mkDefault "root";
     security.polkit.enable = false; # to reduce initrd
@@ -88,6 +112,7 @@ let
           }/init";
         squashfs_img = "${config.system.build.squashfsStore}";
         qemu_script = "${kexec_qemu_script}";
+        flavor_mode = "${mode}";
         #sshkey_priv = "${snakeOilPrivateKeyFile}";
       };
 
@@ -104,7 +129,7 @@ let
           : ''${SHARED_DIR:=/tmp/shared-xchg}
           : ''${QEMU_VDE_SOCKET:=/tmp/kexec-qemu-vde1.ctl}
           : ''${SERVER_IP:=server=10.0.2.15}
-          
+
           # zero padding: 2 digits vm_id 
           VM_ID=$(printf "%02d\n" $VM_ID)
 
@@ -173,7 +198,13 @@ in let
   allConfig = pkgs.lib.mapAttrs buildOneconfig nodes;
   machinesKexecInfo =
     pkgs.lib.mapAttrs (n: m: m.config.system.build.kexec_info) allConfig;
+  testScriptFile = pkgs.writeTextFile {
+    name = "test-script";
+    text = "${testScript}";
+  };
 in {
-  machinesKexecInfoFile =
-    pkgs.writeText "kexec-info.json" (builtins.toJSON machinesKexecInfo);
+  machinesKexecInfoFile = pkgs.writeText "kexec-info.json" (builtins.toJSON {
+    nodes = machinesKexecInfo;
+    test_script = testScriptFile;
+  });
 }
