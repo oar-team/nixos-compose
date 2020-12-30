@@ -92,7 +92,16 @@ with lib;
       role=""
       if [[ -f /etc/role ]]; then
          role=$(cat /etc/role)
+         ${pkgs.inetutils}/bin/hostname $role
       fi
+
+      # Add deployment's hosts if any
+      if [[ -f /etc/deployment-hosts ]]; then
+         rm -f /etc/hosts
+         cat /etc/static/hosts > /etc/hosts
+         cat /etc/deployment-hosts >> /etc/hosts
+      fi
+      
       # After booting, register the contents of the Nix store
       # in the Nix database in the tmpfs.
       nix_path_registration="/nix/store/nix-path-registration"

@@ -130,6 +130,7 @@ let
           : ''${SHARED_DIR:=/tmp/shared-xchg}
           : ''${QEMU_VDE_SOCKET:=/tmp/kexec-qemu-vde1.ctl}
           : ''${SERVER_IP:=server=10.0.2.15}
+          : ''${ROLE:=}
 
           # zero padding: 2 digits vm_id 
           VM_ID=$(printf "%02d\n" $VM_ID)
@@ -161,7 +162,7 @@ let
           }/init}
 
           qemu-kvm -name $NAME -m $MEM -kernel $KERNEL -initrd $INITRD \
-          -append "loglevel=4 init=$INIT console=tty0 console=ttyS0,115200n8 $SERVER_IP $DEBUG_INITRD $DEPLOY $QEMU_APPEND " \
+          -append "loglevel=4 init=$INIT console=tty0 console=ttyS0,115200n8 $ROLE $SERVER_IP $DEBUG_INITRD $DEPLOY $QEMU_APPEND " \
           -nographic \
           -device virtio-rng-pci \
           -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID \
