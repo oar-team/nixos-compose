@@ -6,7 +6,8 @@ let
 
   compositionSet = composition { pkgs = pkgs; };
   nodes = compositionSet.nodes;
-  testScriptRaw = compositionSet.testScript;
+  testScriptRaw =
+    if compositionSet ? testScript then compositionSet.testScript else "";
   machines = builtins.attrNames nodes;
 
   # from nixpkgs/nixos/lib/testing-python.nix
