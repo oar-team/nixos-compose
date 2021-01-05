@@ -114,6 +114,7 @@ let
         squashfs_img = "${config.system.build.squashfsStore}";
         qemu_script = "${kexec_qemu_script}";
         flavor_mode = "${mode}";
+        closure_info= "${pkgs.closureInfo {rootPaths = config.system.build.toplevel;}}";
         #sshkey_priv = "${snakeOilPrivateKeyFile}";
       };
 
@@ -188,7 +189,9 @@ let
   #$QEMU_OPTS
   #-nographic -serial mon:stdio \
   #-vga std \
-  #$QEMU_OPTS
+#$QEMU_OPTS
+
+
   buildOneconfig = machine: configuration:
     import "${toString nixpkgs}/nixos/lib/eval-config.nix" {
       #inherit system;
@@ -198,15 +201,78 @@ let
 
 in let
   allConfig = pkgs.lib.mapAttrs buildOneconfig nodes;
+  baseConfig = buildOneconfig "" {};
   machinesKexecInfo =
     pkgs.lib.mapAttrs (n: m: m.config.system.build.kexec_info) allConfig;
   testScriptFile = pkgs.writeTextFile {
     name = "test-script";
     text = "${testScript}";
   };
+
+allRoles = builtins.attrNames machinesKexecInfo;
+allClosureInfo = pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") machinesKexecInfo;
+allStorePaths = map (x: "${x}/store-paths") allClosureInfo;
+
+
+#allRoles = pkgs.lib.mapAttrsToList (n: m: "${n}") machinesKexecInfo;
+#allStorePaths = pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}/store-paths") machinesKexecInfo;
+#allRoles = pkgs.lib.mapAttrsToList (n: m: "" ) machinesKexecInfo;
+
+allSquashfsStore = pkgs.stdenv.mkDerivation {
+  name = "all-squashfs.img";
+  
+  nativeBuildInputs = [ pkgs.squashfsTools ];
+
+  buildCommand =
+     '' 
+       sort ${builtins.concatStringsSep " " allStorePaths } | uniq > merged-store-paths
+
+       IFS=', ' read -r -a allClosureInfo <<< "${builtins.concatStringsSep " " allClosureInfo}"
+       IFS=', ' read -r -a allRoles <<< "${builtins.concatStringsSep " " allRoles}"
+       allRegistrations=""
+
+       for index in "''${!allClosureInfo[@]}"
+       do
+         source="''${allClosureInfo[$index]}"/registration
+         target=nix-path-registration"''${allRoles[$index]}"
+         cp $source $target
+         echo $source $target
+         allRegistrations="$allRegistrations $target"
+       done
+ 
+       # Generate the squashfs image.
+       mksquashfs $allRegistrations $(cat merged-store-paths) $out \
+         -keep-as-directory -all-root -b 1048576 -comp gzip -Xcompression-level 1;
+     '';
+};
+
+allNetbootRamdisk = pkgs.makeInitrd {
+      inherit (baseConfig.config.boot.initrd) compressor;
+      prepend = [ "${baseConfig.config.system.build.initialRamdisk}/initrd" ];
+
+      contents = [{
+        object = allSquashfsStore;
+        symlink = "/nix-store.squashfs";
+      }];
+    };
+
+base_image = pkgs.runCommand "image" { buildInputs = [ pkgs.nukeReferences ]; } ''
+  mkdir $out
+  cp ${baseConfig.config.system.build.kernel}/bzImage $out/kernel
+  echo "init=${
+  builtins.unsafeDiscardStringContext baseConfig.config.system.build.toplevel
+  }/init ${toString baseConfig.config.boot.kernelParams}" > $out/cmdline
+  nuke-refs $out/kernel
+'';
+
+
 in {
+
   ComposeInfoFile = pkgs.writeText "compose-info.json" (builtins.toJSON {
     nodes = machinesKexecInfo;
     test_script = testScriptFile;
+    all_squashfs_img = "${allSquashfsStore}";
+    all_initrd = "${allNetbootRamdisk}/initrd";
+    base_kernel = "${base_image}/kernel";
   });
 }

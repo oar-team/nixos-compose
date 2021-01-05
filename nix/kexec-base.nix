@@ -10,33 +10,6 @@
         }/init ${toString config.boot.kernelParams}" > $out/cmdline
         nuke-refs $out/kernel
       '';
-    kexec_script = pkgs.writeTextFile {
-      executable = true;
-      name = "kexec-nixos";
-      text = ''
-        #!${pkgs.stdenv.shell}
-        export PATH=${pkgs.kexectools}/bin:${pkgs.cpio}/bin:$PATH
-        set -x
-        set -e
-        cd $(mktemp -d)
-        pwd
-        mkdir initrd
-        pushd initrd
-        if [ -e /ssh_pubkey ]; then
-          cat /ssh_pubkey >> authorized_keys
-        fi
-        find -type f | cpio -o -H newc | gzip -9 > ../extra.gz
-        popd
-        cat ${image}/initrd extra.gz > final.gz
-
-        kexec -l ${image}/kernel --initrd=final.gz --append="init=${
-          builtins.unsafeDiscardStringContext config.system.build.toplevel
-        }/init ${toString config.boot.kernelParams}"
-        sync
-        echo "executing kernel, filesystems will be improperly umounted"
-        kexec -e
-      '';
-    };
   };
   boot.initrd.postMountCommands = ''
     mkdir -p /mnt-root/etc
@@ -46,12 +19,20 @@
                 set -- $(IFS==; echo $o)
                 echo "$2 server" > /etc/hosts
                 ;;
-            deploy=*)
+            deploy:*)
                 echo "Retrieve deployment configuration"
-                set -- $(IFS==; echo $o)
-                ip_addr=$(ip route get 1.0.0.0 | awk '{print $NF;exit}')
                 deployment_json="/mnt-root/etc/deployment.json"
-                wget -q "$2" -O $deployment_json
+                ip_addr=$(ip route get 1.0.0.0 | awk '{print $NF;exit}')
+                set -- $(IFS=:; echo $o)
+                h=$(echo $2 | head -c 7)
+                if [ $h == "https:/" ] || [ $h == "http://" ]
+                then
+                   echo "Use http(s) to get deployment configuration"
+                   wget -q "$2" -O $deployment_json
+                else
+                   echo "Use base64 decode to deployment configuration"
+                   echo "$2" | base64 -d >> $deployment_json
+                fi
                 role_init=$(jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.init)\""  $deployment_json)
                 set -- $(IFS=" "; echo $role_init)
                 role=$1
@@ -67,7 +48,7 @@
                 fi
                 echo "Generate /etc/hosts from deployment.json"
                 jq -r '.deployment | to_entries | map(.key + " " + (.value.role)) | .[]' \
-                $deployment_json >> /mnt-root/etc/hosts
+                $deployment_json >> /mnt-root/etc/deployment-hosts
                 ;;
             role=*)
                 set -- $(IFS==; echo $o)
@@ -83,21 +64,13 @@
                     echo "$1 $2" >> /mnt-root/etc/deployment-hosts
                 done
                 ;;
-            ssh_key.pub=*)
+            ssh_key.pub:*)
                 echo "Add SSH public key to root's authorized_keys"
-                set -- $(IFS==; echo $o)
+                set -- $(IFS=:; echo $o)
                 mkdir -p /mnt-root/root/.ssh
                 echo "$2" | base64 -d >> /mnt-root/root/.ssh/authorized_keys
                 ;;
          esac
      done
   '';
-  system.build.kexec_tarball =
-    pkgs.callPackage <nixpkgs/nixos/lib/make-system-tarball.nix> {
-      storeContents = [{
-        object = config.system.build.kexec_script;
-        symlink = "/kexec_nixos";
-      }];
-      contents = [ ];
-    };
 }
