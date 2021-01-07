@@ -11,6 +11,7 @@
         nuke-refs $out/kernel
       '';
   };
+
   boot.initrd.postMountCommands = ''
     mkdir -p /mnt-root/etc
     for o in $(cat /proc/cmdline); do

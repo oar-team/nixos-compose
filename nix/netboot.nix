@@ -82,7 +82,7 @@ with lib;
 
       #copy_bin_and_libs ${pkgs.strace}/bin/strace
       #cp -pv ${pkgs.glibc}/lib/libgcc_s.so.1 $out/lib
-      
+
       cp -pv ${pkgs.glibc}/lib/libnss_files.so.2 $out/lib
       cp -pv ${pkgs.glibc}/lib/libresolv.so.2 $out/lib
       cp -pv ${pkgs.glibc}/lib/libnss_dns.so.2 $out/lib
@@ -101,7 +101,7 @@ with lib;
          cat /etc/static/hosts > /etc/hosts
          cat /etc/deployment-hosts >> /etc/hosts
       fi
-      
+
       # After booting, register the contents of the Nix store
       # in the Nix database in the tmpfs.
       nix_path_registration="/nix/store/nix-path-registration"
