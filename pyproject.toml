@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "nixos-compose"
+version = "0.1.0"
+description = ""
+authors = ["Olivier Richard <olivier.richard@imag.fr>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+halo = "^0.0.31"
+ptpython = "^3.0.7"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.790.0"
+black = "^19.10b0"
+pytest = "^3.0"
+
+[tool.poetry.scripts]
+nixos-compose = 'nixos_compose.cli:main'
+nxc = 'nixos_compose.cli:main'
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
