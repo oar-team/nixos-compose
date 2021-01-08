@@ -1,4 +1,4 @@
-mode:
+flavour:
 { config, pkgs, lib, modulesPath, ... }: {
 
   boot.loader.grub.enable = false;
@@ -40,19 +40,20 @@ mode:
   services.udisks2.enable = false; # to reduce initrd
 
   system.build = rec {
-    ramdiskInfo = {
-      kernel = "${config.system.build.image}/kernel";
-      initrd = "${config.system.build.image}/initrd";
+    initClosureInfo = {
       init = "${
           builtins.unsafeDiscardStringContext config.system.build.toplevel
         }/init";
-      squashfs_img = "${config.system.build.squashfsStore}";
-      qemu_script = "${qemu_script}";
-      flavour_mode_name = "${mode.name}";
       closure_info =
         "${pkgs.closureInfo { rootPaths = config.system.build.toplevel; }}";
-      #sshkey_priv = "${snakeOilPrivateKeyFile}";
     };
+    ramdiskInfo = {
+      kernel = "${config.system.build.image}/kernel";
+      initrd = "${config.system.build.image}/initrd";
+      squashfs_img = "${config.system.build.squashfsStore}";
+      qemu_script = "${qemu_script}";
+      #sshkey_priv = "${snakeOilPrivateKeyFile}";
+    } // initClosureInfo;
 
     qemu_script = pkgs.writeTextFile {
       executable = true;

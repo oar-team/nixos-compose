@@ -1,5 +1,5 @@
-mode:
-if (mode ? vm) && mode.vm then
+flavour:
+if (flavour ? vm) && flavour.vm then
   { lib, config, modulesPath, ... }: {
     vm-shared-dir.enable = true;
     imports = [

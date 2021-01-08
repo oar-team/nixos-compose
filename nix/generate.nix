@@ -1,4 +1,4 @@
-{ nixpkgs, mode, ... }:
+{ nixpkgs, flavour, ... }:
 composition:
 
 let
@@ -31,14 +31,14 @@ let
     };
   };
 
-  commonConfig = import ./common-config.nix mode;
-  modeConfig = import ./mode-config.nix mode;
+  commonConfig = import ./common-config.nix flavour;
+  flavourConfig = import ./flavour-config.nix flavour;
 
   buildOneconfig = machine: configuration:
     import "${toString nixpkgs}/nixos/lib/eval-config.nix" {
       #inherit system;
       inherit pkgs;
-      modules = [ configuration commonConfig vmSharedDirMod modeConfig ];
+      modules = [ configuration commonConfig vmSharedDirMod flavourConfig ];
     };
 
 in let
@@ -49,17 +49,16 @@ in let
     text = "${testScript}";
   };
 
-  allInOne = import ./all-in-one.nix { inherit pkgs allConfig buildOneconfig; };
-  machinesInfo = allInOne.machinesRamdiskInfo;
-  inherit (allInOne) allSquashfsStore allRamdisk baseImage;
-
+  imageInfo = if flavour.image ? distribution && flavour.image.distribution
+  == "all-in-one" then
+    import ./all-in-one.nix { inherit pkgs flavour allConfig buildOneconfig; }
+  else {
+    nodes =
+      pkgs.lib.mapAttrs (n: m: m.config.system.build.ramdiskInfo) allConfig;
+  };
 in {
-
-  composeInfo = pkgs.writeText "compose-info.json" (builtins.toJSON {
-    nodes = machinesInfo;
+  composeInfo = pkgs.writeText "compose-info.json" (builtins.toJSON ({
     test_script = testScriptFile;
-    all_squashfs_img = "${allSquashfsStore}";
-    all_initrd = "${allRamdisk}/initrd";
-    base_kernel = "${baseImage}/kernel";
-  });
+    flavour = flavour;
+  } // imageInfo));
 }

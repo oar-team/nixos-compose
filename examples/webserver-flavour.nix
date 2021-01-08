@@ -1,7 +1,7 @@
 let
 flavour = {
+  name = "vm";
   nixpkgs = <nixpkgs>;
-  mode = "kexec";
 };
 in
 import <compose> flavour ({ pkgs, ... }: {

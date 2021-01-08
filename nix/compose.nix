@@ -1,30 +1,34 @@
-flavour: composition:
+flavourOptions: composition:
 
 let
 
-  modes = {
+  flavours = {
     vm = {
       name = "vm";
       vm = true;
-      initrd = "all-in-one";
+      image = {
+        type = "ramdisk";
+        distribution = "all-in-one";
+      };
     };
   };
 
-  nixpkgs = if flavour ? nixpkgs then flavour.nixpkgs else flavour;
+  nixpkgs =
+    if flavourOptions ? nixpkgs then flavourOptions.nixpkgs else flavourOptions;
 
-  mode = if flavour ? nixpkgs then
-    if flavour ? mode then
-      if builtins.isAttrs flavour.mode then
-        flavour.mode
+  flavour = if flavourOptions ? nixpkgs then
+    if flavourOptions ? name then
+      if flavours ? "${flavourOptions.name}" then
+        flavours."${flavourOptions.name}" // flavourOptions
       else
-        modes."${flavour.mode}"
+        flavourOptions
     else
       "nixos-test"
   else
     "nixos-test";
 
-  f = if mode == "nixos-test" then
+  f = if flavour == "nixos-test" then
     import ./nixos-test.nix
   else
     import ./generate.nix;
-in f { inherit nixpkgs mode; } composition
+in f { inherit nixpkgs flavour; } composition

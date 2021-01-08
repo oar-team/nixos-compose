@@ -1,4 +1,4 @@
-{ pkgs, allConfig, buildOneconfig }:
+{ pkgs, flavour, allConfig, buildOneconfig }:
 let
 
   baseConfig = buildOneconfig "" { };
@@ -13,12 +13,12 @@ let
       nuke-refs $out/kernel
     '';
 
-  machinesRamdiskInfo =
-    pkgs.lib.mapAttrs (n: m: m.config.system.build.ramdiskInfo) allConfig;
+  machinesInfo =
+    pkgs.lib.mapAttrs (n: m: m.config.system.build.initClosureInfo) allConfig;
 
-  allRoles = builtins.attrNames machinesRamdiskInfo;
+  allRoles = builtins.attrNames machinesInfo;
   allClosureInfo =
-    pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") machinesRamdiskInfo;
+    pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") machinesInfo;
   allStorePaths = map (x: "${x}/store-paths") allClosureInfo;
 
   allSquashfsStore = pkgs.stdenv.mkDerivation {
@@ -64,4 +64,12 @@ let
     }];
   };
 
-in { inherit machinesRamdiskInfo allSquashfsStore allRamdisk baseImage; }
+in {
+  nodes = machinesInfo;
+  all = {
+    squashfs_img = "${allSquashfsStore}";
+    initrd = "${allRamdisk}/initrd";
+    kernel = "${baseImage}/kernel";
+    qemu_script = "${baseConfig.config.system.build.qemu_script}";
+  };
+}
