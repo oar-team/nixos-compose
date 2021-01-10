@@ -98,6 +98,7 @@ machines: "List[Machine]"
 machines_ips: "List[str]"
 mode: "Dict[str, Any]"
 
+
 def eprint(*args: object, **kwargs: Any) -> None:
     print(*args, file=sys.stderr, **kwargs)
 
@@ -110,36 +111,61 @@ def create_log():
     global log
     log = Logger()
 
+
 def create_vlan(vlan_nr: str) -> Tuple[str, str, "subprocess.Popen[bytes]", Any]:
     global log
 
     # sudo vde_switch -tap tap0 -s $QEMU_VDE_SOCKET --dirmode 0770 --group users&
     # sudo ip addr add 10.0.2.1/24 dev tap0
-    # sudo ip link set dev tap0 up  
+    # sudo ip link set dev tap0 up
     # slirpvde -d -s $QEMU_VDE_SOCKET  -dhcp
-    
-    log.log("starting VDE switch for network {}, with tap0 (sudo required)".format(vlan_nr))
+
+    log.log(
+        "starting VDE switch for network {}, with tap0 (sudo required)".format(vlan_nr)
+    )
     vde_socket = tempfile.mkdtemp(
         prefix="nixos-compose-vde-", suffix="-vde{}.ctl".format(vlan_nr)
     )
-    
+
     log.log("need sudo to create tap0 interface")
-    log.log(f'vde_socket: {vde_socket}')
-    
+    log.log(f"vde_socket: {vde_socket}")
+
     subprocess.call("sudo true", shell=True)
 
-    vde_cmd = ["sudo", "vde_switch", "-tap", "tap0", "-s", vde_socket, "--dirmode", "0700", "--group", "users"]
+    vde_cmd = [
+        "sudo",
+        "vde_switch",
+        "-tap",
+        "tap0",
+        "-s",
+        vde_socket,
+        "--dirmode",
+        "0700",
+        "--group",
+        "users",
+    ]
     log.log(f"vde_cmd: {' '.join(vde_cmd)}")
-    
+
     pty_master, pty_slave = pty.openpty()
     vde_process = subprocess.Popen(
-        ["sudo", "vde_switch", "-tap", "tap0", "-s", vde_socket, "--dirmode", "0770", "--group", "users"],
+        [
+            "sudo",
+            "vde_switch",
+            "-tap",
+            "tap0",
+            "-s",
+            vde_socket,
+            "--dirmode",
+            "0770",
+            "--group",
+            "users",
+        ],
         stdin=pty_slave,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False,
     )
-    
+
     fd = os.fdopen(pty_master, "w")
     fd.write("version\n")
     # TODO: perl version checks if this can be read from
@@ -156,16 +182,16 @@ def create_vlan(vlan_nr: str) -> Tuple[str, str, "subprocess.Popen[bytes]", Any]
     subprocess.call("sudo ip link set dev tap0 up", shell=True)
 
     # launch slirp
-    log.log(f'slirpvde -d -s {vde_socket} -dhcp -q')
-    #subprocess.call(f'slirpvde -d -s {vde_socket} -dhcp -q', shell=True)
+    log.log(f"slirpvde -d -s {vde_socket} -dhcp -q")
+    # subprocess.call(f'slirpvde -d -s {vde_socket} -dhcp -q', shell=True)
     slirpvde_process = subprocess.Popen(
-        f'slirpvde -d -s {vde_socket} -dhcp -q',
+        f"slirpvde -d -s {vde_socket} -dhcp -q",
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         shell=True,
     )
-    #slirpvde_process = None
+    # slirpvde_process = None
     return (vlan_nr, vde_socket, vde_process, fd, slirpvde_process)
 
 
@@ -260,7 +286,7 @@ class Machine:
                     self.name = match.group(1)
         self.logger = args["log"]
         self.script = args.get("startCommand", self.create_startcommand(args))
-        
+
         tmp_dir = os.environ.get("TMPDIR", tempfile.gettempdir())
 
         def create_dir(name: str) -> str:
@@ -284,9 +310,9 @@ class Machine:
             self.vm_id = args["vm_id"]
             self.ip = args["ip"]
         if "init" in args:
-            self.init =args["init"]
+            self.init = args["init"]
 
-    # TOREMOVE OR ADAPT    
+    # TOREMOVE OR ADAPT
     @staticmethod
     def create_startcommand(args: Dict[str, str]) -> str:
         net_backend = "-netdev user,id=net0"
@@ -600,7 +626,7 @@ class Machine:
         with self.nested("waiting for the VM to finish booting"):
             tic = time.time()
             self.start()
-            if mode['shell'] == 'chardev':
+            if mode["shell"] == "chardev":
                 self.shell.recv(1024)
             # TODO: Timeout
             toc = time.time()
@@ -694,7 +720,7 @@ class Machine:
         if self.booted:
             return
 
-        if mode['vm'] and not ordered:
+        if mode["vm"] and not ordered:
             self.log("WARNNING: mapping @ip-role can be WRONG (hint: use start_all())")
 
         self.log("starting vm")
@@ -716,7 +742,7 @@ class Machine:
         self.shell_socket = create_socket(self.shell_path)
 
         dev_shell = ""
-        if mode['shell'] == 'chardev':
+        if mode["shell"] == "chardev":
             dev_shell = " -chardev socket,id=shell,path={}".format(self.shell_path)
             dev_shell += " -device virtconsole,chardev=shell"
 
@@ -741,17 +767,17 @@ class Machine:
                 "TMPDIR": self.state_dir,
                 "SHARED_DIR": self.shared_dir,
                 "USE_TMPDIR": "1",
-                #"QEMU_VDE_SOCKET": self.vde_process, TOREMOVE
+                # "QEMU_VDE_SOCKET": self.vde_process, TOREMOVE
                 "QEMU_OPTS": qemu_options,
-                #"DEPLOY": "1",
+                # "DEPLOY": "1",
                 "VM_ID": str(self.vm_id),
-                "ROLE": f"role={self.name}"
-            } 
+                "ROLE": f"role={self.name}",
+            }
         )
-        if mode['image']['distribution'] == 'all-in-one':
+        if mode["image"]["distribution"] == "all-in-one":
             environment["INIT"] = self.init
 
-        #print(self.script)  
+        # print(self.script)
         print("process")
         self.process = subprocess.Popen(
             self.script,
@@ -765,7 +791,7 @@ class Machine:
         print("accept monitor")
         self.monitor, _ = self.monitor_socket.accept()
         print("accept shell")
-        if mode['shell'] == 'chardev':
+        if mode["shell"] == "chardev":
             self.shell, _ = self.shell_socket.accept()
 
         print("after accept")
@@ -858,9 +884,12 @@ def start_all() -> None:
     with log.nested("starting all VMs"):
         for machine in machines:
             machine.start(ordered=True)  # ADD nowait_shell
-            if mode['vm'] and mode['image']['distribution'] != ['all-in-one']:
-                time.sleep(1.5) #TODO UGLY (wait dhcp's ip attribution) -> need static mapping ip/role 
-            
+            if mode["vm"] and mode["image"]["distribution"] != ["all-in-one"]:
+                time.sleep(
+                    1.5
+                )  # TODO UGLY (wait dhcp's ip attribution) -> need static mapping ip/role
+
+
 def join_all() -> None:
     global machines
     with log.nested("waiting for all VMs to finish"):
@@ -919,59 +948,62 @@ def check_ssh_port(hosts):
     print("")
     log.log("All ssh ports are ready")
 
+
 def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None):
 
     global mode
     mode = driver_mode
-    assert 'vm' in driver_mode
-    assert 'image' in flavour 
+    assert "vm" in driver_mode
+    assert "image" in flavour
 
-    mode['image'] = flavour['image']
+    mode["image"] = flavour["image"]
 
     global machines
     machines = []
 
     create_log()
     # create vde vlan
-    log.log(mode['name'])
-    
-    if mode['vm']: 
+    log.log(mode["name"])
+
+    if mode["vm"]:
         vde_vlan = create_vlan("0")
         vde_socket = vde_vlan[1]
         os.environ["QEMU_VDE_SOCKET"] = vde_socket
 
-    #TODO reduce deployment_info (remove keys vm_id qemu_script)
-    #deployment_info_str = json.dumps(deployment, separators=(',', ':'))
+    # TODO reduce deployment_info (remove keys vm_id qemu_script)
+    # deployment_info_str = json.dumps(deployment, separators=(',', ':'))
     # qemu_append = ""
     # if "ssh_key.pub" in deployment:
     #     ssh_key_pub_b64 = b64encode(deployment["ssh_key.pub"].encode()).decode()
     #     qemu_append = "ssh_key.pub:" + ssh_key_pub_b64
     #     deployment.pop("ssh_key.pub")
-    
+
     deployment_info_str = json.dumps(deployment)
     deploy_info_b64 = b64encode(deployment_info_str.encode()).decode()
 
     if len(deploy_info_b64) > (4096 - 256):
-        log.log("The base64 encoded deploy data is too large: use an http server to serve it")
+        log.log(
+            "The base64 encoded deploy data is too large: use an http server to serve it"
+        )
         sys.exit(1)
 
-    #os.environ["QEMU_APPEND"] = qemu_append
+    # os.environ["QEMU_APPEND"] = qemu_append
     base_qemu_script = None
-    os.environ["DEPLOY"] = f'deploy:{deploy_info_b64}'
-    if mode["image"]["distribution"] == "all-in-one":  
+    os.environ["DEPLOY"] = f"deploy:{deploy_info_b64}"
+    if mode["image"]["distribution"] == "all-in-one":
         os.environ["KERNEL"] = deployment["all"]["kernel"]
         os.environ["INITRD"] = deployment["all"]["initrd"]
-        base_qemu_script =  deployment["all"]["qemu_script"]
-    
+        base_qemu_script = deployment["all"]["qemu_script"]
+
     ips = []
     for i in range(len(deployment["deployment"])):
         ip = "10.0.2.{}".format(15 + i)
         ips.append(ip)
         if ip not in deployment["deployment"]:
-            log.log(f'In vm mode, {ip} must be present')
+            log.log(f"In vm mode, {ip} must be present")
             sys.exit(1)
         v = deployment["deployment"][ip]
-        
+
         name = v["role"]
 
         if base_qemu_script:
@@ -980,17 +1012,17 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
             qemu_script = v["qemu_script"]
 
             machines.append(
-            create_machine(
-                {
-                    "name": name,
-                    "startCommand": qemu_script,
-                    "ip": ip,
-                    "vm_id": v['vm_id'],
-                    "keepVmState": False,
-                    "init": v['init']
-                }
+                create_machine(
+                    {
+                        "name": name,
+                        "startCommand": qemu_script,
+                        "ip": ip,
+                        "vm_id": v["vm_id"],
+                        "keepVmState": False,
+                        "init": v["init"],
+                    }
+                )
             )
-        )
 
     machine_eval = [
         "{0} = machines[{1}]".format(m.name, idx) for idx, m in enumerate(machines)
@@ -1003,7 +1035,7 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
                 if machine.pid is None:
                     continue
                 log.log("killing {} (pid {})".format(machine.name, machine.pid))
-                #machine.process.kill()
+                # machine.process.kill()
                 os.kill(machine.process.pid, signal.SIGSTOP)
 
         log.close()
@@ -1012,17 +1044,17 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
 
     start_all()
     check_ssh_port(ips)
-    
-    if mode['shell'] == 'ssh':    
+
+    if mode["shell"] == "ssh":
         for machine in machines:
             print("create socat link: {}".format(machine.name))
             machine.socat()
-    
+
     if test_script is not None and not driver_repl:
         tic = time.time()
         with log.nested("running the VM test script"):
             # start machines in ascending order of Ips (to match ip/role distribution
-            # done by slirp-vde's dhcp 
+            # done by slirp-vde's dhcp
             try:
                 exec(test_script, globals())
             except Exception as e:
@@ -1035,7 +1067,7 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
 
     else:
         if test_script:
-            os.environ['testScript'] = test_script
+            os.environ["testScript"] = test_script
         ptpython.repl.embed(locals(), globals())
 
     sys.exit(0)

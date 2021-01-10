@@ -7,21 +7,31 @@ from functools import update_wrapper
 
 import click
 
-CONTEXT_SETTINGS = dict(auto_envvar_prefix='nixos_compose',
-                        help_option_names=['-h', '--help'])
+CONTEXT_SETTINGS = dict(
+    auto_envvar_prefix="nixos_compose", help_option_names=["-h", "--help"]
+)
+
 
 def reraise(tp, value, tb=None):
     if value.__traceback__ is not tb:
         raise value.with_traceback(tb)
     raise value
 
-class Context(object):
 
+class Context(object):
     def __init__(self):
         self.current_dir = os.getcwd()
         self.verbose = False
         self.workdir = self.current_dir
         self.debug = False
+        self.prefix = "nxc"
+
+    def init_workdir(self, env_name, env_id):
+        with open(self.env_name_file, "w+") as fd:
+            fd.write(env_name + "\n")
+        if not os.path.exists(self.env_id_file):
+            with open(self.env_id_file, "w+") as fd:
+                fd.write(env_id + "\n")
 
     def log(self, msg, *args, **kwargs):
         """Logs a message to stdout."""
@@ -41,7 +51,7 @@ class Context(object):
     def vlog(self, msg, *args):
         """Logs a message to stderr only if verbose is enabled."""
         if self.verbose:
-            self.log(msg, *args, **{'file': sys.stderr})
+            self.log(msg, *args, **{"file": sys.stderr})
 
     def handle_error(self):
         exc_type, exc_value, tb = sys.exc_info()
@@ -65,7 +75,9 @@ def make_pass_decorator(ensure=False):
                 return ctx.invoke(f, obj, *args[1:], **kwargs)
             except:
                 obj.handle_error()
+
         return update_wrapper(new_func, f)
+
     return decorator
 
 
