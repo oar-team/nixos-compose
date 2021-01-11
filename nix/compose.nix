@@ -27,7 +27,7 @@ let
   else
     "nixos-test";
 
-  f = if flavour == "nixos-test" then
+  f = if flavour == "nixos-test" || (flavour ? name && flavour.name == "nixos-test") then
     import ./nixos-test.nix
   else
     import ./generate.nix;

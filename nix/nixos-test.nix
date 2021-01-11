@@ -1,4 +1,4 @@
-{ nixpkgs, mode, ... }:
+{ nixpkgs, ... }:
 composition:
 let
   pkgs = (import nixpkgs) { };

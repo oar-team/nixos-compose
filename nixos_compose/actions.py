@@ -1,5 +1,6 @@
 import json
 import os
+import os.path as op
 import sys
 import subprocess
 import time
@@ -128,18 +129,18 @@ def copy_result_from_store(store_copy_dir, compose_info=None):
 
     if "all" in compose_info:
         for target in ["kernel", "initrd", "qemu_script"]:
-            new_target = store_copy_dir + "/" + target
+            new_target = op.join(store_copy_dir, target)
             shutil.copy(compose_info["all"][target], new_target)
             new_compose_info["all"][target] = new_target
     else:
         for r, v in compose_info["nodes"].items():
             for target in ["kernel", "initrd", "qemu_script"]:
-                new_target = store_copy_dir + "/" + "_" + r
+                new_target =  op.join(store_copy_dir, target + "_" + r)
                 shutil.copy(v[target], new_target)
                 new_compose_info["nodes"][target] = new_target
 
     if "test_script" in compose_info:
-        new_target = store_copy_dir + "/test_script"
+        new_target =  op.join(store_copy_dir, "test_script")
         shutil.copy(compose_info["test_script"], new_target)
         new_compose_info["test_script"] = new_target
 

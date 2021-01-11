@@ -1,6 +1,9 @@
 import os
 import os.path as op
 import sys
+
+import json
+
 import click
 
 from . import VERSION
@@ -27,21 +30,27 @@ class NixosComposeCLI(click.MultiCommand):
 
 @click.command(cls=NixosComposeCLI, context_settings=CONTEXT_SETTINGS, chain=True)
 @click.option(
-    "--workdir",
-    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    "--envdir", "-d",
+    type=click.Path(file_okay=False, resolve_path=True),
+    default=op.abspath('./nxc'), 
     help="Changes the folder to operate on.",
 )
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose mode.")
-@click.option("--debug", "-d", is_flag=True, default=False, help="Enable debugging")
+@click.option("--debug", "-D", is_flag=True, default=False, help="Enable debugging")
 @click.version_option(version=VERSION)
 @pass_context
-def cli(ctx, workdir, verbose, debug):
+def cli(ctx, envdir, verbose, debug):
     """Generate and manage multi Nixos composition."""
-    if workdir is not None:
-        ctx.workdir = workdir
+    ctx.envdir = envdir
+    if os.path.isfile("nxc.json"):
+        ctx.nxc_file = os.readlink("nxc.json")
+        with open(ctx.nxc_file, "r") as f:
+            ctx.nxc = json.load(f)
+            ctx.envdir = ctx.nxc["envdir"]
+
     ctx.verbose = verbose
     ctx.debug = debug
-
+    ctx.update()
 
 def main(args=sys.argv[1:]):
     cli(args)

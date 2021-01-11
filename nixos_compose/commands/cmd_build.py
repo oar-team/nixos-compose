@@ -1,6 +1,6 @@
 import click
 
-from ..context import pass_context
+from ..context import pass_context, on_started, on_finished 
 from ..actions import read_compose_info, copy_result_from_store
 import time
 import sys
@@ -8,7 +8,7 @@ import subprocess
 
 
 @click.command("build")
-@click.argument("composition_file", type=click.STRING)
+@click.argument("composition_file", required=False, type=click.STRING)
 @click.option(
     "--nix-path",
     "-I",
@@ -25,6 +25,7 @@ import subprocess
 )
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
+@on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
     ctx, composition_file, nix_path, out_link, nixpkgs, nixos_test, copy_from_store
 ):
@@ -34,8 +35,11 @@ def cli(
     """
     ctx.log("Starting build")
 
-    build_cmd = f"nix build -f {composition_file} -I  compose=nix/compose.nix "
-    build_cmd += f"-I nixpkgs={nixpkgs} -o {out_link}"
+    if not composition_file:
+        composition_file = ctx.nxc['composition']
+
+    build_cmd = f"nix build -f {composition_file} -I  compose=nix/compose.nix"
+    build_cmd += f" -I nixpkgs={nixpkgs} -o {out_link}"
     if nixos_test:
         build_cmd += " driver"
 

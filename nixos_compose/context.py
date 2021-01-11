@@ -7,6 +7,8 @@ from functools import update_wrapper
 
 import click
 
+from .state import State
+
 CONTEXT_SETTINGS = dict(
     auto_envvar_prefix="nixos_compose", help_option_names=["-h", "--help"]
 )
@@ -33,6 +35,24 @@ class Context(object):
             with open(self.env_id_file, "w+") as fd:
                 fd.write(env_id + "\n")
 
+    @property
+    def state(self):
+        if not hasattr(self, '_state'):
+            self._state = State(self,
+                                state_file=self.state_file)
+        return self._state
+
+
+    def update(self):
+        self.state_file = op.join(self.envdir, "state.json")
+    
+    def assert_valid_env(self):
+        if not os.path.isdir(self.envdir):
+            raise click.ClickException("Missing nixos composition environment directory."
+                                       " Run `nxc init` to create"
+                                       " a new composition environment ")
+
+                
     def log(self, msg, *args, **kwargs):
         """Logs a message to stdout."""
         if args:
@@ -80,5 +100,57 @@ def make_pass_decorator(ensure=False):
 
     return decorator
 
+class DeprecatedCmdDecorator(object):
+    """This is a decorator which can be used to mark cmd as deprecated. It will
+    result in a warning being emmitted when the command is invoked."""
+
+    def __init__(self, message=""):
+        if message:
+            self.message = "%s." % message
+        else:
+            self.message = message
+
+    def __call__(self, f):
+
+        @click.pass_context
+        def new_func(ctx, *args, **kwargs):
+            msg = click.style("warning: `%s` command is deprecated. %s" %
+                              (ctx.info_name, self.message), fg="yellow")
+            click.echo(msg)
+            return ctx.invoke(f, *args, **kwargs)
+
+        return update_wrapper(new_func, f)
+
+class OnStartedDecorator(object):
+    def __init__(self, callback):
+        self.callback = callback
+        self.exec_before = True
+
+    def invoke_callback(self, ctx):
+        if isinstance(self.callback, str):
+            cmd = ctx.parent.command.get_command(ctx, self.callback)
+            ctx.invoke(cmd)
+        else:
+            self.callback(ctx.obj)
+
+    def __call__(self, f):
+        @click.pass_context
+        def new_func(ctx, *args, **kwargs):
+            try:
+                if self.exec_before:
+                    self.invoke_callback(ctx)
+                return ctx.invoke(f, *args, **kwargs)
+            finally:
+                if not self.exec_before:
+                    self.invoke_callback(ctx)
+        return update_wrapper(new_func, f)
+
+
+class OnFinishedDecorator(OnStartedDecorator):
+    def __init__(self, callback):
+        super(on_finished, self).__init__(callback)
+        self.exec_before = False
 
 pass_context = make_pass_decorator(ensure=True)
+on_started = OnStartedDecorator
+on_finished = OnFinishedDecorator
