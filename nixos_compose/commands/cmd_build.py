@@ -1,10 +1,13 @@
+import time
+import sys
+import subprocess
+
+import os.path as op
+
 import click
 
 from ..context import pass_context, on_started, on_finished 
 from ..actions import read_compose_info, copy_result_from_store
-import time
-import sys
-import subprocess
 
 
 @click.command("build")
@@ -34,11 +37,16 @@ def cli(
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
     ctx.log("Starting build")
-
+    
     if not composition_file:
         composition_file = ctx.nxc['composition']
 
-    build_cmd = f"nix build -f {composition_file} -I  compose=nix/compose.nix"
+    compose_file = op.join(ctx.envdir, 'nix/compose.nix')
+        
+    if out_link == 'result':
+        out_link = op.join(ctx.envdir, out_link)
+
+    build_cmd = f"nix build -f {composition_file} -I compose={compose_file}"
     build_cmd += f" -I nixpkgs={nixpkgs} -o {out_link}"
     if nixos_test:
         build_cmd += " driver"
@@ -47,6 +55,8 @@ def cli(
     subprocess.call(build_cmd, shell=True)
 
     if copy_from_store:
-        copy_result_from_store(".", read_compose_info())
+        copy_result_from_store(ctx, read_compose_info(ctx))
 
+    ctx.state["built"] = True
+        
     ctx.glog("Build completed")

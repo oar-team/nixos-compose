@@ -1011,18 +1011,18 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
         else:
             qemu_script = v["qemu_script"]
 
-            machines.append(
-                create_machine(
-                    {
-                        "name": name,
-                        "startCommand": qemu_script,
-                        "ip": ip,
-                        "vm_id": v["vm_id"],
-                        "keepVmState": False,
-                        "init": v["init"],
-                    }
-                )
+        machines.append(
+            create_machine(
+                {
+                    "name": name,
+                    "startCommand": qemu_script,
+                    "ip": ip,
+                    "vm_id": v["vm_id"],
+                    "keepVmState": False,
+                    "init": v["init"],
+                }
             )
+        )
 
     machine_eval = [
         "{0} = machines[{1}]".format(m.name, idx) for idx, m in enumerate(machines)

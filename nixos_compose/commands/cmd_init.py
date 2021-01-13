@@ -53,16 +53,17 @@ def cli(ctx, example):
          NXC_NIX_PATH,
          op.abspath(op.join(ctx.envdir, 'nix')),
     )
-    
-    nxc_json = json.dumps({'envdir': ctx.envdir, 'composition': composition_path})
-    
-    #for nxc_json_dir in [op.abspath(op.join(ctx.envdir, '..')), ctx.envdir]:
+    nxc_json = {'envdir': ctx.envdir, 'composition': composition_path} 
+    nxc_json_str = json.dumps(nxc_json)
     nxc_json_file = op.abspath(op.join(ctx.envdir, "nxc.json"))
-
+    
+    ctx.nxc = nxc_json
+    ctx.nxc_file = nxc_json_file
+    
     click.echo("   " + create + "  " + nxc_json_file)
 
     with open(nxc_json_file, "w") as f:
-        f.write(nxc_json) 
+        f.write(nxc_json_str) 
     os.symlink(nxc_json_file, op.abspath(op.join(ctx.envdir, "..", "nxc.json")))
     
     ctx.log(

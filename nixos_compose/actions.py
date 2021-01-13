@@ -16,14 +16,14 @@ DRIVER_MODES = {
 }
 
 
-def read_deployment_info(deployment_file="deployment.json"):
-    with open(deployment_file, "r") as f:
+def read_deployment_info(ctx, deployment_file="deployment.json"):
+    with open(op.join(ctx.envdir, deployment_file), "r") as f:
         deployment_info = json.load(f)
     return deployment_info
 
 
-def read_deployment_info_str(deployment_file="deployment.json"):
-    with open(deployment_file, "r") as f:
+def read_deployment_info_str(ctx, deployment_file="deployment.json"):
+    with open(op.join(ctx.envdir, deployment_file), "r") as f:
         deployment_info_str = f.read()
     return deployment_info_str
 
@@ -37,8 +37,8 @@ def read_test_script(compose_info):
         return None
 
 
-def read_compose_info(compose_info_file="result"):
-    with open(compose_info_file, "r") as f:
+def read_compose_info(ctx, compose_info_file="result"):
+    with open(op.join(ctx.envdir, compose_info_file), "r") as f:
         compose_info = json.load(f)
     return compose_info
 
@@ -69,9 +69,9 @@ def populate_deployment_vm_by_ip(nodes_info):
     return deployment, ips
 
 
-def generate_deployment_vm(compose_info, ssh_pub_key_file=None):
+def generate_deployment_vm(ctx, compose_info, ssh_pub_key_file=None):
     if not compose_info:
-        compose_info = read_compose_info()
+        compose_info = read_compose_info(ctx)
 
     if not ssh_pub_key_file:
         ssh_pub_key_file = os.environ["HOME"] + "/.ssh/id_rsa.pub"
@@ -92,7 +92,7 @@ def generate_deployment_vm(compose_info, ssh_pub_key_file=None):
     #        deployment[k] = compose_info[k]
 
     json_deployment = json.dumps(deployment, indent=2)
-    with open("deployment.json", "w") as outfile:
+    with open(op.join(ctx.envdir,"deployment.json"), "w") as outfile:
         outfile.write(json_deployment)
 
     return deployment, ips
@@ -121,9 +121,10 @@ def wait_ssh_ports(ctx, ips, halo=True):
         ctx.log("All ssh ports are opened")
 
 
-def copy_result_from_store(store_copy_dir, compose_info=None):
+def copy_result_from_store(ctx, compose_info=None):
+    store_copy_dir = ctx.envdir
     if not compose_info:
-        compose_info = read_compose_info()
+        compose_info = read_compose_info(ctx)
 
     new_compose_info = compose_info.copy()
 
