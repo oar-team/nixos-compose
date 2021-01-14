@@ -30,9 +30,10 @@ class NixosComposeCLI(click.MultiCommand):
 
 @click.command(cls=NixosComposeCLI, context_settings=CONTEXT_SETTINGS, chain=True)
 @click.option(
-    "--envdir", "-d",
+    "--envdir",
+    "-d",
     type=click.Path(file_okay=False, resolve_path=True),
-    default=op.abspath('./nxc'), 
+    default=op.abspath("./nxc"),
     help="Changes the folder to operate on.",
 )
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose mode.")
@@ -51,6 +52,7 @@ def cli(ctx, envdir, verbose, debug):
     ctx.verbose = verbose
     ctx.debug = debug
     ctx.update()
+
 
 def main(args=sys.argv[1:]):
     cli(args)

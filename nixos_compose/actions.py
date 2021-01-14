@@ -92,7 +92,7 @@ def generate_deployment_vm(ctx, compose_info, ssh_pub_key_file=None):
     #        deployment[k] = compose_info[k]
 
     json_deployment = json.dumps(deployment, indent=2)
-    with open(op.join(ctx.envdir,"deployment.json"), "w") as outfile:
+    with open(op.join(ctx.envdir, "deployment.json"), "w") as outfile:
         outfile.write(json_deployment)
 
     return deployment, ips
@@ -136,12 +136,12 @@ def copy_result_from_store(ctx, compose_info=None):
     else:
         for r, v in compose_info["nodes"].items():
             for target in ["kernel", "initrd", "qemu_script"]:
-                new_target =  op.join(store_copy_dir, target + "_" + r)
+                new_target = op.join(store_copy_dir, target + "_" + r)
                 shutil.copy(v[target], new_target)
                 new_compose_info["nodes"][target] = new_target
 
     if "test_script" in compose_info:
-        new_target =  op.join(store_copy_dir, "test_script")
+        new_target = op.join(store_copy_dir, "test_script")
         shutil.copy(compose_info["test_script"], new_target)
         new_compose_info["test_script"] = new_target
 

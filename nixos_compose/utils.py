@@ -4,11 +4,12 @@ import shutil
 
 import click
 
+
 def touch(fname, times=None):
-    dirname = '/'.join(fname.split('/')[:-1])
+    dirname = "/".join(fname.split("/")[:-1])
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    with open(fname, 'a'):
+    with open(fname, "a"):
         os.utime(fname, times)
 
 
@@ -32,14 +33,14 @@ def copy_tree(src, dest, overwrite=False, ignore_if_exists=[]):
     """
     if os.path.exists(dest) and not overwrite:
         raise click.ClickException("File exists : '%s'" % dest)
-    create = click.style('   create', fg="green")
-    chmod = click.style('    chmod', fg="cyan")
-    overwrite = click.style('overwrite', fg="yellow")
-    identical = click.style('identical', fg="blue")
-    ignore = click.style('   ignore', fg="magenta")
+    create = click.style("   create", fg="green")
+    chmod = click.style("    chmod", fg="cyan")
+    overwrite = click.style("overwrite", fg="yellow")
+    identical = click.style("identical", fg="blue")
+    ignore = click.style("   ignore", fg="magenta")
     cwd = os.getcwd() + "/"
     for path, dirs, files in os.walk(src):
-        relative_path = path[len(src):].lstrip(os.sep)
+        relative_path = path[len(src) :].lstrip(os.sep)
         if not op.exists(op.join(dest, relative_path)):
             os.mkdir(op.join(dest, relative_path))
         for filename in files:
@@ -60,4 +61,3 @@ def copy_tree(src, dest, overwrite=False, ignore_if_exists=[]):
             else:
                 click.echo("   " + create + "  " + fancy_relative_path)
                 copy_file(src_file_path, dest_file_path)
-            

@@ -37,22 +37,21 @@ class Context(object):
 
     @property
     def state(self):
-        if not hasattr(self, '_state'):
-            self._state = State(self,
-                                state_file=self.state_file)
+        if not hasattr(self, "_state"):
+            self._state = State(self, state_file=self.state_file)
         return self._state
-
 
     def update(self):
         self.state_file = op.join(self.envdir, "state.json")
-    
+
     def assert_valid_env(self):
         if not os.path.isdir(self.envdir):
-            raise click.ClickException("Missing nixos composition environment directory."
-                                       " Run `nxc init` to create"
-                                       " a new composition environment ")
+            raise click.ClickException(
+                "Missing nixos composition environment directory."
+                " Run `nxc init` to create"
+                " a new composition environment "
+            )
 
-                
     def log(self, msg, *args, **kwargs):
         """Logs a message to stdout."""
         if args:
@@ -100,6 +99,7 @@ def make_pass_decorator(ensure=False):
 
     return decorator
 
+
 class DeprecatedCmdDecorator(object):
     """This is a decorator which can be used to mark cmd as deprecated. It will
     result in a warning being emmitted when the command is invoked."""
@@ -111,15 +111,18 @@ class DeprecatedCmdDecorator(object):
             self.message = message
 
     def __call__(self, f):
-
         @click.pass_context
         def new_func(ctx, *args, **kwargs):
-            msg = click.style("warning: `%s` command is deprecated. %s" %
-                              (ctx.info_name, self.message), fg="yellow")
+            msg = click.style(
+                "warning: `%s` command is deprecated. %s"
+                % (ctx.info_name, self.message),
+                fg="yellow",
+            )
             click.echo(msg)
             return ctx.invoke(f, *args, **kwargs)
 
         return update_wrapper(new_func, f)
+
 
 class OnStartedDecorator(object):
     def __init__(self, callback):
@@ -143,6 +146,7 @@ class OnStartedDecorator(object):
             finally:
                 if not self.exec_before:
                     self.invoke_callback(ctx)
+
         return update_wrapper(new_func, f)
 
 
@@ -150,6 +154,7 @@ class OnFinishedDecorator(OnStartedDecorator):
     def __init__(self, callback):
         super(on_finished, self).__init__(callback)
         self.exec_before = False
+
 
 pass_context = make_pass_decorator(ensure=True)
 on_started = OnStartedDecorator

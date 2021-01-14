@@ -6,7 +6,7 @@ import os.path as op
 
 import click
 
-from ..context import pass_context, on_started, on_finished 
+from ..context import pass_context, on_started, on_finished
 from ..actions import read_compose_info, copy_result_from_store
 
 
@@ -26,30 +26,52 @@ from ..actions import read_compose_info, copy_result_from_store
 @click.option(
     "--copy-from-store", "-c", is_flag=True, help="copy artifact from Nix store"
 )
+@click.option(
+    "--experimental-nix",
+    "-e",
+    is_flag=True,
+    help="Use new CLI of Nix (need version 3 or above).",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
 @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
-    ctx, composition_file, nix_path, out_link, nixpkgs, nixos_test, copy_from_store
+    ctx,
+    composition_file,
+    nix_path,
+    out_link,
+    nixpkgs,
+    nixos_test,
+    copy_from_store,
+    experimental_nix,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
     ctx.log("Starting build")
-    
-    if not composition_file:
-        composition_file = ctx.nxc['composition']
 
-    compose_file = op.join(ctx.envdir, 'nix/compose.nix')
-        
-    if out_link == 'result':
+    if not composition_file:
+        composition_file = ctx.nxc["composition"]
+
+    compose_file = op.join(ctx.envdir, "nix/compose.nix")
+
+    if out_link == "result":
         out_link = op.join(ctx.envdir, out_link)
 
-    build_cmd = f"nix build -f {composition_file} -I compose={compose_file}"
+    if experimental_nix:
+        nix_cmd = f"nix build -f"
+    else:
+        nix_cmd = f"nix-build"
+
+    build_cmd = f"{nix_cmd} {composition_file} -I compose={compose_file}"
     build_cmd += f" -I nixpkgs={nixpkgs} -o {out_link}"
+
     if nixos_test:
-        build_cmd += " driver"
+        if experimental_nix:
+            build_cmd += " driver"
+        else:
+            build_cmd += " -A driver"
 
     ctx.vlog(build_cmd)
     subprocess.call(build_cmd, shell=True)
@@ -58,5 +80,5 @@ def cli(
         copy_result_from_store(ctx, read_compose_info(ctx))
 
     ctx.state["built"] = True
-        
+
     ctx.glog("Build completed")
