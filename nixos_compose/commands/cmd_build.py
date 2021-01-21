@@ -11,7 +11,7 @@ from ..actions import read_compose_info, copy_result_from_store
 
 
 @click.command("build")
-@click.argument("composition_file", required=False, type=click.STRING)
+@click.argument("composition_file", required=False, type=click.Path(exists=True, resolve_path=True))
 @click.option(
     "--nix-path",
     "-I",
@@ -27,10 +27,10 @@ from ..actions import read_compose_info, copy_result_from_store
     "--copy-from-store", "-c", is_flag=True, help="copy artifact from Nix store"
 )
 @click.option(
-    "--experimental-nix",
-    "-e",
+    "--legacy-nix",
+    "-l",
     is_flag=True,
-    help="Use new CLI of Nix (need version 3 or above).",
+    help="Use legacy Nix's CLI.",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
@@ -43,7 +43,7 @@ def cli(
     nixpkgs,
     nixos_test,
     copy_from_store,
-    experimental_nix,
+    legacy_nix
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -59,7 +59,7 @@ def cli(
     if out_link == "result":
         out_link = op.join(ctx.envdir, out_link)
 
-    if experimental_nix:
+    if legacy_nix:
         nix_cmd = f"nix build -f"
     else:
         nix_cmd = f"nix-build"
@@ -68,7 +68,7 @@ def cli(
     build_cmd += f" -I nixpkgs={nixpkgs} -o {out_link}"
 
     if nixos_test:
-        if experimental_nix:
+        if legacy_nix:
             build_cmd += " driver"
         else:
             build_cmd += " -A driver"
