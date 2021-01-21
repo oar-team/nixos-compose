@@ -5,7 +5,6 @@ from xml.sax.saxutils import XMLGenerator
 import queue
 import io
 import _thread
-import argparse
 import atexit
 import base64
 import codecs
@@ -25,7 +24,6 @@ import time
 import traceback
 import unicodedata
 import json
-from os import path
 from base64 import b64encode
 
 
@@ -909,7 +907,7 @@ def run_tests() -> None:
             try:
                 exec(tests, globals())
             except Exception as e:
-                eprint("error: ")
+                eprint(f"error: {e}")
                 traceback.print_exc()
                 sys.exit(1)
     else:
@@ -1058,7 +1056,7 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
             try:
                 exec(test_script, globals())
             except Exception as e:
-                eprint("error: ")
+                eprint(f"error: {e}")
                 traceback.print_exc()
                 sys.exit(1)
         log.log("test script ended")
