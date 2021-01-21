@@ -11,9 +11,10 @@ halo = "^0.0.31"
 ptpython = "^3.0.7"
 
 [tool.poetry.dev-dependencies]
-mypy = "^0.790.0"
-black = "^19.10b0"
+#mypy = "^0.790.0"
+#black = "^19.10b0"
 pytest = "^3.0"
+pre-commit = { version = "^2.6", python = "^3.6.1" }
 
 [tool.poetry.scripts]
 nixos-compose = 'nixos_compose.cli:main'
@@ -22,3 +23,15 @@ nxc = 'nixos_compose.cli:main'
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
+    
+[tool.black]
+line-length = 88
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | nix
+  | examples
+)/
+'''
