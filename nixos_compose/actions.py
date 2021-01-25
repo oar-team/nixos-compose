@@ -1,10 +1,13 @@
 import json
 import os
 import os.path as op
+import socket
 import sys
 import subprocess
 import time
 import shutil
+import base64
+import click
 from halo import Halo
 from .driver import driver_mode
 
@@ -16,6 +19,9 @@ DRIVER_MODES = {
 }
 
 
+##
+# Generate/manipulate/copy deploy, compose files
+#
 def read_deployment_info(ctx, deployment_file="deployment.json"):
     with open(op.join(ctx.envdir, deployment_file), "r") as f:
         deployment_info = json.load(f)
@@ -28,17 +34,28 @@ def read_deployment_info_str(ctx, deployment_file="deployment.json"):
     return deployment_info_str
 
 
-def read_test_script(compose_info):
-    if "test_script" in compose_info:
-        with open(compose_info["test_script"], "r") as f:
-            test_script = f.read()
-        return test_script
+def read_test_script(compose_info_or_str):
+    if isinstance(compose_info_or_str, str):
+        filename = compose_info_or_str
+    elif "test_script" in compose_info_or_str:
+        filename = compose_info_or_str["test_script"]
     else:
         return None
+    with open(filename, "r") as f:
+        test_script = f.read()
+        return test_script
 
 
-def read_compose_info(ctx, compose_info_file="result"):
-    with open(op.join(ctx.envdir, compose_info_file), "r") as f:
+def read_compose_info(ctx, compose_info_filename="result"):
+    compose_info_file = op.join(ctx.envdir, compose_info_filename)
+    if compose_info_filename == "result" and not op.isfile(compose_info_file):
+        compose_info_file = op.join(ctx.envdir, "compose_info.json")
+        if not op.isfile(compose_info_file):
+            raise click.ClickException(
+                f"{compose_info_filename} does not exist neither compose_info.json"
+            )
+
+    with open(compose_info_file, "r") as f:
         compose_info = json.load(f)
     return compose_info
 
@@ -49,9 +66,10 @@ def get_hosts_ip(hostsfile):
     for host in open(hostsfile, "r"):
         host = host.rstrip()
         if host and (host not in host2ip):
-            ip = socket.gethostbyname_ex("host")[2][0]
+            ip = socket.gethostbyname_ex(host)[2][0]
             host2ip[host] = ip
             hips.append(ip)
+    return (hips, host2ip)
 
 
 def populate_deployment_vm_by_ip(nodes_info):
@@ -69,7 +87,19 @@ def populate_deployment_vm_by_ip(nodes_info):
     return deployment, ips
 
 
-def generate_deployment_vm(ctx, compose_info, ssh_pub_key_file=None):
+def populate_deployment_ips(nodes_info, ips):
+    i = 0
+    deployment = {}
+    for role, v in nodes_info.items():
+        ip = ips[i]
+        ips.append(ip)
+        deployment[ip] = {"role": role, "init": v["init"]}
+        i = i + 1
+
+    return deployment
+
+
+def generate_deployment(ctx, compose_info, ips=None, ssh_pub_key_file=None):
     if not compose_info:
         compose_info = read_compose_info(ctx)
 
@@ -78,7 +108,10 @@ def generate_deployment_vm(ctx, compose_info, ssh_pub_key_file=None):
     with open(ssh_pub_key_file, "r") as f:
         sshkey_pub = f.read().rstrip()
 
-    deployment, ips = populate_deployment_vm_by_ip(compose_info["nodes"])
+    if ips:
+        deployment = populate_deployment_ips(compose_info["nodes"], ips)
+    else:
+        deployment, ips = populate_deployment_vm_by_ip(compose_info["nodes"])
     deployment = {
         "ssh_key.pub": sshkey_pub,
         "deployment": deployment,
@@ -98,27 +131,54 @@ def generate_deployment_vm(ctx, compose_info, ssh_pub_key_file=None):
     return deployment, ips
 
 
-def wait_ssh_ports(ctx, ips, halo=True):
-    ctx.log("Waiting ssh ports:")
-    nb_ips = len(ips)
-    nb_ssh_port = 0
-    waiting_ssh_ports_cmd = (
-        f"nmap -p22 -Pn {' '.join(ips)} -oG - | grep '22/open' | wc -l"
-    )
-    ctx.vlog(waiting_ssh_ports_cmd)
-    if halo:
-        spinner = Halo(text=f"Opened ssh ports 0/{nb_ips}", spinner="dots")
-        spinner.start()
-    while nb_ssh_port != nb_ips:
-        output = subprocess.check_output(waiting_ssh_ports_cmd, shell=True)
-        nb_ssh_port = int(output.rstrip().decode())
-        if halo:
-            spinner.text = f"Opened ssh ports: {nb_ssh_port}/{nb_ips}"
-        time.sleep(0.25)
-    if halo:
-        spinner.succeed("All ssh ports are opened")
+def generate_kexec_scripts(ctx, deployment_info, deployinfo_b64):
+    # deploy = "deploy=http://172.16.31.101:8000/deployment.json"
+    kexec_scripts_path = os.path.join(ctx.envdir, "kexec_scripts")
+    os.makedirs(kexec_scripts_path, mode=0o700, exist_ok=True)
+
+    if "all" in deployment_info:
+        kernel_path = f"{ctx.envdir}/kernel"
+        initrd_path = f"{ctx.envdir}/initrd"
+        kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
+        kexec_args += (
+            f"--append='deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
+        )
+        script_path = os.path.join(kexec_scripts_path, "kexec.sh")
+        with open(script_path, "w") as kexec_script:
+            kexec_script.write("#!/usr/bin/env bash\n")
+            kexec_script.write(": ''${SUDO:=sudo}\n")
+            kexec_script.write(f"$SUDO kexec {kexec_args}\n")
+            kexec_script.write("$SUDO kexec -e\n")
+        os.chmod(script_path, 0o755)
     else:
-        ctx.log("All ssh ports are opened")
+        for ip, v in deployment_info["deployment"].items():
+            role = v["role"]
+            kernel_path = f"{ctx.envdir}/kernel_{role}"
+            initrd_path = f"{ctx.envdir}/initrd_{role}"
+            init_path = v["init"]
+            kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
+            kexec_args += f"--append='init={init_path} deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
+
+            script_path = os.path.join(kexec_scripts_path, f"kexec_{role}.sh")
+            with open(script_path, "w") as kexec_script:
+                kexec_script.write("#!/usr/bin/env bash\n")
+                kexec_script.write(": ''${SUDO:=sudo}\n")
+                kexec_script.write(f"$SUDO kexec {kexec_args}\n")
+                kexec_script.write("$SUDO kexec -e\n")
+
+            os.chmod(script_path, 0o755)
+
+
+def generate_deploy_info_b64(ctx, deployment):
+    deployment_info_str = json.dumps(deployment)
+    deploy_info_b64 = base64.b64encode(deployment_info_str.encode()).decode()
+
+    if len(deploy_info_b64) > (4096 - 256):
+        ctx.log(
+            "The base64 encoded deploy data is too large: use an http server to serve it"
+        )
+        sys.exit(1)
+    return deploy_info_b64
 
 
 def copy_result_from_store(ctx, compose_info=None):
@@ -145,10 +205,51 @@ def copy_result_from_store(ctx, compose_info=None):
         shutil.copy(compose_info["test_script"], new_target)
         new_compose_info["test_script"] = new_target
 
-    # save new updated compose_indo
+    # save new updated compose_info
     json_new_compose_info = json.dumps(new_compose_info, indent=2)
-    with open("compose_info.json", "w") as outfile:
+    with open(op.join(store_copy_dir, "compose_info.json"), "w") as outfile:
         outfile.write(json_new_compose_info)
+
+
+##
+#  Operation: connect, launch, wait_ssh_port,
+#
+
+
+def launch_ssh_kexec(ctx, deployment_info, ssh="ssh", sudo=None):
+    if "all" in deployment_info:
+        kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
+        if sudo:
+            sudo = f"SUDO={sudo} "
+        else:
+            sudo = ""
+        for ip in deployment_info["deployment"].keys():
+            ssh_cmd = f'{ssh} {ip} "screen -dm bash -c \\"{sudo}{kexec_script}\\""'
+            print(ssh_cmd)
+            subprocess.call(ssh_cmd, shell=True)
+
+
+def wait_ssh_ports(ctx, ips, halo=True):
+    ctx.log("Waiting ssh ports:")
+    nb_ips = len(ips)
+    nb_ssh_port = 0
+    waiting_ssh_ports_cmd = (
+        f"nmap -p22 -Pn {' '.join(ips)} -oG - | grep '22/open' | wc -l"
+    )
+    ctx.vlog(waiting_ssh_ports_cmd)
+    if halo:
+        spinner = Halo(text=f"Opened ssh ports 0/{nb_ips}", spinner="dots")
+        spinner.start()
+    while nb_ssh_port != nb_ips:
+        output = subprocess.check_output(waiting_ssh_ports_cmd, shell=True)
+        nb_ssh_port = int(output.rstrip().decode())
+        if halo:
+            spinner.text = f"Opened ssh ports: {nb_ssh_port}/{nb_ips}"
+        time.sleep(0.25)
+    if halo:
+        spinner.succeed("All ssh ports are opened")
+    else:
+        ctx.log("All ssh ports are opened")
 
 
 def connect(ctx, user, hostname):
