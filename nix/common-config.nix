@@ -8,7 +8,7 @@ flavour:
   #  "boot.panic_on_fail" # reboot the machine upon fatal boot issues
   #];
 
-  # TODO lib.versionAtLeast pkgs.lib.version "20.09" (under 20.09 mount overlay explicitly 
+  # TODO lib.versionAtLeast pkgs.lib.version "20.09" (under 20.09 mount overlay explicitly
   fileSystems."/nix/store" = {
     fsType = "overlay";
     device = "overlay";
@@ -70,7 +70,7 @@ flavour:
         : ''${SERVER_IP:=server=10.0.2.15}
         : ''${ROLE:=}
 
-        # zero padding: 2 digits vm_id 
+        # zero padding: 2 digits vm_id
         VM_ID=$(printf "%02d\n" $VM_ID)
 
         if [[ $DEPLOY == "1" ]]; then
@@ -78,7 +78,7 @@ flavour:
            TAP=1
         fi
 
-        if [ ! -S $QEMU_VDE_SOCKET/ctl ]; then 
+        if [ ! -S $QEMU_VDE_SOCKET/ctl ]; then
            if [ -z $TAP ]; then
               echo 'launch vde_switch'
               vde_switch -s $QEMU_VDE_SOCKET --dirmode 0700 &
@@ -87,7 +87,7 @@ flavour:
               sudo vde_switch -tap tap0 -s $QEMU_VDE_SOCKET --dirmode 0770 --group users&
               sudo ip addr add 10.0.2.1/24 dev tap0
               sudo ip link set dev tap0 up
-           fi   
+           fi
            slirpvde -d -s $QEMU_VDE_SOCKET  -dhcp
         fi
 
