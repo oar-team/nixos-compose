@@ -1,7 +1,7 @@
 let
 flavour = {
   name = "nixos-test";
-  nixpkgs = <nixpkgs>;  
+  nixpkgs = <nixpkgs>;
 };
 in
 import <compose> flavour ({ pkgs, ... }: {
@@ -10,11 +10,11 @@ import <compose> flavour ({ pkgs, ... }: {
 
       services.sshd.enable = true;
       networking.firewall.allowedTCPPorts = [ 80 ];
-      
+
       users.users.root.password = "nixos";
       services.openssh.permitRootLogin = lib.mkDefault "yes";
       services.mingetty.autologinUser = lib.mkDefault "root";
-      
+
 
     };
   };
