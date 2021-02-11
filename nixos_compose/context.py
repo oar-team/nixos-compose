@@ -27,6 +27,15 @@ class Context(object):
         self.workdir = self.current_dir
         self.debug = False
         self.prefix = "nxc"
+        self.mode = {}
+        self.flavour = {}
+        self.compose_info = None
+        self.deployment_info = None
+        self.deployment_info_b64 = ""
+        self.ip_addresses = []
+        self.host2ip_address = {}
+        self.ssh = ""
+        self.sudo = ""
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
@@ -72,10 +81,10 @@ class Context(object):
         if self.verbose:
             self.log(msg, *args, **{"file": sys.stderr})
 
-    def handle_error(self):
+    def handle_error(self, exception):
         exc_type, exc_value, tb = sys.exc_info()
         if not self.debug:
-            sys.stderr.write(u"\nError: %s\n" % exc_value)
+            sys.stderr.write(f"\nError: {exc_value}, exception {exception}\n")
             sys.exit(1)
         else:
             reraise(exc_type, exc_value, tb.tb_next)
@@ -92,8 +101,8 @@ def make_pass_decorator(ensure=False):
                 obj = ctx.find_object(Context)
             try:
                 return ctx.invoke(f, obj, *args[1:], **kwargs)
-            except:
-                obj.handle_error()
+            except Exception as e:
+                obj.handle_error(e)
 
         return update_wrapper(new_func, f)
 

@@ -26,6 +26,9 @@ import unicodedata
 import json
 from base64 import b64encode
 
+from .context import Context
+from .actions import launch_ssh_kexec
+
 
 CHAR_TO_KEY = {
     "A": "shift-a",
@@ -94,7 +97,8 @@ CHAR_TO_KEY = {
 log: "Logger"
 machines: "List[Machine]"
 machines_ips: "List[str]"
-mode: "Dict[str, Any]"
+# mode: "Dict[str, Any]"
+context: "Context"
 
 
 def eprint(*args: object, **kwargs: Any) -> None:
@@ -292,6 +296,7 @@ class Machine:
             os.makedirs(path, mode=0o700, exist_ok=True)
             return path
 
+        # TODO REMOTE/kexec_ssh case
         self.state_dir = os.path.join(tmp_dir, f"vm-state-{self.name}")
         if not args.get("keepVmState", False):
             self.cleanup_statedir()
@@ -302,13 +307,16 @@ class Machine:
         self.connected = False
         self.pid: Optional[int] = None
         self.socket = None
+        self.shell_path = None
+        self.shell_socket: Optional[int] = None
         self.monitor: Optional[socket.socket] = None
         self.allow_reboot = args.get("allowReboot", False)
         if "vm_id" in args:
             self.vm_id = args["vm_id"]
-            self.ip = args["ip"]
         if "init" in args:
             self.init = args["init"]
+        if "ip" in args:
+            self.ip = args["ip"]
 
     # TOREMOVE OR ADAPT
     @staticmethod
@@ -621,10 +629,15 @@ class Machine:
         if self.connected:
             return
 
-        with self.nested("waiting for the VM to finish booting"):
+        if context.mode["vm"]:
+            machine_type = "VM"
+        else:
+            machine_type = "host"
+
+        with self.nested(f"waiting for the {machine_type} to finish booting"):
             tic = time.time()
             self.start()
-            if mode["shell"] == "chardev":
+            if context.mode["shell"] == "chardev":
                 self.shell.recv(1024)
             # TODO: Timeout
             toc = time.time()
@@ -715,10 +728,16 @@ class Machine:
         self.send_monitor_command("sendkey {}".format(key))
 
     def start(self, ordered=False) -> None:
+        if context.mode["vm"]:
+            self.start_vm(ordered)
+        else:
+            self.start_ssh_kexec()
+
+    def start_vm(self, ordered=False) -> None:
         if self.booted:
             return
 
-        if mode["vm"] and not ordered:
+        if context.mode["vm"] and not ordered:
             self.log("WARNNING: mapping @ip-role can be WRONG (hint: use start_all())")
 
         self.log("starting vm")
@@ -740,7 +759,7 @@ class Machine:
         self.shell_socket = create_socket(self.shell_path)
 
         dev_shell = ""
-        if mode["shell"] == "chardev":
+        if context.mode["shell"] == "chardev":
             dev_shell = " -chardev socket,id=shell,path={}".format(self.shell_path)
             dev_shell += " -device virtconsole,chardev=shell"
 
@@ -772,7 +791,7 @@ class Machine:
                 "ROLE": f"role={self.name}",
             }
         )
-        if mode["image"]["distribution"] == "all-in-one":
+        if context.mode["image"]["distribution"] == "all-in-one":
             environment["INIT"] = self.init
 
         # print(self.script)
@@ -789,7 +808,7 @@ class Machine:
         print("accept monitor")
         self.monitor, _ = self.monitor_socket.accept()
         print("accept shell")
-        if mode["shell"] == "chardev":
+        if context.mode["shell"] == "chardev":
             self.shell, _ = self.shell_socket.accept()
 
         print("after accept")
@@ -815,7 +834,23 @@ class Machine:
         self.booted = True
         self.log("QEMU running (pid {})".format(self.pid))
 
+    def start_ssh_kexec(self) -> None:
+        self.log("launch ssh kexec")
+        launch_ssh_kexec(context)
+
     def socat(self) -> None:
+        def create_socket(path: str) -> socket.socket:
+            if os.path.exists(path):
+                os.unlink(path)
+            s = socket.socket(family=socket.AF_UNIX, type=socket.SOCK_STREAM)
+            s.bind(path)
+            s.listen(1)
+            return s
+
+        if not self.shell_socket:
+            self.shell_path = os.path.join(self.state_dir, "shell")
+            self.shell_socket = create_socket(self.shell_path)
+
         socat_cmd = "socat UNIX-CONNECT:{} EXEC:'ssh -o StrictHostKeyChecking=no root@{}' &".format(
             self.shell_path, self.ip
         )
@@ -879,13 +914,16 @@ def start_all() -> None:
     global machines
     global machines_ips
 
-    with log.nested("starting all VMs"):
+    with log.nested("starting all machines"):
         for machine in machines:
-            machine.start(ordered=True)  # ADD nowait_shell
-            if mode["vm"] and mode["image"]["distribution"] != ["all-in-one"]:
-                time.sleep(
-                    1.5
-                )  # TODO UGLY (wait dhcp's ip attribution) -> need static mapping ip/role
+            if context.mode["vm"]:
+                machine.start(ordered=True)  # ADD nowait_shell
+                if context.mode["image"]["distribution"] != ["all-in-one"]:
+                    time.sleep(
+                        1.5
+                    )  # TODO UGLY (wait dhcp's ip attribution) -> need static mapping ip/role
+            else:
+                machine.start(ordered=True)
 
 
 def join_all() -> None:
@@ -947,14 +985,19 @@ def check_ssh_port(hosts):
     log.log("All ssh ports are ready")
 
 
-def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None):
+# def driver_mode(ctx, driver_mode, flavour, deployment_info, driver_repl, test_script=None):
+def driver(ctx, driver_repl, test_script=None):
+    global context
+    context = ctx
 
-    global mode
-    mode = driver_mode
-    assert "vm" in driver_mode
-    assert "image" in flavour
+    mode = context.mode
 
-    mode["image"] = flavour["image"]
+    deployment = context.deployment_info
+
+    assert "vm" in mode
+    assert "image" in context.flavour
+
+    mode["image"] = context.flavour["image"]
 
     global machines
     machines = []
@@ -968,59 +1011,75 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
         vde_socket = vde_vlan[1]
         os.environ["QEMU_VDE_SOCKET"] = vde_socket
 
-    # TODO reduce deployment_info (remove keys vm_id qemu_script)
-    # deployment_info_str = json.dumps(deployment, separators=(',', ':'))
-    # qemu_append = ""
-    # if "ssh_key.pub" in deployment:
-    #     ssh_key_pub_b64 = b64encode(deployment["ssh_key.pub"].encode()).decode()
-    #     qemu_append = "ssh_key.pub:" + ssh_key_pub_b64
-    #     deployment.pop("ssh_key.pub")
+        # TODO reduce deployment_info (remove keys vm_id qemu_script)
+        # deployment_info_str = json.dumps(deployment, separators=(',', ':'))
+        # qemu_append = ""
+        # if "ssh_key.pub" in deployment:
+        #     ssh_key_pub_b64 = b64encode(deployment["ssh_key.pub"].encode()).decode()
+        #     qemu_append = "ssh_key.pub:" + ssh_key_pub_b64
+        #     deployment.pop("ssh_key.pub")
 
-    deployment_info_str = json.dumps(deployment)
-    deploy_info_b64 = b64encode(deployment_info_str.encode()).decode()
+        deployment_info_str = json.dumps(deployment)
+        deploy_info_b64 = b64encode(deployment_info_str.encode()).decode()
 
-    if len(deploy_info_b64) > (4096 - 256):
-        log.log(
-            "The base64 encoded deploy data is too large: use an http server to serve it"
-        )
-        sys.exit(1)
-
-    # os.environ["QEMU_APPEND"] = qemu_append
-    base_qemu_script = None
-    os.environ["DEPLOY"] = f"deploy:{deploy_info_b64}"
-    if mode["image"]["distribution"] == "all-in-one":
-        os.environ["KERNEL"] = deployment["all"]["kernel"]
-        os.environ["INITRD"] = deployment["all"]["initrd"]
-        base_qemu_script = deployment["all"]["qemu_script"]
-
-    ips = []
-    for i in range(len(deployment["deployment"])):
-        ip = "10.0.2.{}".format(15 + i)
-        ips.append(ip)
-        if ip not in deployment["deployment"]:
-            log.log(f"In vm mode, {ip} must be present")
-            sys.exit(1)
-        v = deployment["deployment"][ip]
-
-        name = v["role"]
-
-        if base_qemu_script:
-            qemu_script = base_qemu_script
-        else:
-            qemu_script = v["qemu_script"]
-
-        machines.append(
-            create_machine(
-                {
-                    "name": name,
-                    "startCommand": qemu_script,
-                    "ip": ip,
-                    "vm_id": v["vm_id"],
-                    "keepVmState": False,
-                    "init": v["init"],
-                }
+        if len(deploy_info_b64) > (4096 - 256):
+            log.log(
+                "The base64 encoded deploy data is too large: use an http server to serve it"
             )
-        )
+            sys.exit(1)
+
+        # os.environ["QEMU_APPEND"] = qemu_append
+        base_qemu_script = None
+        os.environ["DEPLOY"] = f"deploy:{deploy_info_b64}"
+        if mode["image"]["distribution"] == "all-in-one":
+            os.environ["KERNEL"] = deployment["all"]["kernel"]
+            os.environ["INITRD"] = deployment["all"]["initrd"]
+            base_qemu_script = deployment["all"]["qemu_script"]
+
+        ip_addresses = []
+        for i in range(len(deployment["deployment"])):
+            ip = "10.0.2.{}".format(15 + i)
+            ip_addresses.append(ip)
+            if ip not in deployment["deployment"]:
+                log.log(f"In vm mode, {ip} must be present")
+                sys.exit(1)
+            v = deployment["deployment"][ip]
+
+            name = v["role"]
+
+            if base_qemu_script:
+                qemu_script = base_qemu_script
+            else:
+                qemu_script = v["qemu_script"]
+
+            machines.append(
+                create_machine(
+                    {
+                        "name": name,
+                        "startCommand": qemu_script,
+                        "ip": ip,
+                        "vm_id": v["vm_id"],
+                        "keepVmState": False,
+                        "init": v["init"],
+                    }
+                )
+            )
+    else:
+        # ssh launching case
+        # TO CONTINUE
+        ip_addresses = ctx.ip_addresses
+        for ip, v in deployment["deployment"].items():
+            machines.append(
+                create_machine(
+                    {
+                        "name": v["role"],
+                        "startCommand": None,  # TOCHANGE ?
+                        "ip": ip,
+                        "keepVmState": False,
+                        "init": v["init"],
+                    }
+                )
+            )
 
     machine_eval = [
         "{0} = machines[{1}]".format(m.name, idx) for idx, m in enumerate(machines)
@@ -1041,16 +1100,25 @@ def driver_mode(driver_mode, flavour, deployment, driver_repl, test_script=None)
     exec("\n".join(machine_eval), globals())
 
     start_all()
-    check_ssh_port(ips)
+    if not mode["vm"]:
+        log.log("Waiting 10s for kexecs launching (and consequently sshds' shutdowns)")
+        time.sleep(10)
 
-    if mode["shell"] == "ssh":
+    check_ssh_port(ip_addresses)
+
+    if not mode["vm"]:
+        for machine in machines:
+            machine.booted = True
+
+    if mode["shell"] == "ssh":  # TODO move to connect
         for machine in machines:
             print("create socat link: {}".format(machine.name))
             machine.socat()
+            machine.connected = True
 
     if test_script is not None and not driver_repl:
         tic = time.time()
-        with log.nested("running the VM test script"):
+        with log.nested("running the test script"):
             # start machines in ascending order of Ips (to match ip/role distribution
             # done by slirp-vde's dhcp
             try:

@@ -9,16 +9,33 @@ import subprocess
 from ..context import pass_context, on_finished, on_started
 
 from ..actions import (
-    read_compose_info,
     read_test_script,
-    generate_deploy_info_b64,
-    generate_deployment,
+    generate_deployment_info,
     generate_kexec_scripts,
-    launch_driver_vm,
     get_hosts_ip,
-    launch_ssh_kexec,
+    # launch_ssh_kexec,
 )
 from ..httpd import HTTPDaemon
+from ..driver import driver
+
+DRIVER_MODES = {
+    "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
+    "vm": {"name": "vm", "vm": True, "shell": "chardev"},
+    "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
+}
+
+# def launch_driver_vm(
+#     ctx, httpd_port=0, driver_repl=False, test_script=None
+# ):
+#     ctx.mode = DRIVER_MODES["vm"]
+#     driver_mode(ctx,  driver_repl, test_script)
+#     # driver_vm(deployment, ips, test_script)
+
+# def launch_driver_ssh(
+#     ctx, httpd_port, driver_repl, test_script
+# ):
+#     ctx.mode = DRIVER_MODES["remote"]
+#     driver_mode(ctx, driver_repl, test_script)
 
 
 @click.command("start")
@@ -43,6 +60,9 @@ from ..httpd import HTTPDaemon
 def cli(ctx, driver_repl, machines_file, ssh, sudo):
     """Build multi Nixos composition."""
     ctx.log("Starting")
+
+    ctx.ssh = ssh
+    ctx.sudo = sudo
 
     if not ctx.state["built"]:
         raise click.ClickException(
@@ -69,25 +89,17 @@ def cli(ctx, driver_repl, machines_file, ssh, sudo):
         exit(0)
 
     ctx.log("Generate: deployment.json")
-    compose_info = read_compose_info(ctx)
-
-    flavour = None
-    if "flavour" in compose_info:
-        flavour = compose_info["flavour"]
-
-    ips = None
 
     if machines_file:
-        (ips, host2ip) = get_hosts_ip(machines_file)
-        print(ips, host2ip)
+        get_hosts_ip(ctx, machines_file)
+        print(ctx.ip_addresses, ctx.host2ip_address)
 
-    deployment, ips = generate_deployment(ctx, compose_info, ips)
+    generate_deployment_info(ctx)
 
     if machines_file:
-        deployinfo_b64 = generate_deploy_info_b64(ctx, deployment)
-        generate_kexec_scripts(ctx, deployment, deployinfo_b64)
-        launch_ssh_kexec(ctx, deployment, ssh, sudo)
-        exit(0)
+        generate_kexec_scripts(ctx)
+        # launch_ssh_kexec(ctx, deployment, None, ssh, sudo)
+        # exit(0)
 
     use_remote_deployment = False
     if use_remote_deployment:
@@ -95,8 +107,15 @@ def cli(ctx, driver_repl, machines_file, ssh, sudo):
         ctx.log(f"Launch httpd: port: {httpd.port}")
         httpd.start()
 
-    test_script = read_test_script(compose_info)
-    launch_driver_vm(ctx, deployment, flavour, ips, 0, driver_repl, test_script)
+    test_script = read_test_script(ctx.compose_info)
+
+    if machines_file:
+        ctx.mode = DRIVER_MODES["remote"]
+        # launch_driver_ssh(ctx, 0, driver_repl, test_script)
+    else:
+        ctx.mode = DRIVER_MODES["vm"]
+        # launch_driver_vm(ctx, 0, driver_repl, test_script)
+    driver(ctx, driver_repl, test_script)
     # launch_vm(ctx, deployment, 0)
     # wait_ssh_ports(ctx, ips, False)
     # httpd.stop()

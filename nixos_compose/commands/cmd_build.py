@@ -1,5 +1,3 @@
-import time
-import sys
 import subprocess
 
 import os.path as op
@@ -11,7 +9,9 @@ from ..actions import read_compose_info, copy_result_from_store
 
 
 @click.command("build")
-@click.argument("composition_file", required=False, type=click.Path(exists=True, resolve_path=True))
+@click.argument(
+    "composition_file", required=False, type=click.Path(exists=True, resolve_path=True)
+)
 @click.option(
     "--nix-path",
     "-I",
@@ -27,10 +27,7 @@ from ..actions import read_compose_info, copy_result_from_store
     "--copy-from-store", "-c", is_flag=True, help="copy artifact from Nix store"
 )
 @click.option(
-    "--legacy-nix",
-    "-l",
-    is_flag=True,
-    help="Use legacy Nix's CLI.",
+    "--legacy-nix", "-l", is_flag=True, help="Use legacy Nix's CLI.",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
@@ -43,7 +40,7 @@ def cli(
     nixpkgs,
     nixos_test,
     copy_from_store,
-    legacy_nix
+    legacy_nix,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -60,9 +57,9 @@ def cli(
         out_link = op.join(ctx.envdir, out_link)
 
     if legacy_nix:
-        nix_cmd = f"nix build -f"
+        nix_cmd = "nix build -f"
     else:
-        nix_cmd = f"nix-build"
+        nix_cmd = "nix-build"
 
     build_cmd = f"{nix_cmd} {composition_file} -I compose={compose_file}"
     build_cmd += f" -I nixpkgs={nixpkgs} -o {out_link}"

@@ -9,13 +9,14 @@ import shutil
 import base64
 import click
 from halo import Halo
-from .driver import driver_mode
+
+# from .driver import driver_mode
 
 
 DRIVER_MODES = {
     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
     "vm": {"name": "vm", "vm": True, "shell": "chardev"},
-    "default": {"name": "default", "vm": False, "shell": "ssh"},
+    "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
 }
 
 
@@ -25,6 +26,7 @@ DRIVER_MODES = {
 def read_deployment_info(ctx, deployment_file="deployment.json"):
     with open(op.join(ctx.envdir, deployment_file), "r") as f:
         deployment_info = json.load(f)
+
     return deployment_info
 
 
@@ -57,19 +59,22 @@ def read_compose_info(ctx, compose_info_filename="result"):
 
     with open(compose_info_file, "r") as f:
         compose_info = json.load(f)
-    return compose_info
+
+    if "flavour" in compose_info:
+        ctx.flavour = compose_info["flavour"]
+
+    ctx.compose_info = compose_info
+    return
 
 
-def get_hosts_ip(hostsfile):
-    host2ip = {}
-    hips = []
+def get_hosts_ip(ctx, hostsfile):
     for host in open(hostsfile, "r"):
         host = host.rstrip()
-        if host and (host not in host2ip):
+        if host and (host not in ctx.host2ip_address):
             ip = socket.gethostbyname_ex(host)[2][0]
-            host2ip[host] = ip
-            hips.append(ip)
-    return (hips, host2ip)
+            ctx.host2ip_address[host] = ip
+            ctx.ip_addresses.append(ip)
+    return
 
 
 def populate_deployment_vm_by_ip(nodes_info):
@@ -99,26 +104,30 @@ def populate_deployment_ips(nodes_info, ips):
     return deployment
 
 
-def generate_deployment(ctx, compose_info, ips=None, ssh_pub_key_file=None):
-    if not compose_info:
-        compose_info = read_compose_info(ctx)
+def generate_deployment_info(ctx, ssh_pub_key_file=None):
+    if not ctx.compose_info:
+        read_compose_info(ctx)
 
     if not ssh_pub_key_file:
         ssh_pub_key_file = os.environ["HOME"] + "/.ssh/id_rsa.pub"
     with open(ssh_pub_key_file, "r") as f:
         sshkey_pub = f.read().rstrip()
 
-    if ips:
-        deployment = populate_deployment_ips(compose_info["nodes"], ips)
+    if ctx.ip_addresses:
+        deployment = populate_deployment_ips(
+            ctx.compose_info["nodes"], ctx.ip_addresses
+        )
     else:
-        deployment, ips = populate_deployment_vm_by_ip(compose_info["nodes"])
+        deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
+            ctx.compose_info["nodes"]
+        )
     deployment = {
         "ssh_key.pub": sshkey_pub,
         "deployment": deployment,
     }
 
-    if "all" in compose_info:
-        deployment["all"] = compose_info["all"]
+    if "all" in ctx.compose_info:
+        deployment["all"] = ctx.compose_info["all"]
 
     # for k in ["all", "flavour"]:
     #    if k in compose_info:
@@ -128,15 +137,18 @@ def generate_deployment(ctx, compose_info, ips=None, ssh_pub_key_file=None):
     with open(op.join(ctx.envdir, "deployment.json"), "w") as outfile:
         outfile.write(json_deployment)
 
-    return deployment, ips
+    ctx.deployment_info = deployment
+    return
 
 
-def generate_kexec_scripts(ctx, deployment_info, deployinfo_b64):
+def generate_kexec_scripts(ctx):
     # deploy = "deploy=http://172.16.31.101:8000/deployment.json"
+    generate_deploy_info_b64(ctx)
+    deployinfo_b64 = ctx.deployment_info_b64
     kexec_scripts_path = os.path.join(ctx.envdir, "kexec_scripts")
     os.makedirs(kexec_scripts_path, mode=0o700, exist_ok=True)
 
-    if "all" in deployment_info:
+    if "all" in ctx.deployment_info:
         kernel_path = f"{ctx.envdir}/kernel"
         initrd_path = f"{ctx.envdir}/initrd"
         kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
@@ -151,14 +163,13 @@ def generate_kexec_scripts(ctx, deployment_info, deployinfo_b64):
             kexec_script.write("$SUDO kexec -e\n")
         os.chmod(script_path, 0o755)
     else:
-        for ip, v in deployment_info["deployment"].items():
+        for ip, v in ctx.deployment_info["deployment"].items():
             role = v["role"]
             kernel_path = f"{ctx.envdir}/kernel_{role}"
             initrd_path = f"{ctx.envdir}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
             kexec_args += f"--append='init={init_path} deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
-
             script_path = os.path.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
@@ -169,16 +180,16 @@ def generate_kexec_scripts(ctx, deployment_info, deployinfo_b64):
             os.chmod(script_path, 0o755)
 
 
-def generate_deploy_info_b64(ctx, deployment):
-    deployment_info_str = json.dumps(deployment)
-    deploy_info_b64 = base64.b64encode(deployment_info_str.encode()).decode()
+def generate_deploy_info_b64(ctx):
+    deployment_info_str = json.dumps(ctx.deployment_info)
+    ctx.deployment_info_b64 = base64.b64encode(deployment_info_str.encode()).decode()
 
-    if len(deploy_info_b64) > (4096 - 256):
+    if len(ctx.deployment_info_b64) > (4096 - 256):
         ctx.log(
             "The base64 encoded deploy data is too large: use an http server to serve it"
         )
         sys.exit(1)
-    return deploy_info_b64
+    return
 
 
 def copy_result_from_store(ctx, compose_info=None):
@@ -216,17 +227,27 @@ def copy_result_from_store(ctx, compose_info=None):
 #
 
 
-def launch_ssh_kexec(ctx, deployment_info, ssh="ssh", sudo=None):
-    if "all" in deployment_info:
+def launch_ssh_kexec(ctx, ip=None):
+    if "all" in ctx.deployment_info:
         kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
-        if sudo:
-            sudo = f"SUDO={sudo} "
+        if ctx.sudo:
+            sudo = f"SUDO={ctx.sudo} "
         else:
             sudo = ""
-        for ip in deployment_info["deployment"].keys():
-            ssh_cmd = f'{ssh} {ip} "screen -dm bash -c \\"{sudo}{kexec_script}\\""'
-            print(ssh_cmd)
+
+        def one_ssh_kexec(ip_addr):
+            ssh_cmd = (
+                f'{ctx.ssh} {ip_addr} "screen -dm bash -c \\"{sudo}{kexec_script}\\""'
+            )
             subprocess.call(ssh_cmd, shell=True)
+
+        if ip:
+            one_ssh_kexec(ip)
+        else:
+            for ip in ctx.deployment_info["deployment"].keys():
+                one_ssh_kexec(ip)
+    else:
+        raise Exception("Sorry, only all in one image version support up to now")
 
 
 def wait_ssh_ports(ctx, ips, halo=True):
@@ -268,13 +289,13 @@ def connect(ctx, user, hostname):
 
 # TODO launch_vm(ctx, kexec_info, debug=False):
 # TODO launch_vm_deploy(ctx, deployment, httpd_port=0, debug=False):
-def launch_vm(ctx, deployment, httpd_port=0, debug=False):
+def launch_vm(ctx, httpd_port=0, debug=False):
 
     if not os.path.exists("/tmp/kexec-qemu-vde1.ctl/ctl"):
         ctx.log("need sudo to create tap0 interface")
         subprocess.call("sudo true", shell=True)
 
-    for ip, v in deployment["deployment"].items():
+    for ip, v in ctx.deployment_info["deployment"].items():
         qemu_script = v["qemu_script"]
         # cmd_qemu_script = f"DEPLOY='deploy=http://10.0.2.1:{httpd_port}/deployment.json' TAP=1"
         #
@@ -301,8 +322,13 @@ def launch_vm(ctx, deployment, httpd_port=0, debug=False):
         # time.sleep(110)
 
 
-def launch_driver_vm(
-    ctx, deployment, flavour, ips, httpd_port=0, driver_repl=False, test_script=None
-):
-    driver_mode(DRIVER_MODES["vm"], flavour, deployment, driver_repl, test_script)
-    # driver_vm(deployment, ips, test_script)
+# def launch_driver_vm(
+#     ctx, deployment, flavour, ips, httpd_port=0, driver_repl=False, test_script=None
+# ):
+#     driver_mode(DRIVER_MODES["vm"], flavour, deployment, driver_repl, test_script)
+#     # driver_vm(deployment, ips, test_script)
+
+# def launch_driver_ssh(
+#         ctx, deployment, flavour, ips, httpd_port, driver_repl, test_script, ssh, sudo
+# ):
+#     driver_mode(DRIVER_MODES["remote"], flavour, deployment, driver_repl, test_script)
