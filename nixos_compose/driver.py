@@ -895,12 +895,16 @@ class Machine:
         interface used to talk to the other VMs).  We keep eth0 up so that
         the test driver can continue to talk to the machine.
         """
+
         self.send_monitor_command("set_link virtio-net-pci.1 off")
 
     def unblock(self) -> None:
         """Make the machine reachable.
         """
         self.send_monitor_command("set_link virtio-net-pci.1 on")
+
+    def uname(self) -> None:
+        self.execute("uname -a")
 
 
 def create_machine(args: Dict[str, Any]) -> Machine:

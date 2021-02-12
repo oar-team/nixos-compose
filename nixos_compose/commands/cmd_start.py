@@ -6,6 +6,9 @@ import os
 import os.path as op
 import subprocess
 
+import pyinotify
+import asyncio
+
 from ..context import pass_context, on_finished, on_started
 
 from ..actions import (
@@ -13,9 +16,10 @@ from ..actions import (
     generate_deployment_info,
     generate_kexec_scripts,
     get_hosts_ip,
-    # launch_ssh_kexec,
+    launch_ssh_kexec,
 )
-from ..httpd import HTTPDaemon
+
+# from ..httpd import HTTPDaemon
 from ..driver import driver
 
 DRIVER_MODES = {
@@ -24,18 +28,14 @@ DRIVER_MODES = {
     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
 }
 
-# def launch_driver_vm(
-#     ctx, httpd_port=0, driver_repl=False, test_script=None
-# ):
-#     ctx.mode = DRIVER_MODES["vm"]
-#     driver_mode(ctx,  driver_repl, test_script)
-#     # driver_vm(deployment, ips, test_script)
+machines_file_towait = ""
+notifier = None
 
-# def launch_driver_ssh(
-#     ctx, httpd_port, driver_repl, test_script
-# ):
-#     ctx.mode = DRIVER_MODES["remote"]
-#     driver_mode(ctx, driver_repl, test_script)
+
+class EventHandler(pyinotify.ProcessEvent):
+    def process_IN_CREATE(self, event):
+        if event.pathname == machines_file_towait:
+            notifier.loop.stop()
 
 
 @click.command("start")
@@ -43,9 +43,10 @@ DRIVER_MODES = {
 @click.option(
     "-f",
     "--machines-file",
-    type=click.Path(exists=True, resolve_path=True),
+    type=click.Path(resolve_path=True),
     help="file that contains remote machines names to (duplicates are considered as one).",
 )
+@click.option("-w", "--wait", is_flag=True, help="wait machnes-files creation")
 @click.option(
     "-s",
     "--ssh",
@@ -57,8 +58,8 @@ DRIVER_MODES = {
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
 @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, driver_repl, machines_file, ssh, sudo):
-    """Build multi Nixos composition."""
+def cli(ctx, driver_repl, machines_file, wait, ssh, sudo):
+    """Start multi Nixos composition."""
     ctx.log("Starting")
 
     ctx.ssh = ssh
@@ -68,6 +69,35 @@ def cli(ctx, driver_repl, machines_file, ssh, sudo):
         raise click.ClickException(
             "You need build composition first, with nxc build command"
         )
+
+    if not wait and not op.isfile(machines_file):
+        raise click.ClickException(f"{machines_file} file does not exist")
+
+    if wait:
+        if not machines_file:
+            raise click.ClickException(
+                "You need to provide --machines-files option with --wait"
+            )
+
+        if not op.isfile(machines_file):
+            ctx.log(f"Waiting {machines_file} file creation")
+
+            wm = pyinotify.WatchManager()  # Watch Manager
+            loop = asyncio.get_event_loop()
+
+            global notifier
+            notifier = pyinotify.AsyncioNotifier(
+                wm, loop, default_proc_fun=EventHandler()
+            )
+
+            global machines_file_towait
+            machines_file_towait = machines_file
+
+            # TODO race condition remains possible ....
+            wm.add_watch(op.dirname(machines_file), pyinotify.IN_CREATE)
+            loop.run_forever()
+            notifier.stop()
+            ctx.log(f"{machines_file} file created")
 
     nixos_test_driver = op.join(ctx.envdir, "result/bin/nixos-test-driver")
     if op.isfile(nixos_test_driver):
@@ -85,7 +115,6 @@ def cli(ctx, driver_repl, machines_file, ssh, sudo):
             qemu_opts = ""
         os.environ["QEMU_OPTS"] = f"{qemu_opts} -nographic"
         subprocess.call(nixos_test_driver, shell=True)
-        # subprocess.run(nixos_test_driver)
         exit(0)
 
     ctx.log("Generate: deployment.json")
@@ -98,23 +127,23 @@ def cli(ctx, driver_repl, machines_file, ssh, sudo):
 
     if machines_file:
         generate_kexec_scripts(ctx)
-        # launch_ssh_kexec(ctx, deployment, None, ssh, sudo)
-        # exit(0)
+        if not driver_repl:
+            launch_ssh_kexec(ctx)
+            exit(0)
 
-    use_remote_deployment = False
-    if use_remote_deployment:
-        httpd = HTTPDaemon()
-        ctx.log(f"Launch httpd: port: {httpd.port}")
-        httpd.start()
+    # use_remote_deployment = False
+    # if use_remote_deployment:
+    #     httpd = HTTPDaemon()
+    #     ctx.log(f"Launch httpd: port: {httpd.port}")
+    #     httpd.start()
 
     test_script = read_test_script(ctx.compose_info)
 
     if machines_file:
         ctx.mode = DRIVER_MODES["remote"]
-        # launch_driver_ssh(ctx, 0, driver_repl, test_script)
     else:
         ctx.mode = DRIVER_MODES["vm"]
-        # launch_driver_vm(ctx, 0, driver_repl, test_script)
+
     driver(ctx, driver_repl, test_script)
     # launch_vm(ctx, deployment, 0)
     # wait_ssh_ports(ctx, ips, False)
