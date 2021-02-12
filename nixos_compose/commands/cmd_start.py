@@ -1,6 +1,6 @@
 import click
 
-# import time
+import time
 import os
 
 import os.path as op
@@ -17,6 +17,7 @@ from ..actions import (
     generate_kexec_scripts,
     get_hosts_ip,
     launch_ssh_kexec,
+    wait_ssh_ports,
 )
 
 # from ..httpd import HTTPDaemon
@@ -128,7 +129,10 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo):
     if machines_file:
         generate_kexec_scripts(ctx)
         if not driver_repl:
+            ctx.log("Launch ssh kexec")
             launch_ssh_kexec(ctx)
+            time.sleep(10)
+            wait_ssh_ports(ctx)
             exit(0)
 
     # use_remote_deployment = False

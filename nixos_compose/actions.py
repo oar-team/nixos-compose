@@ -98,7 +98,6 @@ def populate_deployment_ips(nodes_info, ips):
     deployment = {}
     for role, v in nodes_info.items():
         ip = ips[i]
-        ips.append(ip)
         deployment[ip] = {"role": role, "init": v["init"]}
         i = i + 1
 
@@ -251,9 +250,12 @@ def launch_ssh_kexec(ctx, ip=None):
         raise Exception("Sorry, only all in one image version support up to now")
 
 
-def wait_ssh_ports(ctx, ips, halo=True):
+def wait_ssh_ports(ctx, ips=None, halo=True):
     ctx.log("Waiting ssh ports:")
+    if not ips:
+        ips = ctx.ip_addresses
     nb_ips = len(ips)
+
     nb_ssh_port = 0
     waiting_ssh_ports_cmd = (
         f"nmap -p22 -Pn {' '.join(ips)} -oG - | grep '22/open' | wc -l"
@@ -274,20 +276,57 @@ def wait_ssh_ports(ctx, ips, halo=True):
         ctx.log("All ssh ports are opened")
 
 
-def connect(ctx, user, hostname):
+def connect(ctx, user, host):
     if not ctx.deployment_info:
         read_deployment_info(ctx)
 
-    role = hostname
+    role = host
     for ip, v in ctx.deployment_info["deployment"].items():
         if v["role"] == role:
-            hostname = ip
+            host = ip
             break
-    ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {hostname}"
+    ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {host}"
     return_code = subprocess.run(ssh_cmd, shell=True).returncode
     if return_code:
         ctx.wlog(f"SSH exit code is not null: {return_code}")
     sys.exit(return_code)
+
+
+def connect_tmux(ctx, user, hosts=None, window_name="nxc"):
+
+    if not hosts:
+        hosts = ctx.deployment_info["deployment"].keys()
+    ssh_cmds = [
+        f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {h}"
+        for h in hosts
+    ]
+
+    if "TMUX" not in os.environ:
+        cmd = "tmux new  -d"
+        subprocess.call(cmd, shell=True)
+
+    cmd = f"tmux new-window -n {window_name} -d"
+    subprocess.call(cmd, shell=True)
+
+    cmd = f'tmux splitw -h -p 50 -t {window_name}.0 "{ssh_cmds[0]}"'
+    subprocess.call(cmd, shell=True)
+
+    num_panes = len(hosts) - 1
+
+    for i, ssh_cmd in enumerate(ssh_cmds[1:]):
+        ratio = round(100 * (1 - (1.0 / (1 + num_panes - i))))
+        cmd = f'tmux splitw -v -p {ratio} -t {window_name}.{i+1} "{ssh_cmd}"'
+        subprocess.call(cmd, shell=True)
+
+    cmd = f"tmux select-pane -t {window_name}.0"
+    subprocess.call(cmd, shell=True)
+
+    cmd = f"tmux select-window -t  {window_name}"
+    subprocess.call(cmd, shell=True)
+
+    if "TMUX" not in os.environ:
+        cmd = "tmux attach"
+        subprocess.call(cmd, shell=True)
 
 
 # TODO launch_vm(ctx, kexec_info, debug=False):
