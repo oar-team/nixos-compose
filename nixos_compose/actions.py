@@ -27,7 +27,8 @@ def read_deployment_info(ctx, deployment_file="deployment.json"):
     with open(op.join(ctx.envdir, deployment_file), "r") as f:
         deployment_info = json.load(f)
 
-    return deployment_info
+    ctx.deployment_info = deployment_info
+    return
 
 
 def read_deployment_info_str(ctx, deployment_file="deployment.json"):
@@ -274,9 +275,11 @@ def wait_ssh_ports(ctx, ips, halo=True):
 
 
 def connect(ctx, user, hostname):
-    deployment_info = read_deployment_info()
+    if not ctx.deployment_info:
+        read_deployment_info(ctx)
+
     role = hostname
-    for ip, v in deployment_info["deployment"].items():
+    for ip, v in ctx.deployment_info["deployment"].items():
         if v["role"] == role:
             hostname = ip
             break
