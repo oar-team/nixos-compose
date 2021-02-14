@@ -71,7 +71,7 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo):
             "You need build composition first, with nxc build command"
         )
 
-    if not wait and not op.isfile(machines_file):
+    if machines_file and not op.isfile(machines_file):
         raise click.ClickException(f"{machines_file} file does not exist")
 
     if wait:
