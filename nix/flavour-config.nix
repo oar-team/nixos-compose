@@ -1,5 +1,8 @@
 flavour:
-if (flavour ? vm) && flavour.vm then
+let
+  commonModules = [ ./netboot.nix ./base.nix ]
+    ++ (if (flavour ? extraModule) then [ flavour.extraModule ] else [ ]);
+in if (flavour ? vm) && flavour.vm then
   { lib, config, modulesPath, ... }: {
     vm-shared-dir.enable = true;
     imports = [
@@ -7,10 +10,7 @@ if (flavour ? vm) && flavour.vm then
       "${toString modulesPath}/profiles/qemu-guest.nix"
       ./base-hardware.nix
       ./installation-device.nix
-      ./netboot.nix
-      ./base.nix
-      #"${toString modulesPath}/testing/test-instrumentation.nix"
-    ];
+    ] ++ commonModules;
   }
 else
   { lib, config, ... }: {
@@ -19,8 +19,5 @@ else
       <nixpkgs/nixos/modules/profiles/base.nix>
       <nixpkgs/nixos/modules/profiles/installation-device.nix>
       <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
-      ./netboot.nix
-      ./base.nix
-      #"${toString modulesPath}/testing/test-instrumentation.nix"
-    ];
+    ] ++ commonModules;
   }

@@ -59,6 +59,6 @@ in let
 in {
   composeInfo = pkgs.writeText "compose-info.json" (builtins.toJSON ({
     test_script = testScriptFile;
-    flavour = flavour;
+    flavour = pkgs.lib.filterAttrs (n: v: n != "extraModule") flavour;
   } // imageInfo));
 }
