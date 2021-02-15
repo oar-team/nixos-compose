@@ -80,6 +80,9 @@ with lib;
     boot.initrd.extraUtilsCommands = ''
       copy_bin_and_libs ${pkgs.jq}/bin/jq
 
+      #copy_bin_and_libs ${pkgs.iproute}/bin/ip
+      #copy_bin_and_libs ${pkgs.gawk}/bin/awk
+
       #copy_bin_and_libs ${pkgs.strace}/bin/strace
       #cp -pv ${pkgs.glibc}/lib/libgcc_s.so.1 $out/lib
 
@@ -101,6 +104,12 @@ with lib;
          cat /etc/static/hosts > /etc/hosts
          cat /etc/deployment-hosts >> /etc/hosts
       fi
+      # Execute post boot scripts optionally provided through flavour/extraModules or composition
+      for post_boot_script in $(ls -d /etc/post-boot-script* 2> /dev/null);
+      do
+         echo execute $post_boot_script
+         $post_boot_script
+      done
 
       # After booting, register the contents of the Nix store
       # in the Nix database in the tmpfs.

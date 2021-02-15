@@ -14,6 +14,11 @@
 
   boot.initrd.postMountCommands = ''
     mkdir -p /mnt-root/etc
+
+    set -- $(IFS=' '; echo $(ip route get 1.0.0.0))
+    ip_addr=$7
+    echo $ip_addr > /mnt-root/etc/ip_addr
+
     for o in $(cat /proc/cmdline); do
         case $o in
             server=*)
