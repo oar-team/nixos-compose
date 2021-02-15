@@ -5,7 +5,7 @@ import os.path as op
 import click
 
 from ..context import pass_context, on_started, on_finished
-from ..actions import read_compose_info, copy_result_from_store
+from ..actions import copy_result_from_store
 
 
 @click.command("build")
@@ -74,7 +74,7 @@ def cli(
     subprocess.call(build_cmd, shell=True)
 
     if copy_from_store:
-        copy_result_from_store(ctx, read_compose_info(ctx))
+        copy_result_from_store(ctx)
 
     ctx.state["built"] = True
 

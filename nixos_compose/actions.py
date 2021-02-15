@@ -192,10 +192,12 @@ def generate_deploy_info_b64(ctx):
     return
 
 
-def copy_result_from_store(ctx, compose_info=None):
+def copy_result_from_store(ctx):
     store_copy_dir = ctx.envdir
-    if not compose_info:
-        compose_info = read_compose_info(ctx)
+    if not ctx.compose_info:
+        read_compose_info(ctx)
+
+    compose_info = ctx.compose_info
 
     new_compose_info = compose_info.copy()
 
@@ -220,6 +222,8 @@ def copy_result_from_store(ctx, compose_info=None):
     json_new_compose_info = json.dumps(new_compose_info, indent=2)
     with open(op.join(store_copy_dir, "compose_info.json"), "w") as outfile:
         outfile.write(json_new_compose_info)
+
+    ctx.compose_info = new_compose_info
 
 
 ##
