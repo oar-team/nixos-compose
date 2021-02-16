@@ -1,10 +1,9 @@
 let
-flavour = {
-  name = "vm";
-  nixpkgs = <nixpkgs>;
-};
-in
-import <compose> flavour ({ pkgs, ... }: {
+  flavour = {
+    name = "vm";
+    nixpkgs = <nixpkgs>;
+  };
+in import <compose> flavour ({ pkgs, ... }: {
   nodes = {
     server = { pkgs, ... }: {
       services.nginx = {

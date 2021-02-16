@@ -1,12 +1,6 @@
-let
-flavour = {
-  name = "nixos-test";
-  nixpkgs = <nixpkgs>;
-};
-in
-import <compose> flavour ({ pkgs, ... }: {
+import <compose> <flavour> ({ pkgs, ... }: {
   nodes = {
-    yop = { pkgs, lib, ... }: {
+    foo = { pkgs, lib, ... }: {
 
       services.sshd.enable = true;
       networking.firewall.allowedTCPPorts = [ 80 ];
@@ -15,10 +9,9 @@ import <compose> flavour ({ pkgs, ... }: {
       services.openssh.permitRootLogin = lib.mkDefault "yes";
       services.mingetty.autologinUser = lib.mkDefault "root";
 
-
     };
   };
   testScript = ''
-    yop.succeed("true")
+    foo.succeed("true")
   '';
 })

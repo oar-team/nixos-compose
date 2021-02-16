@@ -1,4 +1,4 @@
-import <compose> <nixpkgs> ({ pkgs, ... }: {
+import <compose> <flavour> ({ pkgs, ... }: {
   nodes = {
     server = { pkgs, ... }: {
       services.nginx = {
