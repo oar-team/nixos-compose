@@ -1,34 +1,23 @@
-flavourOptions: composition:
+flavourOptionsRaw: composition:
 
 let
+  flavours = import ./flavours-meta.nix;
 
-  flavours = {
-    vm = {
-      name = "vm";
-      vm = true;
-      image = {
-        type = "ramdisk";
-        distribution = "all-in-one";
-      };
-    };
-  };
+  flavourOptions = if builtins.typeOf flavourOptionsRaw == "path" then
+  # -I flavour=./flavours/kexec-g5k.nix (import set))
+    import flavourOptionsRaw
+  else
+    flavourOptionsRaw;
 
   nixpkgs =
-    if flavourOptions ? nixpkgs then flavourOptions.nixpkgs else flavourOptions;
+    if flavourOptions ? nixpkgs then flavourOptions.nixpkgs else <nixpkgs>;
 
-  flavour = if flavourOptions ? nixpkgs then
-    if flavourOptions ? name then
-      if flavours ? "${flavourOptions.name}" then
-        flavours."${flavourOptions.name}" // flavourOptions
-      else
-        flavourOptions
-    else
-      "nixos-test"
+  flavour = if flavours ? "${flavourOptions.name}" then
+    flavours."${flavourOptions.name}" // flavourOptions
   else
-    "nixos-test";
+    flavourOptions;
 
-  f = if flavour == "nixos-test"
-  || (flavour ? name && flavour.name == "nixos-test") then
+  f = if (flavour ? name && flavour.name == "nixos-test") then
     import ./nixos-test.nix
   else
     import ./generate.nix;
