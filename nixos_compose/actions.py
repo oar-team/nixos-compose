@@ -151,7 +151,7 @@ def generate_kexec_scripts(ctx):
     if "all" in ctx.deployment_info:
         kernel_path = f"{ctx.envdir}/kernel"
         initrd_path = f"{ctx.envdir}/initrd"
-        kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
+        kexec_args = "-l $KERNEL --initrd=$INITRD "
         kexec_args += (
             f"--append='deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
         )
@@ -159,6 +159,8 @@ def generate_kexec_scripts(ctx):
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
             kexec_script.write(": ''${SUDO:=sudo}\n")
+            kexec_script.write(": ''${KERNEL:=" + kernel_path + "}\n")
+            kexec_script.write(": ''${INITRD:=" + initrd_path + "}\n")
             kexec_script.write(f"$SUDO kexec {kexec_args}\n")
             kexec_script.write("$SUDO kexec -e\n")
         os.chmod(script_path, 0o755)
@@ -233,16 +235,22 @@ def copy_result_from_store(ctx):
 
 def launch_ssh_kexec(ctx, ip=None):
     if "all" in ctx.deployment_info:
-        kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
+        if ctx.push_path:
+            kexec_script = f"{ctx.push_path}/kexec.sh"
+            ki = f"KERNEL={ctx.push_path}kernel INITRD={ctx.push_path}initrd"
+            user = "root@"
+        else:
+            kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
+            ki = ""
+            user = ""
         if ctx.sudo:
-            sudo = f"SUDO={ctx.sudo} "
+            sudo = f"SUDO={ctx.sudo}"
         else:
             sudo = ""
 
         def one_ssh_kexec(ip_addr):
-            ssh_cmd = (
-                f'{ctx.ssh} {ip_addr} "screen -dm bash -c \\"{sudo}{kexec_script}\\""'
-            )
+            ssh_cmd = f'{ctx.ssh} {user}{ip_addr} "screen -dm bash -c \\"{sudo} {ki} {kexec_script}\\""'
+            ctx.vlog(ssh_cmd)
             subprocess.call(ssh_cmd, shell=True)
 
         if ip:
@@ -251,7 +259,7 @@ def launch_ssh_kexec(ctx, ip=None):
             for ip in ctx.deployment_info["deployment"].keys():
                 one_ssh_kexec(ip)
     else:
-        raise Exception("Sorry, only all in one image version support up to now")
+        raise Exception("Sorry, only all-in-one image version is supported up to now")
 
 
 def wait_ssh_ports(ctx, ips=None, halo=True):
@@ -278,6 +286,20 @@ def wait_ssh_ports(ctx, ips=None, halo=True):
         spinner.succeed("All ssh ports are opened")
     else:
         ctx.log("All ssh ports are opened")
+
+
+def push_on_machines(ctx):
+    if "all" not in ctx.deployment_info:
+        raise Exception("Sorry, only all-in-one image version is supported up to now")
+
+    kernel = ctx.deployment_info["all"]["kernel"]
+    initrd = ctx.deployment_info["all"]["initrd"]
+    kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
+
+    for ip_address in ctx.ip_addresses:
+        ctx.vlog(f"push kernel, initrd, kexec_script to {ip_address}")
+        for f in [kernel, initrd, kexec_script]:
+            subprocess.call(f"scp {f} root@{ip_address}:{ctx.push_path}", shell=True)
 
 
 def connect(ctx, user, host):

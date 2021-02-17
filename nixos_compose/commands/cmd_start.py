@@ -16,6 +16,7 @@ from ..actions import (
     generate_deployment_info,
     generate_kexec_scripts,
     get_hosts_ip,
+    push_on_machines,
     launch_ssh_kexec,
     wait_ssh_ports,
 )
@@ -55,16 +56,22 @@ class EventHandler(pyinotify.ProcessEvent):
     default="ssh",
     help="specify particular ssh command",
 )
-@click.option("-S", "--sudo", type=click.STRING, help="specify particular sudo commmad")
+@click.option("-S", "--sudo", type=click.STRING, help="specify particular sudo command")
+@click.option(
+    "-p",
+    "--push-path",
+    help="remote path where to push image, kernel and kexec_script on machines (use to re-kexec)",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
 @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, driver_repl, machines_file, wait, ssh, sudo):
+def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path):
     """Start multi Nixos composition."""
     ctx.log("Starting")
 
     ctx.ssh = ssh
     ctx.sudo = sudo
+    ctx.push_path = push_path
 
     if not ctx.state["built"]:
         raise click.ClickException(
@@ -73,6 +80,9 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo):
 
     if machines_file and not op.isfile(machines_file):
         raise click.ClickException(f"{machines_file} file does not exist")
+
+    if push_path and not machines_file:
+        raise click.ClickException("machines_file must be provide to use push_path")
 
     if wait:
         if not machines_file:
@@ -128,6 +138,8 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo):
 
     if machines_file:
         generate_kexec_scripts(ctx)
+        if ctx.push_path:
+            push_on_machines(ctx)
         if not driver_repl:
             ctx.log("Launch ssh kexec")
             launch_ssh_kexec(ctx)

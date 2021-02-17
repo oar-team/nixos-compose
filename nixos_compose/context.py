@@ -36,6 +36,7 @@ class Context(object):
         self.host2ip_address = {}
         self.ssh = ""
         self.sudo = ""
+        self.push_path = None
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
