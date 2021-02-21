@@ -1,13 +1,13 @@
 import os
 import os.path as op
 import json
-import random
 
 from io import open
 
 import click
 
 from ..context import pass_context, on_finished
+from ..platform import platform_detection
 from ..utils import copy_tree, copy_file
 
 EXAMPLES_PATH = op.abspath(op.join(op.dirname(__file__), "../..", "examples"))
@@ -25,12 +25,15 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
     show_default=True,
     type=click.Choice(EXAMPLES),
 )
+@click.option(
+    "-n", "--disable-detection", is_flag=True, help="Disable platform detection."
+)
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
-def cli(ctx, example):
+def cli(ctx, example, disable_detection):
     """Initialize a new environment."""
 
-    overwrite = False
+    # overwrite = False
 
     example_path = op.abspath(op.join(EXAMPLES_PATH, example))
     composition_path = op.abspath(op.join(ctx.envdir, example))
@@ -50,7 +53,12 @@ def cli(ctx, example):
     copy_tree(
         NXC_NIX_PATH, op.abspath(op.join(ctx.envdir, "nix")),
     )
+
     nxc_json = {"envdir": ctx.envdir, "composition": composition_path}
+
+    if not disable_detection:
+        platform_detection(ctx)
+
     nxc_json_str = json.dumps(nxc_json)
     nxc_json_file = op.abspath(op.join(ctx.envdir, "nxc.json"))
 

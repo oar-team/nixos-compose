@@ -68,9 +68,12 @@ def read_compose_info(ctx, compose_info_filename="result"):
     return
 
 
-def get_hosts_ip(ctx, hostsfile):
-    for host in open(hostsfile, "r"):
-        host = host.rstrip()
+def read_hosts(hostsfile):
+    return [host.rstrip() for host in open(hostsfile, "r")]
+
+
+def translate_hosts2ip(ctx, hosts):
+    for host in hosts:
         if host and (host not in ctx.host2ip_address):
             ip = socket.gethostbyname_ex(host)[2][0]
             ctx.host2ip_address[host] = ip
@@ -226,6 +229,7 @@ def copy_result_from_store(ctx):
         outfile.write(json_new_compose_info)
 
     ctx.compose_info = new_compose_info
+    click.echo("Copy from store: " + click.style("completed", fg="green"))
 
 
 ##
@@ -276,16 +280,19 @@ def wait_ssh_ports(ctx, ips=None, halo=True):
     if halo:
         spinner = Halo(text=f"Opened ssh ports 0/{nb_ips}", spinner="dots")
         spinner.start()
+    t0 = time.time()
     while nb_ssh_port != nb_ips:
         output = subprocess.check_output(waiting_ssh_ports_cmd, shell=True)
         nb_ssh_port = int(output.rstrip().decode())
         if halo:
-            spinner.text = f"Opened ssh ports: {nb_ssh_port}/{nb_ips}"
+            spinner.text = "Opened ssh ports: {}/{} ({:.2f}s)".format(
+                nb_ssh_port, nb_ips, time.time() - t0
+            )
         time.sleep(0.25)
     if halo:
         spinner.succeed("All ssh ports are opened")
     else:
-        ctx.log("All ssh ports are opened")
+        ctx.vlog("All ssh ports are opened")
 
 
 def push_on_machines(ctx):
@@ -296,10 +303,17 @@ def push_on_machines(ctx):
     initrd = ctx.deployment_info["all"]["initrd"]
     kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
 
-    for ip_address in ctx.ip_addresses:
-        ctx.vlog(f"push kernel, initrd, kexec_script to {ip_address}")
-        for f in [kernel, initrd, kexec_script]:
-            subprocess.call(f"scp {f} root@{ip_address}:{ctx.push_path}", shell=True)
+    if shutil.which("kastafior"):
+        raise NotImplementedError
+    # elif shutil.which("kaput"):
+    #    raise NotImplementedError
+    else:
+        for ip_address in ctx.ip_addresses:
+            ctx.vlog(f"push kernel, initrd, kexec_script to {ip_address}")
+            for f in [kernel, initrd, kexec_script]:
+                subprocess.call(
+                    f"scp {f} root@{ip_address}:{ctx.push_path}", shell=True
+                )
 
 
 def connect(ctx, user, host):

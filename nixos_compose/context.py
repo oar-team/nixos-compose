@@ -7,6 +7,7 @@ from functools import update_wrapper
 
 import click
 
+from .platform import Grid5000Platform
 from .state import State
 
 CONTEXT_SETTINGS = dict(
@@ -22,6 +23,8 @@ def reraise(tp, value, tb=None):
 
 class Context(object):
     def __init__(self):
+        self.nxc_file = None
+        self.nxc = None
         self.current_dir = os.getcwd()
         self.verbose = False
         self.workdir = self.current_dir
@@ -37,6 +40,7 @@ class Context(object):
         self.ssh = ""
         self.sudo = ""
         self.push_path = None
+        self.platform = None
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
@@ -53,6 +57,9 @@ class Context(object):
 
     def update(self):
         self.state_file = op.join(self.envdir, "state.json")
+        if "platform" in self.state:
+            if self.state["platform"] == "Grid5000":
+                self.platform = Grid5000Platform(self)
 
     def assert_valid_env(self):
         if not os.path.isdir(self.envdir):

@@ -15,7 +15,8 @@ from ..actions import (
     read_test_script,
     generate_deployment_info,
     generate_kexec_scripts,
-    get_hosts_ip,
+    read_hosts,
+    translate_hosts2ip,
     push_on_machines,
     launch_ssh_kexec,
     wait_ssh_ports,
@@ -50,11 +51,7 @@ class EventHandler(pyinotify.ProcessEvent):
 )
 @click.option("-w", "--wait", is_flag=True, help="wait machnes-files creation")
 @click.option(
-    "-s",
-    "--ssh",
-    type=click.STRING,
-    default="ssh",
-    help="specify particular ssh command",
+    "-s", "--ssh", type=click.STRING, help="specify particular ssh command",
 )
 @click.option("-S", "--sudo", type=click.STRING, help="specify particular sudo command")
 @click.option(
@@ -128,23 +125,36 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path):
         subprocess.call(nixos_test_driver, shell=True)
         exit(0)
 
-    ctx.log("Generate: deployment.json")
+    if not machines_file and ctx.platform:
+        machines = ctx.platform.retrieve_machines(ctx)
+        (ssh, sudo, push_path) = ctx.platform.get_start_values(ctx)
+        if ctx.ssh is None:
+            ctx.ssh = ssh
+        if ctx.sudo is None:
+            ctx.sudo = sudo
+        if ctx.push_path is None:
+            ctx.push_path = push_path
 
-    if machines_file:
-        get_hosts_ip(ctx, machines_file)
+    elif machines_file:
+        machines = read_hosts(machines_file)
+
+    if machines:
+        translate_hosts2ip(ctx, machines)
         print(ctx.ip_addresses, ctx.host2ip_address)
 
+    ctx.log("Generate: deployment.json")
     generate_deployment_info(ctx)
 
-    if machines_file:
+    if ctx.ip_addresses:
         generate_kexec_scripts(ctx)
         if ctx.push_path:
             push_on_machines(ctx)
         if not driver_repl:
-            ctx.log("Launch ssh kexec")
+            ctx.log("Launch ssh(s) kexec")
             launch_ssh_kexec(ctx)
             time.sleep(10)
             wait_ssh_ports(ctx)
+            ctx.state["started"] = True
             exit(0)
 
     # use_remote_deployment = False
@@ -155,7 +165,7 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path):
 
     test_script = read_test_script(ctx.compose_info)
 
-    if machines_file:
+    if ctx.ip_addresses:
         ctx.mode = DRIVER_MODES["remote"]
     else:
         ctx.mode = DRIVER_MODES["vm"]
