@@ -28,7 +28,7 @@ from ..actions import copy_result_from_store
 @click.option(
     "-f",
     "--flavour",
-    default="nixos-test",
+    # default="nixos-test",
     help="Use particular flavour (name or path)",
 )
 @click.option(
@@ -72,6 +72,15 @@ def cli(
             click.echo(f)
         sys.exit(0)
 
+    if not flavour:
+        if ctx.platform:
+            flavour = ctx.platform.default_flavour
+            click.echo(
+                f"Platform's default flavour setting: {click.style(flavour, fg='green')}"
+            )
+        else:
+            flavour = "nixos-test"
+
     if flavour not in flavours:
         if not op.isfile(flavour):
             raise click.ClickException(
@@ -108,7 +117,7 @@ def cli(
     ctx.vlog(build_cmd)
     subprocess.call(build_cmd, shell=True)
 
-    if copy_from_store:
+    if copy_from_store or (ctx.platform and ctx.platform.copy_from_store):
         copy_result_from_store(ctx)
 
     ctx.state["built"] = True
