@@ -41,6 +41,9 @@ from ..actions import copy_result_from_store
 @click.option(
     "--legacy-nix", "-l", is_flag=True, help="Use legacy Nix's CLI.",
 )
+@click.option(
+    "--show-trace", is_flag=True, help="Show Nix trace"
+)
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -56,6 +59,7 @@ def cli(
     nixos_test_driver,
     copy_from_store,
     legacy_nix,
+    show_trace,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -114,6 +118,9 @@ def cli(
             build_cmd += " driver"
         else:
             build_cmd += " -A driver"
+
+    if show_trace:
+        build_cmd += " --show-trace"
 
     ctx.vlog(build_cmd)
     subprocess.call(build_cmd, shell=True)
