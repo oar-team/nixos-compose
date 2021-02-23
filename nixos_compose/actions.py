@@ -280,13 +280,12 @@ def wait_ssh_ports(ctx, ips=None, halo=True):
     if halo:
         spinner = Halo(text=f"Opened ssh ports 0/{nb_ips}", spinner="dots")
         spinner.start()
-    t0 = time.time()
     while nb_ssh_port != nb_ips:
         output = subprocess.check_output(waiting_ssh_ports_cmd, shell=True)
         nb_ssh_port = int(output.rstrip().decode())
         if halo:
-            spinner.text = "Opened ssh ports: {}/{} ({:.2f}s)".format(
-                nb_ssh_port, nb_ips, time.time() - t0
+            spinner.text = "Opened ssh ports: {}/{} ({:.1f}s)".format(
+                nb_ssh_port, nb_ips, ctx.elapsed_time()
             )
         time.sleep(0.25)
     if halo:

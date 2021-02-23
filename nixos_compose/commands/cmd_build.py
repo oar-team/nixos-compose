@@ -43,6 +43,7 @@ from ..actions import copy_result_from_store
 )
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
+@on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
     ctx,

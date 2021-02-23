@@ -1,6 +1,7 @@
 import os
 import os.path as op
 import sys
+import time
 
 from io import open
 from functools import update_wrapper
@@ -23,6 +24,7 @@ def reraise(tp, value, tb=None):
 
 class Context(object):
     def __init__(self):
+        self.t0 = time.time()
         self.nxc_file = None
         self.nxc = None
         self.current_dir = os.getcwd()
@@ -96,6 +98,13 @@ class Context(object):
             sys.exit(1)
         else:
             reraise(exc_type, exc_value, tb.tb_next)
+
+    def elapsed_time(self):
+        return time.time() - self.t0
+
+    def show_elapsed_time(self):
+        duration = "{:.2f}".format(self.elapsed_time())
+        self.vlog("Elapsed Time: " + (click.style(duration, fg="green")) + " seconds")
 
 
 def make_pass_decorator(ensure=False):
