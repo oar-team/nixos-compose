@@ -107,7 +107,8 @@ class Grid5000Platform(Platform):
 
 def platform_detection(ctx):
     click.echo("Platform detection:")
-    if socket.gethostbyaddr(socket.gethostname())[0].split(".")[2] == "grid5000":
+    split_hostname = socket.gethostbyaddr(socket.gethostname())[0].split(".")
+    if len(split_hostname) >= 3 and split_hostname[2] == "grid5000":
         plt = click.style("   Grid'5000", fg="green")
         click.echo("   " + plt + " detected")
         ctx.platform = Grid5000Platform(ctx)
