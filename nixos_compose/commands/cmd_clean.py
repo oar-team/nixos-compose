@@ -1,15 +1,9 @@
 import os
 import os.path as op
-import sys
-import subprocess
 import click
 import shutil
 
-from ..context import pass_context, on_started, on_finished
-from ..actions import copy_result_from_store
-
-# FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
-# FLAVOURS = os.listdir(FLAVOURS_PATH)
+from ..context import on_finished
 
 NXC_FOLDER_PATH = op.abspath(op.join(op.dirname(__file__), "../../nxc"))
 NXC_JSON_PATH = op.abspath(op.join(op.dirname(__file__), "../../nxc.json"))
