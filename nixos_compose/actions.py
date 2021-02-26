@@ -304,8 +304,13 @@ def push_on_machines(ctx):
 
     if shutil.which("kastafior"):
         raise NotImplementedError
-    # elif shutil.which("kaput"):
-    #    raise NotImplementedError
+    elif shutil.which("kaput"):
+        ctx.vlog("push kernel, initrd, kexec_script on hosts with kaput")
+        joined_ip_addresses = ",".join(ctx.ip_addresses)
+        for f in [kernel, initrd, kexec_script]:
+            kaput_cmd = f"kaput -l root -n {joined_ip_addresses} {f} {ctx.push_path}"
+            ctx.vlog(kaput_cmd)
+            subprocess.call(kaput_cmd, shell=True)
     else:
         for ip_address in ctx.ip_addresses:
             ctx.vlog(f"push kernel, initrd, kexec_script to {ip_address}")
