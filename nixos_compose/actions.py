@@ -355,10 +355,10 @@ def connect_tmux(ctx, user, hosts=None, window_name="nxc"):
     cmd = f'tmux splitw -h -p 50 -t {window_name}.0 "{ssh_cmds[0]}"'
     subprocess.call(cmd, shell=True)
 
-    num_panes = len(hosts) - 1
+    num_panes = len(hosts)
 
     for i, ssh_cmd in enumerate(ssh_cmds[1:]):
-        ratio = round(100 * (1 - (1.0 / (1 + num_panes - i))))
+        ratio = round(100 * (1 - (1.0 / (num_panes - i))))
         cmd = f'tmux splitw -v -p {ratio} -t {window_name}.{i+1} "{ssh_cmd}"'
         subprocess.call(cmd, shell=True)
 
