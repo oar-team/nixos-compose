@@ -336,36 +336,93 @@ def connect(ctx, user, host):
     sys.exit(return_code)
 
 
-def connect_tmux(ctx, user, hosts=None, window_name="nxc"):
+def connect_tmux(ctx, user, hosts, no_pane_console, geometry, window_name="nxc"):
 
     if not hosts:
-        hosts = ctx.deployment_info["deployment"].keys()
+        hosts = list(ctx.deployment_info["deployment"].keys())
+
+    console = 1
+    if no_pane_console:
+        console = 0
+
+    if not geometry:
+        if not no_pane_console:
+            if len(hosts) > 4:
+                geometry = "1+4+4"
+            else:
+                geometry = f"1+{len(hosts)}"
+        else:
+            geometry = "4+4"
+
+    # translate geometry
+    if "+" in geometry and "*" in geometry:
+        raise Exception("Mixing + and * in geometry is not supported")
+    if "+" in geometry:
+        splitw = [int(i) for i in geometry.split("+")]
+        splitw.reverse()
+    elif "*" in geometry:
+        g = geometry.split("*")
+        splitw = [int(g[1]) for i in range(int(g[0]))]
+    else:
+        splitw = [int(geometry)]
+
+    nb_panes = sum(splitw)
+    nb_splitv = len(splitw)
+
+    ctx.vlog(f"geometry: {geometry}")
+    ctx.vlog(f"splitw: {splitw}")
+    ctx.vlog(f"nb_panes: {nb_panes}")
+
+    # prepare commands
+    base_cmds = ["bash" for i in range(nb_panes)]
+
     ssh_cmds = [
         f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {h}"
         for h in hosts
     ]
 
+    nb_ssh_cmds = len(ssh_cmds)
+    if (nb_ssh_cmds + console) > nb_panes:
+        ssh_cmds = ssh_cmds[: nb_panes - console]
+    cmds = base_cmds[: nb_panes - nb_ssh_cmds] + ssh_cmds
+
+    ctx.vlog(f"cmds: {cmds}")
+
+    cmds.reverse()
+
     if "TMUX" not in os.environ:
-        cmd = "tmux new  -d"
+        cmd = "tmux new -d"
         subprocess.call(cmd, shell=True)
 
     cmd = f"tmux new-window -n {window_name} -d"
     subprocess.call(cmd, shell=True)
 
-    cmd = f'tmux splitw -h -p 50 -t {window_name}.0 "{ssh_cmds[0]}"'
-    subprocess.call(cmd, shell=True)
+    # cmd = f'tmux splitw -h -p 50 -t {window_name}.0 "{ssh_cmds[0]}"'
+    # subprocess.call(cmd, shell=True)
 
-    num_panes = len(hosts)
+    i = 0
+    for v in range(nb_splitv):
+        ratio_h = round(100.0 / (nb_splitv - v))
+        if ratio_h != 100:
+            cmd = f"tmux splitw -h -p {ratio_h} -t {window_name}.0 {cmds[i]}"
+            pane0 = 1
+            print("vertical |", cmd)
+            print(round(100 * (1.0 / (nb_splitv - v))))
+            subprocess.call(cmd, shell=True)
+            i += 1
+        else:
+            pane0 = 0
 
-    for i, ssh_cmd in enumerate(ssh_cmds[1:]):
-        ratio = round(100 * (1 - (1.0 / (num_panes - i))))
-        cmd = f'tmux splitw -v -p {ratio} -t {window_name}.{i+1} "{ssh_cmd}"'
-        subprocess.call(cmd, shell=True)
+        for h in range(splitw[v] - 1):
+            ratio_v = round(100 * (1 - (1.0 / (splitw[v] - h))))
+            cmd = f"tmux splitw -v -p {ratio_v} -t {window_name}.{h+pane0} {cmds[i]}"
+            subprocess.call(cmd, shell=True)
+            i += 1
 
     cmd = f"tmux select-pane -t {window_name}.0"
     subprocess.call(cmd, shell=True)
 
-    cmd = f"tmux select-window -t  {window_name}"
+    cmd = f"tmux select-window -t {window_name}"
     subprocess.call(cmd, shell=True)
 
     if "TMUX" not in os.environ:
