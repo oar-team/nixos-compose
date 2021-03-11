@@ -1,9 +1,7 @@
-{ nixpkgs, ... }:
+{ nixpkgs, system, ... }:
 composition:
 let
-  pkgs = (import nixpkgs) { };
   testingPython = import "${toString nixpkgs}/nixos/lib/testing-python.nix" {
-    inherit pkgs;
-    system = builtins.currentSystem;
+    inherit system;
   };
-in testingPython.makeTest (composition { pkgs = pkgs; })
+in testingPython.makeTest (composition { pkgs = (import nixpkgs) { }; })
