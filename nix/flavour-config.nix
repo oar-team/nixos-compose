@@ -13,11 +13,11 @@ in if (flavour ? vm) && flavour.vm then
     ] ++ commonModules;
   }
 else
-  { lib, config, ... }: {
+  { lib, config, modulesPath, ... }: {
     imports = [
-      <nixpkgs/nixos/modules/profiles/all-hardware.nix>
-      <nixpkgs/nixos/modules/profiles/base.nix>
-      <nixpkgs/nixos/modules/profiles/installation-device.nix>
-      <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
+      "${toString modulesPath}/profiles/all-hardware.nix"
+      "${toString modulesPath}/profiles/base.nix"
+      "${toString modulesPath}/profiles/installation-device.nix"
+      "${toString modulesPath}/installer/scan/not-detected.nix"
     ] ++ commonModules;
   }
