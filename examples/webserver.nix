@@ -1,4 +1,4 @@
-import <compose> <flavour> ({ pkgs, ... }: {
+{ pkgs, ... }: {
   nodes = {
     server = { pkgs, ... }: {
       services.nginx = {
@@ -20,4 +20,4 @@ import <compose> <flavour> ({ pkgs, ... }: {
     client.wait_for_unit("network.target")
     assert "hello world" in client.succeed("curl -sSf http://server/")
   '';
-})
+}
