@@ -26,24 +26,18 @@ from ..actions import copy_result_from_store
 )
 @click.option("--nixpkgs", "-n", help="set <nixpkgs> ex: channel:nixos-20.09")
 @click.option(
-    "-f",
-    "--flavour",
-    # default="nixos-test",
-    help="Use particular flavour (name or path)",
+    "-f", "--flavour", help="Use particular flavour (name or path)",
 )
 @click.option(
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
-@click.option("--nixos-test-driver", is_flag=True, help="generate NixOS Test driver")
 @click.option(
     "--copy-from-store", "-c", is_flag=True, help="copy artifact from Nix store"
 )
 @click.option(
     "--legacy-nix", "-l", is_flag=True, help="Use legacy Nix's CLI.",
 )
-@click.option(
-    "--show-trace", is_flag=True, help="Show Nix trace"
-)
+@click.option("--show-trace", is_flag=True, help="Show Nix trace")
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -56,7 +50,6 @@ def cli(
     nixpkgs,
     flavour,
     list_flavours,
-    nixos_test_driver,
     copy_from_store,
     legacy_nix,
     show_trace,
@@ -67,6 +60,7 @@ def cli(
     """
     ctx.log("Starting build")
 
+    flavour_arg = ""
     flavours = [
         f.split(".")[0]
         for f in os.listdir(op.abspath(op.join(ctx.envdir, "nix/flavours")))
@@ -86,13 +80,15 @@ def cli(
         else:
             flavour = "nixos-test"
 
-    if flavour not in flavours:
-        if not op.isfile(flavour):
-            raise click.ClickException(
-                f'"{flavour}" is neither a supported flavour nor flavour_path'
-            )
+    if flavour not in flavours and not op.isfile(flavour):
+        raise click.ClickException(
+            f'"{flavour}" is neither a supported flavour nor flavour_path'
+        )
     else:
-        flavour = op.abspath(op.join(ctx.envdir, f"nix/flavours/{flavour}.nix"))
+        if flavour in flavours:
+            flavour_arg = f" --argstr flavour {flavour}"
+        else:
+            flavour_arg = f" --arg flavour {op.abspath(flavour)}"
 
     if not composition_file:
         composition_file = ctx.nxc["composition"]
@@ -102,22 +98,25 @@ def cli(
     if out_link == "result":
         out_link = op.join(ctx.envdir, out_link)
 
+    # flake_support = False
+    # if not subprocess.call(
+    #     "nix flake --help",
+    #     stdout=subprocess.DEVNULL,
+    #     stderr=subprocess.DEVNULL,
+    #     shell=True,
+    # ):
+    #     flake_support = True
+
     if legacy_nix:
         nix_cmd = "nix build -f"
     else:
         nix_cmd = "nix-build"
 
-    build_cmd = f"{nix_cmd} {composition_file} -I compose={compose_file}"
+    build_cmd = f"{nix_cmd} {compose_file} -I composition={composition_file}"
     if nixpkgs:
         build_cmd += f" -I nixpkgs={nixpkgs}"
 
-    build_cmd += f" -I flavour={flavour} -o {out_link}"
-
-    if nixos_test_driver:
-        if legacy_nix:
-            build_cmd += " driver"
-        else:
-            build_cmd += " -A driver"
+    build_cmd += f" {flavour_arg} -o {out_link}"
 
     if show_trace:
         build_cmd += " --show-trace"
