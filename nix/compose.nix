@@ -7,7 +7,7 @@ let
   else
     composition;
 
-  flavours = import ./flavours-meta.nix;
+  flavours = import ./flavours.nix;
 
   _flavour_base =
     if builtins.typeOf flavour == "path" then import flavour else flavour;
