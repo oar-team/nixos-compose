@@ -1,4 +1,4 @@
-import <compose> <flavour> ({ pkgs, ... }: {
+{ pkgs, ... }: {
   nodes = {
     foo = { pkgs, lib, ... }: {
 
@@ -14,4 +14,4 @@ import <compose> <flavour> ({ pkgs, ... }: {
   testScript = ''
     foo.succeed("true")
   '';
-})
+}

@@ -3,7 +3,7 @@ composition:
 
 let
   pkgs = (import nixpkgs) { inherit system; };
-
+  lib = pkgs.lib;
   compositionSet = composition { pkgs = pkgs; };
   nodes = compositionSet.nodes;
   testScriptRaw =
