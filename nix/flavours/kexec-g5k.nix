@@ -1,6 +1,5 @@
 {
   name = "kexec-g5k";
-  nixpkgs = <nixpkgs>;
   image = {
     distribution = "all-in-one";
     type = "ramdisk";
