@@ -106,7 +106,7 @@ class Grid5000Platform(Platform):
 
 
 def platform_detection(ctx):
-    click.echo("Platform detection:")
+    click.echo("\nPlatform detection:")
     split_hostname = socket.gethostbyaddr(socket.gethostname())[0].split(".")
     if len(split_hostname) >= 3 and split_hostname[2] == "grid5000":
         plt = click.style("   Grid'5000", fg="green")
@@ -114,5 +114,5 @@ def platform_detection(ctx):
         ctx.platform = Grid5000Platform(ctx)
         ctx.state["platform"] = ctx.platform.name
     else:
-        click.echo("   No particular platform detected, local mode will be used")
+        click.echo("      no particular platform detected, local mode will be used")
     return
