@@ -7,7 +7,7 @@
 
       users.users.root.password = "nixos";
       services.openssh.permitRootLogin = lib.mkDefault "yes";
-      services.mingetty.autologinUser = lib.mkDefault "root";
+      services.getty.autologinUser = lib.mkDefault "root";
 
     };
   };
