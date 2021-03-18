@@ -13,7 +13,7 @@ let
     if builtins.typeOf flavour == "path" then import flavour else flavour;
 
 _flavour = if builtins.typeOf _flavour_base == "string" then
-  assert flavours ? _flavour_base;
+  assert flavours ? ${_flavour_base};
   flavours.${_flavour_base}
   else
     assert builtins.typeOf _flavour_base == "set";
