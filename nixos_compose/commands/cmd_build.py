@@ -32,12 +32,15 @@ from ..actions import copy_result_from_store
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
 @click.option(
-    "--copy-from-store", "-c", is_flag=True, help="copy artifact from Nix store"
+    "--copy-from-store", "-c", is_flag=True, help="Copy artifact from Nix store"
 )
 @click.option(
     "--legacy-nix", "-l", is_flag=True, help="Use legacy Nix's CLI.",
 )
 @click.option("--show-trace", is_flag=True, help="Show Nix trace")
+@click.option(
+    "--dry-run", is_flag=True, help="Chow what this command would do without doing it"
+)
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -53,6 +56,7 @@ def cli(
     copy_from_store,
     legacy_nix,
     show_trace,
+    dry_run,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -60,7 +64,6 @@ def cli(
     """
     ctx.log("Starting build")
 
-    flavour_arg = ""
     flavours = [
         f.split(".")[0]
         for f in os.listdir(op.abspath(op.join(ctx.envdir, "nix/flavours")))
@@ -71,7 +74,7 @@ def cli(
             click.echo(f)
         sys.exit(0)
 
-    if not flavour:
+    if not flavour and not ctx.nxc["flake"]:
         if ctx.platform:
             flavour = ctx.platform.default_flavour
             click.echo(
@@ -80,15 +83,18 @@ def cli(
         else:
             flavour = "nixos-test"
 
-    if flavour not in flavours and not op.isfile(flavour):
-        raise click.ClickException(
-            f'"{flavour}" is neither a supported flavour nor flavour_path'
-        )
-    else:
-        if flavour in flavours:
-            flavour_arg = f" --argstr flavour {flavour}"
+    # import pdb; pdb.set_trace()
+    flavour_arg = ""
+    if flavour:
+        if flavour not in flavours and not op.isfile(flavour):
+            raise click.ClickException(
+                f'"{flavour}" is neither a supported flavour nor flavour_path'
+            )
         else:
-            flavour_arg = f" --arg flavour {op.abspath(flavour)}"
+            if flavour in flavours:
+                flavour_arg = f" --argstr flavour {flavour}"
+            else:
+                flavour_arg = f" --arg flavour {op.abspath(flavour)}"
 
     if not composition_file:
         composition_file = ctx.nxc["composition"]
@@ -98,35 +104,52 @@ def cli(
     if out_link == "result":
         out_link = op.join(ctx.envdir, out_link)
 
-    # flake_support = False
-    # if not subprocess.call(
-    #     "nix flake --help",
-    #     stdout=subprocess.DEVNULL,
-    #     stderr=subprocess.DEVNULL,
-    #     shell=True,
-    # ):
-    #     flake_support = True
+    nix_flake_support = False
+    if not subprocess.call(
+        "nix flake --help",
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        shell=True,
+    ):
+        nix_flake_support = True
 
     if legacy_nix:
-        nix_cmd = "nix build -f"
+        build_cmd = "nix-build"
     else:
-        nix_cmd = "nix-build"
-
-    build_cmd = f"{nix_cmd} {compose_file} -I composition={composition_file}"
-    if nixpkgs:
-        build_cmd += f" -I nixpkgs={nixpkgs}"
-
-    build_cmd += f" {flavour_arg} -o {out_link}"
+        build_cmd = "nix build"
 
     if show_trace:
         build_cmd += " --show-trace"
 
-    ctx.vlog(build_cmd)
-    subprocess.call(build_cmd, shell=True)
+    if nixpkgs:
+        build_cmd += f" -I nixpkgs={nixpkgs}"
 
-    if copy_from_store or (ctx.platform and ctx.platform.copy_from_store):
-        copy_result_from_store(ctx)
+    if flavour_arg and not ctx.nxc["flake"]:
+        build_cmd += f" {flavour_arg}"
 
-    ctx.state["built"] = True
+    build_cmd += f" -o {out_link}"
 
-    ctx.glog("Build completed")
+    if ctx.nxc["flake"]:
+        if flavour:
+            if nix_flake_support and not legacy_nix:
+                build_cmd += f' ".#packages.x86_64-linux.{flavour}"'
+            else:
+                build_cmd += f" -A packages.x86_64-linux.{flavour}"
+    else:
+        if not legacy_nix:
+            build_cmd += " -f"
+        build_cmd += f" {compose_file} -I composition={composition_file}"
+
+    if not dry_run:
+        ctx.vlog(build_cmd)
+        subprocess.call(build_cmd, cwd=ctx.envdir, shell=True)
+
+        if copy_from_store or (ctx.platform and ctx.platform.copy_from_store):
+            copy_result_from_store(ctx)
+
+        ctx.state["built"] = True
+        ctx.glog("Build completed")
+    else:
+        ctx.log("Dry-run:")
+        ctx.log(f"   working directory: {ctx.envdir}")
+        ctx.log(f"   build command: {build_cmd}")

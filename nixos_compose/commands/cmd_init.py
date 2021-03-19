@@ -110,7 +110,7 @@ def cli(ctx, example, disable_detection, flake):
         with open(op.abspath(op.join(ctx.envdir, "default.nix")), "w") as f:
             f.write(DEFAULT_COMPAT_FLAKE)
 
-    nxc_json = {"envdir": ctx.envdir, "composition": composition_path}
+    nxc_json = {"envdir": ctx.envdir, "composition": composition_path, "flake": flake}
 
     nxc_json_str = json.dumps(nxc_json)
     nxc_json_file = op.abspath(op.join(ctx.envdir, "nxc.json"))
