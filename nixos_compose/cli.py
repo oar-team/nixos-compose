@@ -50,7 +50,7 @@ def cli(ctx, envdir, verbose, debug):
             ctx.nxc_file = op.abspath("nxc.json")
         with open(ctx.nxc_file, "r") as f:
             ctx.nxc = json.load(f)
-            ctx.envdir = ctx.nxc["envdir"]
+        ctx.envdir = op.dirname(ctx.nxc_file)
 
     ctx.verbose = verbose
     ctx.debug = debug

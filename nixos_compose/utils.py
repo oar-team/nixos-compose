@@ -1,28 +1,29 @@
 import os
 import os.path as op
 import shutil
+import filecmp
 
 import click
 
 
 def touch(fname, times=None):
     dirname = "/".join(fname.split("/")[:-1])
-    if not os.path.exists(dirname):
+    if not op.exists(dirname):
         os.makedirs(dirname)
     with open(fname, "a"):
         os.utime(fname, times)
 
 
 def copy_file(srcname, dstname, preserve_symlinks=True):
-    if preserve_symlinks and os.path.islink(srcname):
-        if os.path.islink(dstname):
+    if preserve_symlinks and op.islink(srcname):
+        if op.islink(dstname):
             os.unlink(dstname)
         else:
             os.remove(dstname)
         linkto = os.readlink(srcname)
         os.symlink(linkto, dstname)
     else:
-        if os.path.islink(dstname):
+        if op.islink(dstname):
             os.unlink(dstname)
         shutil.copy2(srcname, dstname)
 
@@ -31,10 +32,10 @@ def copy_tree(src, dest, overwrite=False, ignore_if_exists=[]):
     """
     Copy all files in the source path to the destination path.
     """
-    if os.path.exists(dest) and not overwrite:
+    if op.exists(dest) and not overwrite:
         raise click.ClickException("File exists : '%s'" % dest)
     create = click.style("   create", fg="green")
-    chmod = click.style("    chmod", fg="cyan")
+    # chmod = click.style("    chmod", fg="cyan")
     overwrite = click.style("overwrite", fg="yellow")
     identical = click.style("identical", fg="blue")
     ignore = click.style("   ignore", fg="magenta")
