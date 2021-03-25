@@ -1,4 +1,4 @@
-{ nixpkgs, flavour, system, ... }:
+{ nixpkgs, flavour, system, extraConfigurations, ... }:
 composition:
 
 let
@@ -37,9 +37,16 @@ let
   buildOneconfig = machine: configuration:
     import "${toString nixpkgs}/nixos/lib/eval-config.nix" {
       inherit system;
-      #system="x86_64-linux";
-      inherit pkgs;
-      modules = [ configuration commonConfig vmSharedDirMod flavourConfig ];
+      modules = [
+        configuration
+        commonConfig
+        vmSharedDirMod
+        flavourConfig
+        {
+          key = "no-manual";
+          documentation.nixos.enable = false;
+        }
+      ] ++ extraConfigurations;
     };
 
 in let

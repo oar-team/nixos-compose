@@ -1,5 +1,5 @@
 { nixpkgs ? <nixpkgs>, system ? builtins.currentSystem, flavour ? "nixos-test"
-, composition ? <composition> }:
+, composition ? import ../composition.nix, extraConfigurations ? [] }:
 let
 
   _composition = if builtins.typeOf composition == "path" then
@@ -26,11 +26,11 @@ _flavour = if builtins.typeOf _flavour_base == "string" then
   generate = import ./generate.nix;
 
 in if _flavour.name == "nixos-test" then
-  nixos_test { inherit nixpkgs system; } _composition
+  nixos_test { inherit nixpkgs system extraConfigurations; } _composition
 else if _flavour.name == "nixos-test-driver" then
-  (nixos_test { inherit nixpkgs system; } _composition).driver
+  (nixos_test { inherit nixpkgs system extraConfigurations; } _composition).driver
 else
   generate {
-    inherit nixpkgs system;
+    inherit nixpkgs system extraConfigurations;
     flavour = _flavour;
   } _composition
