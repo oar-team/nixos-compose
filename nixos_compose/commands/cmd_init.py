@@ -115,7 +115,9 @@ def cli(ctx, example, no_symlink, disable_detection, flake, nur):
     example_path = op.abspath(op.join(EXAMPLES_PATH, example))
     if op.isdir(example_path):
         copy_tree(example_path, ctx.envdir)
-
+        copy_tree(
+            NXC_NIX_PATH, op.abspath(op.join(ctx.envdir, "nix")),
+        )
     else:
 
         composition_file = "composition.nix"
