@@ -1,6 +1,12 @@
 # NUR helper
 #
 # Usage:
+#  # with Flake:
+#  inputs.NUR.url = "github:nix-community/NUR";
+#  inputs.kapack.url = "path:/home/auguste/dev/nur-kapack";
+#
+#  outputs = { self, nixpkgs, NUR, kapack }: {
+#  ...
 #  nur = import ./nix/nur.nix {
 #    inherit nixpkgs system NUR;
 #    repoOverrides = { inherit kapack; };
