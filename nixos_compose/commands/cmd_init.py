@@ -36,18 +36,21 @@ FLAKE = """{
 }"""
 
 INPUT_NUR_FLAKE = """
-  inputs.nur.url = "github:nix-community/NUR";
+  inputs.NUR.url = "github:nix-community/NUR";
+  #inputs.alice.url = "path:/home/some_path/nur-alice";
 """
 
 NUR_FLAKE = """
-      # to allow NUR modules access
-      nur-no-pkgs =
-        import nur { nurpkgs = import nixpkgs { inherit system; }; };
+      nur = import ./nix/nur.nix {
+        inherit nixpkgs system NUR;
+        # for repo override if needed
+        #repoOverrides = { inherit alice; };
+      };
+
       extraConfigurations = [
         # add nur attribute to pkgs
         { nixpkgs.overlays = [ nur.overlay ]; }
-        # import NUR modules like this:
-        # nur-no-pkgs.repos.alice.modules.foo
+        #nur.repos.alice.modules.foo
       ];
 """
 
@@ -65,19 +68,20 @@ $nur
 
 DEFAULT_NUR = """
 let
-  nur = builtins.fetchTarball
+  NUR = builtins.fetchTarball
     "https://github.com/nix-community/NUR/archive/master.tar.gz";
-  # to allow NUR modules access
-  nur-no-pkgs = import nur { nurpkgs = import nixpkgs { inherit system; }; };
+
+  nur = import ./nix/nur.nix {
+    inherit nixpkgs system NUR;
+    # for repo override if needed
+    #repoOverrides = { alice = /home/some_path/nur-alice; };
+  };
+
   extraConfigurations = [
-    {
-      # add nur attribute to pkgs
-      nixpkgs.config.packageOverrides = pkgs: {
-         nur = (import nur) { inherit pkgs; };
-      };
-    }
+    # add nur attribute to pkgs
+    { nixpkgs.overlays = [ nur.overlay ]; }
     # import NUR modules like this:
-    # nur-no-pkgs.repos.alice.modules.foo
+    #nur.repos.alice.modules.foo
   ];
 in
 """
