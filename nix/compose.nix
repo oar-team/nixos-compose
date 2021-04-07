@@ -29,6 +29,11 @@ in if _flavour.name == "nixos-test" then
 else if _flavour.name == "nixos-test-driver" then
   (nixos_test { inherit nixpkgs system extraConfigurations; }
     _composition).driver
+else if _flavour.name == "nixos-test-ssh" then
+  (nixos_test {
+    inherit nixpkgs system;
+    extraConfigurations = extraConfigurations ++ [ ./base.nix ];
+  } _composition).driver
 else
   generate {
     inherit nixpkgs system extraConfigurations;
