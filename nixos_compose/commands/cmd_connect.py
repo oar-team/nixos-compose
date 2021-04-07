@@ -21,7 +21,7 @@ def cli(ctx, user, host, geometry, no_pane_console):
     """Connect to host."""
     read_deployment_info(ctx, deployment_file="deployment.json")
 
-    if not host or len(host) != 1:
+    if not host or len(host) > 1:
         # TODO  add wait_ssh
         connect_tmux(ctx, user, host, no_pane_console, geometry, "nxc")
     else:
