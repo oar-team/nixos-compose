@@ -109,9 +109,15 @@ in
     "--flake", is_flag=True, help="Add flake.nix and default.nix for compatibility."
 )
 @click.option("--nur", is_flag=True, help="Add Nix User Repository (NUR) access.")
+@click.option(
+    "-f",
+    "--default-flavour",
+    type=click.STRING,
+    help="Set default flavour to build, if not given nixos-compose try to find a good",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
-def cli(ctx, example, no_symlink, disable_detection, flake, nur):
+def cli(ctx, example, no_symlink, disable_detection, flake, nur, default_flavour):
     """Initialize a new environment."""
 
     nxc_json_file = op.abspath(op.join(ctx.envdir, "nxc.json"))
@@ -143,11 +149,12 @@ def cli(ctx, example, no_symlink, disable_detection, flake, nur):
         if not disable_detection:
             platform_detection(ctx)
 
-        # determine default flavour
-        if ctx.platform:
-            default_flavour = ctx.platform.default_flavour
-        else:
-            default_flavour = "nixos-test"
+        if not default_flavour:
+            # determine default flavour
+            if ctx.platform:
+                default_flavour = ctx.platform.default_flavour
+            else:
+                default_flavour = "nixos-test"
         click.echo("      default flavour: " + click.style(default_flavour, fg="green"))
 
         nur_str = ""
