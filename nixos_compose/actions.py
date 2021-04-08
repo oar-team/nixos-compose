@@ -107,7 +107,19 @@ def populate_deployment_ips(nodes_info, ips):
     return deployment
 
 
-def generate_deployment_info(ctx, ssh_pub_key_file=None):
+def populate_deployment_forward_ssh_port(nodes):
+    i = 0
+    deployment = {}
+    for role in nodes:
+        ip0 = 1 + i
+        ip = f"127.0.0.{ip0}"
+        deployment[ip] = {"role": role, "ssh-port": 22022 + i}
+        i = i + 1
+
+    return deployment
+
+
+def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False):
     if not ctx.compose_info:
         read_compose_info(ctx)
 
@@ -116,10 +128,23 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     with open(ssh_pub_key_file, "r") as f:
         sshkey_pub = f.read().rstrip()
 
+    if forward_ssh_port and sshkey_pub:
+        # QEMU_KERNEL_PARAMS environement variable is used to give ssh pub
+        # key with nixos-test-ssh flavour (see boot.initrd.postMountCommands in nix/base.nix)
+        qemu_kernel_params = ""
+        if "QEMU_KERNEL_PARAMS" in os.environ:
+            qemu_kernel_params = os.environ["QEMU_KERNEL_PARAMS"]
+        ssh_key_pub_b64 = base64.b64encode(sshkey_pub.encode()).decode()
+        os.environ[
+            "QEMU_KERNEL_PARAMS"
+        ] = f"{qemu_kernel_params} ssh_key.pub:{ssh_key_pub_b64}"
+
     if ctx.ip_addresses:
         deployment = populate_deployment_ips(
             ctx.compose_info["nodes"], ctx.ip_addresses
         )
+    elif forward_ssh_port:
+        deployment = populate_deployment_forward_ssh_port(ctx.compose_info["nodes"])
     else:
         deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
             ctx.compose_info["nodes"]
@@ -320,26 +345,46 @@ def push_on_machines(ctx):
                 )
 
 
-def connect(ctx, user, host):
+def connect(ctx, user, node):
     if not ctx.deployment_info:
         read_deployment_info(ctx)
 
-    role = host
+    role = node
+    ssh_port = None
     for ip, v in ctx.deployment_info["deployment"].items():
         if v["role"] == role:
             host = ip
+            if "ssh-port" in v:
+                ssh_port = v["ssh-port"]
             break
-    ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {host}"
+
+    ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} "
+    if ssh_port:
+        ssh_cmd += f"-p {ssh_port} {host}"
+    else:
+        ssh_cmd += f"{host}"
+
     return_code = subprocess.run(ssh_cmd, shell=True).returncode
+
     if return_code:
         ctx.wlog(f"SSH exit code is not null: {return_code}")
     sys.exit(return_code)
 
 
-def connect_tmux(ctx, user, hosts, no_pane_console, geometry, window_name="nxc"):
+def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc"):
 
-    if not hosts:
-        hosts = list(ctx.deployment_info["deployment"].keys())
+    if not nodes:
+        nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
+
+    ssh_cmds = []
+    for h, v in ctx.deployment_info["deployment"].items():
+        if v["role"] in nodes:
+            ssh_port = ""
+            if "ssh-port" in v:
+                ssh_port = f'-p {v["ssh-port"]}'
+            ssh_cmds.append(
+                f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {ssh_port} {h}"
+            )
 
     console = 1
     if no_pane_console:
@@ -347,10 +392,10 @@ def connect_tmux(ctx, user, hosts, no_pane_console, geometry, window_name="nxc")
 
     if not geometry:
         if not no_pane_console:
-            if len(hosts) > 4:
+            if len(nodes) > 4:
                 geometry = "1+4+4"
             else:
-                geometry = f"1+{len(hosts)}"
+                geometry = f"1+{len(nodes)}"
         else:
             geometry = "4+4"
 
@@ -375,11 +420,6 @@ def connect_tmux(ctx, user, hosts, no_pane_console, geometry, window_name="nxc")
 
     # prepare commands
     base_cmds = ["bash" for i in range(nb_panes)]
-
-    ssh_cmds = [
-        f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {h}"
-        for h in hosts
-    ]
 
     nb_ssh_cmds = len(ssh_cmds)
     if (nb_ssh_cmds + console) > nb_panes:

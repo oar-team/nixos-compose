@@ -1,24 +1,41 @@
-flavourOptionsRaw: composition:
-
+{ nixpkgs ? <nixpkgs>, system ? builtins.currentSystem, flavour ? "nixos-test"
+, composition ? import ../composition.nix, extraConfigurations ? [ ] }:
 let
-  flavours = import ./flavours-meta.nix;
 
-  flavourOptions = if builtins.typeOf flavourOptionsRaw == "path" then
-  # -I flavour=./flavours/kexec-g5k.nix (import set))
-    import flavourOptionsRaw
+  _composition = if builtins.typeOf composition == "path" then
+    import composition
   else
-    flavourOptionsRaw;
+    composition;
 
-  nixpkgs =
-    if flavourOptions ? nixpkgs then flavourOptions.nixpkgs else <nixpkgs>;
+  flavours = import ./flavours.nix;
 
-  flavour = if flavours ? "${flavourOptions.name}" then
-    flavours."${flavourOptions.name}" // flavourOptions
+  _flavour_base =
+    if builtins.typeOf flavour == "path" then import flavour else flavour;
+
+  _flavour = if builtins.typeOf _flavour_base == "string" then
+    assert flavours ? ${_flavour_base}; flavours.${_flavour_base}
   else
-    flavourOptions;
+    assert builtins.typeOf _flavour_base == "set";
+    if flavours ? _flavour_base.name then
+      flavours.${_flavour_base.name} // _flavour_base
+    else
+      _flavour_base;
 
-  f = if (flavour ? name && flavour.name == "nixos-test") then
-    import ./nixos-test.nix
-  else
-    import ./generate.nix;
-in f { inherit nixpkgs flavour; } composition
+  nixos_test = import ./nixos-test.nix;
+  generate = import ./generate.nix;
+
+in if _flavour.name == "nixos-test" then
+  nixos_test { inherit nixpkgs system extraConfigurations; } _composition
+else if _flavour.name == "nixos-test-driver" then
+  (nixos_test { inherit nixpkgs system extraConfigurations; }
+    _composition).driver
+else if _flavour.name == "nixos-test-ssh" then
+  (nixos_test {
+    inherit nixpkgs system;
+    extraConfigurations = extraConfigurations ++ [ ./base.nix ];
+  } _composition).driver
+else
+  generate {
+    inherit nixpkgs system extraConfigurations;
+    flavour = _flavour;
+  } _composition

@@ -1,10 +1,10 @@
-{ nixpkgs, flavour, ... }:
+{ nixpkgs, flavour, system, extraConfigurations, ... }:
 composition:
 
 let
-  pkgs = (import nixpkgs) { };
-
-  compositionSet = composition { pkgs = pkgs; };
+  pkgs = (import nixpkgs) { inherit system; };
+  lib = pkgs.lib;
+  compositionSet = composition { inherit pkgs lib; };
   nodes = compositionSet.nodes;
   testScriptRaw =
     if compositionSet ? testScript then compositionSet.testScript else "";
@@ -36,9 +36,17 @@ let
 
   buildOneconfig = machine: configuration:
     import "${toString nixpkgs}/nixos/lib/eval-config.nix" {
-      #inherit system;
-      inherit pkgs;
-      modules = [ configuration commonConfig vmSharedDirMod flavourConfig ];
+      inherit system;
+      modules = [
+        configuration
+        commonConfig
+        vmSharedDirMod
+        flavourConfig
+        {
+          key = "no-manual";
+          documentation.nixos.enable = false;
+        }
+      ] ++ extraConfigurations;
     };
 
 in let
@@ -56,9 +64,7 @@ in let
     nodes =
       pkgs.lib.mapAttrs (n: m: m.config.system.build.ramdiskInfo) allConfig;
   };
-in {
-  composeInfo = pkgs.writeText "compose-info.json" (builtins.toJSON ({
-    test_script = testScriptFile;
-    flavour = pkgs.lib.filterAttrs (n: v: n != "extraModule") flavour;
-  } // imageInfo));
-}
+in pkgs.writeText "compose-info.json" (builtins.toJSON ({
+  test_script = testScriptFile;
+  flavour = pkgs.lib.filterAttrs (n: v: n != "extraModule") flavour;
+} // imageInfo))

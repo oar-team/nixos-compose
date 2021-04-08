@@ -35,7 +35,7 @@ flavour:
   boot.kernelModules = [ "kvm-intel" ];
 
   services.sshd.enable = true;
-  services.mingetty.autologinUser = lib.mkDefault "root";
+  services.getty.autologinUser = lib.mkDefault "root";
   security.polkit.enable = false; # to reduce initrd
   services.udisks2.enable = false; # to reduce initrd
 

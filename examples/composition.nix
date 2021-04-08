@@ -1,4 +1,4 @@
-import <compose> <flavour> ({ pkgs, ... }: {
+{ pkgs, ... }: {
   nodes = {
     foo = { pkgs, lib, ... }: {
 
@@ -7,11 +7,11 @@ import <compose> <flavour> ({ pkgs, ... }: {
 
       users.users.root.password = "nixos";
       services.openssh.permitRootLogin = lib.mkDefault "yes";
-      services.mingetty.autologinUser = lib.mkDefault "root";
+      services.getty.autologinUser = lib.mkDefault "root";
 
     };
   };
   testScript = ''
     foo.succeed("true")
   '';
-})
+}

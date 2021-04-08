@@ -44,6 +44,12 @@ class EventHandler(pyinotify.ProcessEvent):
 @click.command("start")
 @click.option("-r", "--driver-repl", is_flag=True, help="driver repl")
 @click.option(
+    "-F",
+    "--forward-ssh-port",
+    is_flag=True,
+    help="forward ssh port with nixos-test-driver forward-ssh-port",
+)
+@click.option(
     "-f",
     "--machines-file",
     type=click.Path(resolve_path=True),
@@ -63,13 +69,15 @@ class EventHandler(pyinotify.ProcessEvent):
 @on_finished(lambda ctx: ctx.state.dump())
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path):
+def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh_port):
     """Start multi Nixos composition."""
     ctx.log("Starting")
 
     ctx.ssh = ssh
     ctx.sudo = sudo
     ctx.push_path = push_path
+
+    machines = []
 
     if not ctx.state["built"]:
         raise click.ClickException(
@@ -118,6 +126,24 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path):
         if not driver_repl:
             test_script = read_test_script(op.join(ctx.envdir, "result/test-script"))
             os.environ["tests"] = test_script
+
+        elif forward_ssh_port:
+            test_script = "start_all(); [m.forward_port(22022+i, 22) for i, m in enumerate(machines)]; join_all();"
+            os.environ["tests"] = test_script
+            import re
+
+            with open("result/bin/nixos-test-driver") as f:
+                driver_script = f.readlines()
+
+            nodes = [
+                n.split("-")[1] for n in re.findall(r"run-\w+-vm", driver_script[3])
+            ]
+            if not ctx.compose_info:
+                ctx.compose_info = {}
+            ctx.compose_info["nodes"] = nodes
+
+            generate_deployment_info(ctx, forward_ssh_port=True)
+
         if "QEMU_OPTS" in os.environ:
             qemu_opts = os.environ["QEMU_OPTS"]
         else:
@@ -146,7 +172,11 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path):
     ctx.log("Generate: deployment.json")
     generate_deployment_info(ctx)
 
-    if ctx.ip_addresses:
+    if (
+        ctx.ip_addresses
+        and ("vm" not in ctx.flavour)
+        and ("vm" in ctx.flavour and not ctx.flavour.vm)
+    ):
         generate_kexec_scripts(ctx)
         if ctx.push_path:
             push_on_machines(ctx)
@@ -170,6 +200,9 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path):
         ctx.mode = DRIVER_MODES["remote"]
     else:
         ctx.mode = DRIVER_MODES["vm"]
+
+    ctx.mode = DRIVER_MODES["vm-ssh"]
+    test_script = None
 
     driver(ctx, driver_repl, test_script)
     # launch_vm(ctx, deployment, 0)
