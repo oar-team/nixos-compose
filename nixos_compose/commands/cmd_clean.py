@@ -3,10 +3,11 @@ import os.path as op
 import click
 import shutil
 
-from ..context import on_finished
+from ..context import pass_context, on_finished
 
 NXC_FOLDER_PATH = op.abspath(op.join(op.dirname(__file__), "../../nxc"))
 NXC_JSON_PATH = op.abspath(op.join(op.dirname(__file__), "../../nxc.json"))
+
 
 @click.command("clean")
 @pass_context
@@ -18,4 +19,3 @@ def cli(ctx):
 
     if os.path.isdir(NXC_FOLDER_PATH):
         shutil.rmtree(NXC_FOLDER_PATH)
-
