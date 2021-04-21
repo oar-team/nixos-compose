@@ -117,9 +117,12 @@ in
     help="Set default flavour to build, if not given nixos-compose try to find a good",
 )
 @click.option(
-    "--list-flavours",
+    "--list-flavours-json",
     is_flag=True,
     help="List description of flavours, in json format",
+)
+@click.option(
+    "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
@@ -132,6 +135,7 @@ def cli(
     nur,
     default_flavour,
     list_flavours,
+    list_flavours_json,
 ):
     """Initialize a new environment."""
 
@@ -140,6 +144,11 @@ def cli(
     description_flavours = json.load(open(description_flavours_file, "r"))
 
     if list_flavours:
+        for k in description_flavours.keys():
+            click.echo(f"{k: <18}: {description_flavours[k]['description']}")
+        sys.exit(0)
+
+    if list_flavours_json:
         print(json.dumps(description_flavours, indent=4))
         sys.exit(0)
 
