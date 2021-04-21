@@ -2,6 +2,7 @@ import os
 import os.path as op
 import json
 from string import Template
+import sys
 
 from io import open
 
@@ -115,12 +116,32 @@ in
     type=click.STRING,
     help="Set default flavour to build, if not given nixos-compose try to find a good",
 )
+@click.option(
+    "--list-flavours",
+    is_flag=True,
+    help="List description of flavours, in json format",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
-def cli(ctx, example, no_symlink, disable_detection, flake, nur, default_flavour):
+def cli(
+    ctx,
+    example,
+    no_symlink,
+    disable_detection,
+    flake,
+    nur,
+    default_flavour,
+    list_flavours,
+):
     """Initialize a new environment."""
 
     nxc_json_file = op.abspath(op.join(ctx.envdir, "nxc.json"))
+    description_flavours_file = op.abspath(op.join(NXC_NIX_PATH, "flavours.json"))
+    description_flavours = json.load(open(description_flavours_file, "r"))
+
+    if list_flavours:
+        print(json.dumps(description_flavours, indent=4))
+        sys.exit(0)
 
     example_path = op.abspath(op.join(EXAMPLES_PATH, example))
     if op.isdir(example_path):
