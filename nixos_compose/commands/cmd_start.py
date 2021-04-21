@@ -5,6 +5,9 @@ import os
 
 import os.path as op
 import subprocess
+import sys
+
+import glob
 
 import pyinotify
 import asyncio
@@ -79,7 +82,9 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh
 
     machines = []
 
-    if not ctx.state["built"]:
+    build_path = op.join(ctx.envdir, "build")
+
+    if not ctx.state["built"] or not op.exists(build_path):
         raise click.ClickException(
             "You need build composition first, with nxc build command"
         )
@@ -116,7 +121,21 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh
             notifier.stop()
             ctx.log(f"{machines_file} file created")
 
-    nixos_test_driver = op.join(ctx.envdir, "result/bin/nixos-test-driver")
+    last_build_path = max(glob.glob(f"{build_path}/*"), key=os.path.getctime)
+
+    ctx.log("Use last build:")
+    ctx.glog(last_build_path)
+
+    build_path = last_build_path
+
+    # TODO move to build sub command ?
+    # if build is nixos_test result open log.html
+    nixos_test_log = op.join(build_path, "log.html")
+    if op.isfile(nixos_test_log):
+        subprocess.call(f"xdg-open {nixos_test_log}", shell=True)
+        sys.exit(0)
+
+    nixos_test_driver = op.join(build_path, "bin/nixos-test-driver")
     if op.isfile(nixos_test_driver):
         if machines_file:
             raise click.ClickException(
@@ -124,7 +143,7 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh
             )
         ctx.log("Nixos Driver detected")
         if not driver_repl:
-            test_script = read_test_script(op.join(ctx.envdir, "result/test-script"))
+            test_script = read_test_script(op.join(build_path, "test-script"))
             os.environ["tests"] = test_script
 
         elif forward_ssh_port:
@@ -132,7 +151,7 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh
             os.environ["tests"] = test_script
             import re
 
-            with open("result/bin/nixos-test-driver") as f:
+            with open(nixos_test_driver) as f:
                 driver_script = f.readlines()
 
             nodes = [
@@ -150,7 +169,7 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh
             qemu_opts = ""
         os.environ["QEMU_OPTS"] = f"{qemu_opts} -nographic"
         subprocess.call(nixos_test_driver, shell=True)
-        exit(0)
+        sys.exit(0)
 
     if not machines_file and ctx.platform:
         machines = ctx.platform.retrieve_machines(ctx)
@@ -186,7 +205,7 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh
             time.sleep(10)
             wait_ssh_ports(ctx)
             ctx.state["started"] = True
-            exit(0)
+            sys.exit(0)
 
     # use_remote_deployment = False
     # if use_remote_deployment:
