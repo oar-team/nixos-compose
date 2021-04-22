@@ -8,7 +8,12 @@ from ..actions import read_deployment_info, connect, connect_tmux
 @click.option(
     "-g",
     "--geometry",
-    help='Define tmux geometry, 2 formats supported: +/*, examples: "1+3+2" (3 sucessive panes respectively horizontally splitted by 1,3 and 2), "2*3" (2 sucessive panes horizontally splitted by 3)',
+    help='Tmux geometry, 2 splitting indications are supported: +/*, examples: "1+3+2" (3 sucessive panes respectively horizontally splited by 1,3 and 2), "2*3" (2 sucessive panes horizontally splitted by 3)',
+)
+@click.option(
+    "-d",
+    "--deployment-file",
+    help="Deployment file, take the latest created in deploy directory by default",
 )
 @click.option(
     "-nc", "--no-pane-console", is_flag=True, help="Remove addtional pane console"
@@ -17,9 +22,9 @@ from ..actions import read_deployment_info, connect, connect_tmux
 @pass_context
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, user, host, geometry, no_pane_console):
+def cli(ctx, user, host, geometry, no_pane_console, deployment_file):
     """Connect to host."""
-    read_deployment_info(ctx, deployment_file="deployment.json")
+    read_deployment_info(ctx, deployment_file)
 
     if not host or len(host) > 1:
         # TODO  add wait_ssh

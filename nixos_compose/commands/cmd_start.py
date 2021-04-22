@@ -68,11 +68,24 @@ class EventHandler(pyinotify.ProcessEvent):
     "--push-path",
     help="remote path where to push image, kernel and kexec_script on machines (use to re-kexec)",
 )
+@click.option("--composition", type=click.STRING, help="specify composition")
+@click.option("--flavour", type=click.STRING, help="specify flavour")
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh_port):
+def cli(
+    ctx,
+    driver_repl,
+    machines_file,
+    wait,
+    ssh,
+    sudo,
+    push_path,
+    forward_ssh_port,
+    composition,
+    flavour,
+):
     """Start multi Nixos composition."""
     ctx.log("Starting")
 
@@ -121,22 +134,43 @@ def cli(ctx, driver_repl, machines_file, wait, ssh, sudo, push_path, forward_ssh
             notifier.stop()
             ctx.log(f"{machines_file} file created")
 
-    last_build_path = max(glob.glob(f"{build_path}/*"), key=os.path.getctime)
+    if not composition or not flavour:
+        last_build_path = max(
+            glob.glob(f"{build_path}/*"),
+            key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
+        )
 
-    ctx.log("Use last build:")
-    ctx.glog(last_build_path)
+        ctx.log("Use last build:")
+        ctx.glog(last_build_path)
 
-    build_path = last_build_path
+        build_path = last_build_path
+        ctx.composition_flavour_prefix = op.basename(last_build_path)
 
-    # TODO move to build sub command ?
+    else:
+        ctx.composition_flavour_prefix = f"{composition}_{flavour}"
+        build_path = op.join(ctx.envdir, ctx.composition_flavour_prefix)
+        if not op.exists(build_path):
+            ctx.elog(f"Build path does not exit: {build_path}")
+            ctx.elog("Possible causes:")
+            ctx.elog(
+                f"    - composition or flavour does not exit: {ctx.composition_flavour_prefix}"
+            )
+            ctx.elog("    - build must be launched")
+
+    if op.isdir(build_path) and len(os.listdir(build_path)) == 0:
+        ctx.wlog(f"{build_path} is an empty directory, surely a nixos-test result !")
+        sys.exit(2)
+
+    ctx.compose_info_file = build_path
+    # TODO remove only available in nixpkgs version 20.03 and before
     # if build is nixos_test result open log.html
     nixos_test_log = op.join(build_path, "log.html")
-    if op.isfile(nixos_test_log):
+    if op.exists(nixos_test_log) and op.isfile(nixos_test_log):
         subprocess.call(f"xdg-open {nixos_test_log}", shell=True)
         sys.exit(0)
 
     nixos_test_driver = op.join(build_path, "bin/nixos-test-driver")
-    if op.isfile(nixos_test_driver):
+    if op.exists(nixos_test_driver) and op.isfile(nixos_test_driver):
         if machines_file:
             raise click.ClickException(
                 "Nixos Driver detected, --machines-files can not by use here."

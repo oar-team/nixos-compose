@@ -1,6 +1,7 @@
 import json
 import os
 import os.path as op
+import glob
 import socket
 import sys
 import subprocess
@@ -23,16 +24,44 @@ DRIVER_MODES = {
 ##
 # Generate/manipulate/copy deploy, compose files
 #
-def read_deployment_info(ctx, deployment_file="deployment.json"):
-    with open(op.join(ctx.envdir, deployment_file), "r") as f:
-        deployment_info = json.load(f)
+def fix_deployment_file(ctx, deployment_file):
+    def exit_is_not_file(f):
+        if not op.isfile(f):
+            ctx.elog(f"{f} is not a file, deployment_file option must be provided")
+            sys.exit(1)
 
+    if not deployment_file:
+        deployment_file = max(
+            glob.glob(f"{op.join(ctx.envdir, 'deploy')}/*"), key=op.getctime
+        )
+        exit_is_not_file(deployment_file)
+        return deployment_file
+    else:
+        base_deployment_file = deployment_file
+        if op.exists(deployment_file):
+            exit_is_not_file(deployment_file)
+            return deployment_file
+        else:
+            deployment_file = op.join(op.join(ctx.envdir, "deploy"), deployment_file)
+            if op.exists(deployment_file):
+                exit_is_not_file(deployment_file)
+                return deployment_file
+            else:
+                ctx.elog(f"{base_deployment_file} not found")
+                sys.exit(1)
+
+
+def read_deployment_info(ctx, deployment_file=None):
+    deployment_file = fix_deployment_file(ctx, deployment_file)
+    with open(deployment_file, "r") as f:
+        deployment_info = json.load(f)
     ctx.deployment_info = deployment_info
     return
 
 
-def read_deployment_info_str(ctx, deployment_file="deployment.json"):
-    with open(op.join(ctx.envdir, deployment_file), "r") as f:
+def read_deployment_info_str(ctx, deployment_file=None):
+    deployment_file = fix_deployment_file(ctx, deployment_file)
+    with open(deployment_file, "r") as f:
         deployment_info_str = f.read()
     return deployment_info_str
 
@@ -49,16 +78,18 @@ def read_test_script(compose_info_or_str):
         return test_script
 
 
-def read_compose_info(ctx, compose_info_filename="result"):
-    compose_info_file = op.join(ctx.envdir, compose_info_filename)
-    if compose_info_filename == "result" and not op.isfile(compose_info_file):
-        compose_info_file = op.join(ctx.envdir, "compose_info.json")
-        if not op.isfile(compose_info_file):
-            raise click.ClickException(
-                f"{compose_info_filename} does not exist neither compose_info.json"
-            )
+def read_compose_info(ctx):
 
-    with open(compose_info_file, "r") as f:
+    # TODO to remove
+    # compose_info_file = op.join(ctx.envdir, compose_info_filename)
+    # if compose_info_filename == "result" and not op.isfile(compose_info_file):
+    #     compose_info_file = op.join(ctx.envdir, "compose_info.json")
+    #     if not op.isfile(compose_info_file):
+    #         raise click.ClickException(
+    #             f"{compose_info_filename} does not exist neither compose_info.json"
+    #         )
+
+    with open(ctx.compose_info_file, "r") as f:
         compose_info = json.load(f)
 
     if "flavour" in compose_info:
@@ -162,7 +193,16 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
     #        deployment[k] = compose_info[k]
 
     json_deployment = json.dumps(deployment, indent=2)
-    with open(op.join(ctx.envdir, "deployment.json"), "w") as outfile:
+
+    deploy_dir = op.join(ctx.envdir, "deploy")
+    if not op.exists(deploy_dir):
+        create = click.style("   create", fg="green")
+        ctx.log("   " + create + "  " + deploy_dir)
+        os.mkdir(deploy_dir)
+
+    with open(
+        op.join(deploy_dir, f"{ctx.composition_flavour_prefix}.json"), "w"
+    ) as outfile:
         outfile.write(json_deployment)
 
     ctx.deployment_info = deployment
@@ -223,7 +263,13 @@ def generate_deploy_info_b64(ctx):
 
 
 def copy_result_from_store(ctx):
-    store_copy_dir = ctx.envdir
+
+    artifact_path = op.join(ctx.envdir, "artifact")
+    if not op.exists(artifact_path):
+        create = click.style("   create", fg="green")
+        ctx.log("   " + create + "  " + artifact_path)
+        os.mkdir(artifact_path)
+
     if not ctx.compose_info:
         read_compose_info(ctx)
 
@@ -233,28 +279,37 @@ def copy_result_from_store(ctx):
 
     if "all" in compose_info:
         for target in ["kernel", "initrd", "qemu_script"]:
-            new_target = op.join(store_copy_dir, target)
+            new_target = op.join(
+                artifact_path, f"{ctx.composition_flavour_prefix}_{target}"
+            )
             shutil.copy(compose_info["all"][target], new_target)
             new_compose_info["all"][target] = new_target
     else:
         for r, v in compose_info["nodes"].items():
             for target in ["kernel", "initrd", "qemu_script"]:
-                new_target = op.join(store_copy_dir, target + "_" + r)
+                new_target = op.join(
+                    artifact_path, f"{ctx.composition_flavour_prefix}_{target}_{r}"
+                )
                 shutil.copy(v[target], new_target)
                 new_compose_info["nodes"][target] = new_target
 
     if "test_script" in compose_info:
-        new_target = op.join(store_copy_dir, "test_script")
+        new_target = op.join(
+            artifact_path, f"{ctx.composition_flavour_prefix}_test_script"
+        )
         shutil.copy(compose_info["test_script"], new_target)
         new_compose_info["test_script"] = new_target
 
     # save new updated compose_info
     json_new_compose_info = json.dumps(new_compose_info, indent=2)
-    with open(op.join(store_copy_dir, "compose_info.json"), "w") as outfile:
+    with open(
+        op.join(artifact_path, f"{ctx.composition_flavour_prefix}_compose_info.json"),
+        "w",
+    ) as outfile:
         outfile.write(json_new_compose_info)
 
     ctx.compose_info = new_compose_info
-    click.echo("Copy from store: " + click.style("completed", fg="green"))
+    ctx.log("Copy from store: " + click.style("completed", fg="green"))
 
 
 ##
