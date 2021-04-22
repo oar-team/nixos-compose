@@ -34,6 +34,8 @@ class Context(object):
         self.prefix = "nxc"
         self.mode = {}
         self.flavour = {}
+        self.composition_flavour_prefix = None
+        self.compose_info_file = None
         self.compose_info = None
         self.deployment_info = None
         self.deployment_info_b64 = ""
@@ -81,6 +83,10 @@ class Context(object):
     def wlog(self, msg, *args):
         """Logs a warning message to stderr."""
         self.log(click.style("Warning: %s" % msg, fg="yellow"), *args, file=sys.stderr)
+
+    def elog(self, msg, *args):
+        """Logs a error message to stderr."""
+        self.log(click.style("Warning: %s" % msg, fg="red"), *args, file=sys.stderr)
 
     def glog(self, msg, *args):
         """Logs a green message."""
