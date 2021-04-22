@@ -10,10 +10,9 @@ python = "^3.7"
 halo = "^0.0.31"
 ptpython = "^3.0.7"
 click = "^7.1.2"
+pyinotify = "^0.9.6"
 
 [tool.poetry.dev-dependencies]
-#mypy = "^0.790.0"
-#black = "^19.10b0"
 pytest = "^3.0"
 pre-commit = { version = "^2.6", python = "^3.6.1" }
 
