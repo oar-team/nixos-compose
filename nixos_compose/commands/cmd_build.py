@@ -21,9 +21,7 @@ from ..actions import copy_result_from_store
     multiple=True,
     help="add a path to the list of locations used to look up <...> file names",
 )
-@click.option(
-    "--out-link", "-o", default="result", help="path of the symlink to the build result"
-)
+@click.option("--out-link", "-o", help="path of the symlink to the build result")
 @click.option("--nixpkgs", "-n", help="set <nixpkgs> ex: channel:nixos-20.09")
 @click.option(
     "-f", "--flavour", help="Use particular flavour (name or path)",
@@ -39,7 +37,7 @@ from ..actions import copy_result_from_store
 )
 @click.option("--show-trace", is_flag=True, help="Show Nix trace")
 @click.option(
-    "--dry-run", is_flag=True, help="Chow what this command would do without doing it"
+    "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 )
 @pass_context
 @on_finished(lambda ctx: ctx.state.dump())
@@ -74,7 +72,8 @@ def cli(
             click.echo(f)
         sys.exit(0)
 
-    if not flavour and not ctx.nxc["flake"]:
+    # TODO remove use of ctx.nxc["flake"]
+    if not flavour and ("flake" not in ctx.nxc or ctx.nxc["flake"]):
         if ctx.platform:
             flavour = ctx.platform.default_flavour
             click.echo(
@@ -99,10 +98,11 @@ def cli(
     if not composition_file:
         composition_file = ctx.nxc["composition"]
 
-    compose_file = op.join(ctx.envdir, "nix/compose.nix")
+    # TODO remove, we'll use default.nix
+    # compose_file = op.join(ctx.envdir, "nix/compose.nix")
 
-    if out_link == "result":
-        out_link = op.join(ctx.envdir, out_link)
+    # if out_link == "result":
+    #    out_link = op.join(ctx.envdir, out_link)
 
     nix_flake_support = False
     if not subprocess.call(
@@ -124,21 +124,38 @@ def cli(
     if nixpkgs:
         build_cmd += f" -I nixpkgs={nixpkgs}"
 
-    if flavour_arg and not ctx.nxc["flake"]:
+    # TODO remove use of ctx.nxc["flake"]
+    if flavour_arg and ("flake" not in ctx.nxc or not ctx.nxc["flake"]):
         build_cmd += f" {flavour_arg}"
+
+    #
+    if not out_link:
+        build_path = op.join(ctx.envdir, "build")
+        if not op.exists(build_path):
+            create = click.style("   create", fg="green")
+            ctx.log("   " + create + "  " + build_path)
+            os.mkdir(build_path)
+
+        if not flavour:
+            flavour = "default"
+
+        composition_name = (os.path.basename(composition_file)).split(".")[0]
+        ctx.composition_flavour_prefix = f"{composition_name}_{flavour}"
+        out_link = op.join(build_path, f"{composition_name}_{flavour}")
 
     build_cmd += f" -o {out_link}"
 
-    if ctx.nxc["flake"]:
+    if ("flake" in ctx.nxc) and ctx.nxc["flake"]:
         if flavour:
             if nix_flake_support and not legacy_nix:
                 build_cmd += f' ".#packages.x86_64-linux.{flavour}"'
             else:
                 build_cmd += f" -A packages.x86_64-linux.{flavour}"
-    else:
-        if not legacy_nix:
-            build_cmd += " -f"
-        build_cmd += f" {compose_file} -I composition={composition_file}"
+    # else:
+    # TODO remove legacy_nix and use default.nix -> build_cmd += "-I composition={composition_file}"
+    #    if not legacy_nix:
+    # build_cmd += " -f"
+    # build_cmd += f" {compose_file} -I composition={composition_file}"
 
     if not dry_run:
         ctx.vlog(build_cmd)
@@ -151,5 +168,6 @@ def cli(
         ctx.glog("Build completed")
     else:
         ctx.log("Dry-run:")
-        ctx.log(f"   working directory: {ctx.envdir}")
-        ctx.log(f"   build command: {build_cmd}")
+        ctx.log(f"   working directory:          {ctx.envdir}")
+        ctx.log(f"   composition flavour prefix: {ctx.composition_flavour_prefix}")
+        ctx.log(f"   build command:              {build_cmd}")
