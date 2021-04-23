@@ -1,5 +1,5 @@
 {
-  name = "kexec-g5k";
+  name = "g5k-ramdisk";
   description = "Flavour for Grid'5000 platform";
   image = {
     distribution = "all-in-one";
