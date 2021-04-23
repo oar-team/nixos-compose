@@ -1,5 +1,5 @@
 {
-  name = "vm";
+  name = "vm-ramdisk";
   description = "Plain vm ramdisk (all-in-memory), need lot of ram !";
   vm = true;
   image = {
