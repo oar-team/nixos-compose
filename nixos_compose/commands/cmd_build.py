@@ -3,6 +3,7 @@ import os.path as op
 import sys
 import subprocess
 import click
+import json
 
 from ..context import pass_context, on_started, on_finished
 from ..actions import copy_result_from_store
@@ -62,14 +63,14 @@ def cli(
     """
     ctx.log("Starting build")
 
-    flavours = [
-        f.split(".")[0]
-        for f in os.listdir(op.abspath(op.join(ctx.envdir, "nix/flavours")))
-    ]
+    description_flavours_file = op.abspath(op.join(ctx.envdir, "nix/flavours.json"))
+    description_flavours = json.load(open(description_flavours_file, "r"))
+
+    flavours = [k for k in description_flavours.keys()]
 
     if list_flavours:
-        for f in flavours:
-            click.echo(f)
+        for k in flavours:
+            click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
 
     # TODO remove use of ctx.nxc["flake"]
@@ -140,8 +141,8 @@ def cli(
             flavour = "default"
 
         composition_name = (os.path.basename(composition_file)).split(".")[0]
-        ctx.composition_flavour_prefix = f"{composition_name}_{flavour}"
-        out_link = op.join(build_path, f"{composition_name}_{flavour}")
+        ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
+        out_link = op.join(build_path, f"{composition_name}::{flavour}")
 
     build_cmd += f" -o {out_link}"
 
