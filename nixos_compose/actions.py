@@ -2,6 +2,7 @@ import json
 import os
 import os.path as op
 import glob
+import pathlib
 import socket
 import sys
 import subprocess
@@ -264,14 +265,16 @@ def generate_deploy_info_b64(ctx):
 
 def copy_result_from_store(ctx):
 
-    artifact_path = op.join(ctx.envdir, "artifact")
+    if not ctx.compose_info:
+        read_compose_info(ctx)
+
+    artifact_path = op.join(
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+    )
     if not op.exists(artifact_path):
         create = click.style("   create", fg="green")
         ctx.log("   " + create + "  " + artifact_path)
-        os.mkdir(artifact_path)
-
-    if not ctx.compose_info:
-        read_compose_info(ctx)
+        pathlib.Path(artifact_path).mkdir(parents=True, exist_ok=True)
 
     compose_info = ctx.compose_info
 
@@ -279,32 +282,28 @@ def copy_result_from_store(ctx):
 
     if "all" in compose_info:
         for target in ["kernel", "initrd", "qemu_script"]:
-            new_target = op.join(
-                artifact_path, f"{ctx.composition_flavour_prefix}_{target}"
-            )
+            new_target = op.join(artifact_path, target)
             shutil.copy(compose_info["all"][target], new_target)
+            os.chmod(new_target, 0o644)
             new_compose_info["all"][target] = new_target
     else:
         for r, v in compose_info["nodes"].items():
             for target in ["kernel", "initrd", "qemu_script"]:
-                new_target = op.join(
-                    artifact_path, f"{ctx.composition_flavour_prefix}_{target}_{r}"
-                )
+                new_target = op.join(artifact_path, f"{target}_{r}")
                 shutil.copy(v[target], new_target)
+                os.chmod(new_target, 0o644)
                 new_compose_info["nodes"][target] = new_target
 
     if "test_script" in compose_info:
-        new_target = op.join(
-            artifact_path, f"{ctx.composition_flavour_prefix}_test_script"
-        )
+        new_target = op.join(artifact_path, "test_script")
         shutil.copy(compose_info["test_script"], new_target)
+        os.chmod(new_target, 0o644)
         new_compose_info["test_script"] = new_target
 
     # save new updated compose_info
     json_new_compose_info = json.dumps(new_compose_info, indent=2)
     with open(
-        op.join(artifact_path, f"{ctx.composition_flavour_prefix}_compose_info.json"),
-        "w",
+        op.join(ctx.envdir, f"build/{ctx.composition_flavour_prefix}::artifact"), "w",
     ) as outfile:
         outfile.write(json_new_compose_info)
 

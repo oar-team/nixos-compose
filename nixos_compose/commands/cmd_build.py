@@ -31,7 +31,10 @@ from ..actions import copy_result_from_store
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
 @click.option(
-    "--copy-from-store", "-c", is_flag=True, help="Copy artifact from Nix store"
+    "--copy-from-store",
+    "-c",
+    is_flag=True,
+    help="Copy artifacts (initrd, kernels, ...) from Nix store to artifact directory",
 )
 @click.option(
     "--legacy-nix", "-l", is_flag=True, help="Use legacy Nix's CLI.",
@@ -61,7 +64,6 @@ def cli(
     Typically it performs the kind of following command:
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
-    ctx.log("Starting build")
 
     description_flavours_file = op.abspath(op.join(ctx.envdir, "nix/flavours.json"))
     description_flavours = json.load(open(description_flavours_file, "r"))
@@ -69,6 +71,7 @@ def cli(
     flavours = [k for k in description_flavours.keys()]
 
     if list_flavours:
+        ctx.log("Flavours List:")
         for k in flavours:
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
@@ -141,8 +144,10 @@ def cli(
             flavour = "default"
 
         composition_name = (os.path.basename(composition_file)).split(".")[0]
+        ctx.composition_name = composition_name
+        ctx.flavour_name = flavour
         ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
-        out_link = op.join(build_path, f"{composition_name}::{flavour}")
+        out_link = op.join(build_path, ctx.composition_flavour_prefix)
 
     build_cmd += f" -o {out_link}"
 
@@ -159,10 +164,12 @@ def cli(
     # build_cmd += f" {compose_file} -I composition={composition_file}"
 
     if not dry_run:
+        ctx.glog("Starting Build")
         ctx.vlog(build_cmd)
         subprocess.call(build_cmd, cwd=ctx.envdir, shell=True)
 
         if copy_from_store or (ctx.platform and ctx.platform.copy_from_store):
+            ctx.compose_info_file = op.join(build_path, ctx.composition_flavour_prefix)
             copy_result_from_store(ctx)
 
         ctx.state["built"] = True

@@ -34,6 +34,8 @@ class Context(object):
         self.prefix = "nxc"
         self.mode = {}
         self.flavour = {}
+        self.flavour_name = None
+        self.composition_name = None
         self.composition_flavour_prefix = None
         self.compose_info_file = None
         self.compose_info = None
