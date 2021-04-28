@@ -233,7 +233,11 @@ def cli(
             with open(op.abspath(op.join(ctx.envdir, "default.nix")), "w") as f:
                 f.write(default_nix)
 
-        nxc_json = {"composition": composition_file, "flake": flake}
+        nxc_json = {
+            "composition": composition_file,
+            "flake": flake,
+            "default_flavour": default_flavour,
+        }
         nxc_json_str = json.dumps(nxc_json)
 
         ctx.nxc = nxc_json

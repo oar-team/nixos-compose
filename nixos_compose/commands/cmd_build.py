@@ -141,7 +141,10 @@ def cli(
             os.mkdir(build_path)
 
         if not flavour:
-            flavour = "default"
+            if "default_flavour" in ctx.nxc:
+                flavour = ctx.nxc["default_flavour"]
+            else:
+                flavour = "default"
 
         composition_name = (os.path.basename(composition_file)).split(".")[0]
         ctx.composition_name = composition_name
