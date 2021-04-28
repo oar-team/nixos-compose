@@ -23,7 +23,7 @@ class Platform(object):
 class Grid5000Platform(Platform):
     def __init__(self, ctx):
         super().__init__(ctx, "Grid5000")
-        self.default_flavour = "kexec-g5k"
+        self.default_flavour = "g5k-ramdisk"
         self.copy_from_store = True
         self.first_start_values = ("oarsh", "sudo-g5k", None)
         self.subsequent_start_values = ("ssh", "sudo", "/")
@@ -65,11 +65,11 @@ class Grid5000Platform(Platform):
             raise click.ClickException(
                 click.style("Unable to find a OAR_JOB_ID candidate", fg="red")
             )
-
+        # TODO test when job exist but not Running or Launching (other states not supported)
         if oar_job_id_str in o.keys():
             oar_job = o[oar_job_id_str]
 
-        if not oar_job or oar_job["state"] != "Running":
+        if oar_job["state"] != "Running":
             spinner = Halo(text=f"Waiting OAR job: {oar_job['Job_Id']}", spinner="dots")
             halo = True
             spinner.start()
