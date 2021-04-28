@@ -145,6 +145,14 @@ def cli(
 
         build_path = last_build_path
         ctx.composition_flavour_prefix = op.basename(last_build_path)
+        if not flavour:
+            splitted_basename = ctx.composition_flavour_prefix.split("::")
+            ctx.composition_name = splitted_basename[0]
+            ctx.flavour_name = splitted_basename[1]
+            if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
+                ctx.artifact = True
+        else:
+            raise Exception("Sorry, no composition with flavour case is not supported")
 
     else:
         ctx.composition_flavour_prefix = f"{composition}_{flavour}"

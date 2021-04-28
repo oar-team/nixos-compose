@@ -214,12 +214,18 @@ def generate_kexec_scripts(ctx):
     # deploy = "deploy=http://172.16.31.101:8000/deployment.json"
     generate_deploy_info_b64(ctx)
     deployinfo_b64 = ctx.deployment_info_b64
-    kexec_scripts_path = os.path.join(ctx.envdir, "kexec_scripts")
+    if ctx.artifact:
+        base_path = os.path.join(
+            ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+        )
+    else:
+        base_path = ctx.envdir
+    kexec_scripts_path = os.path.join(base_path, "kexec_scripts")
     os.makedirs(kexec_scripts_path, mode=0o700, exist_ok=True)
 
     if "all" in ctx.deployment_info:
-        kernel_path = f"{ctx.envdir}/kernel"
-        initrd_path = f"{ctx.envdir}/initrd"
+        kernel_path = f"{base_path}/kernel"
+        initrd_path = f"{base_path}/initrd"
         kexec_args = "-l $KERNEL --initrd=$INITRD "
         kexec_args += (
             f"--append='deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
@@ -236,8 +242,8 @@ def generate_kexec_scripts(ctx):
     else:
         for ip, v in ctx.deployment_info["deployment"].items():
             role = v["role"]
-            kernel_path = f"{ctx.envdir}/kernel_{role}"
-            initrd_path = f"{ctx.envdir}/initrd_{role}"
+            kernel_path = f"{base_path}/kernel_{role}"
+            initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
             kexec_args += f"--append='init={init_path} deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
@@ -323,7 +329,13 @@ def launch_ssh_kexec(ctx, ip=None):
             ki = f"KERNEL={ctx.push_path}kernel INITRD={ctx.push_path}initrd"
             user = "root@"
         else:
-            kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
+            if ctx.artifact:
+                base_path = os.path.join(
+                    ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+                )
+            else:
+                base_path = ctx.envdir
+            kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
             ki = ""
             user = ""
         if ctx.sudo:

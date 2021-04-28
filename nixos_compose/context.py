@@ -47,6 +47,7 @@ class Context(object):
         self.sudo = ""
         self.push_path = None
         self.platform = None
+        self.artifact = False  # use artifact
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
