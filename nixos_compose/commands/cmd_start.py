@@ -225,10 +225,8 @@ def cli(
     ctx.log("Generate: deployment.json")
     generate_deployment_info(ctx)
 
-    if (
-        ctx.ip_addresses
-        and ("vm" not in ctx.flavour)
-        and ("vm" in ctx.flavour and not ctx.flavour.vm)
+    if ctx.ip_addresses and (
+        ("vm" not in ctx.flavour) or ("vm" in ctx.flavour and not ctx.flavour.vm)
     ):
         generate_kexec_scripts(ctx)
         if ctx.push_path:
