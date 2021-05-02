@@ -235,7 +235,6 @@ def cli(
 
         nxc_json = {
             "composition": composition_file,
-            "flake": flake,
             "default_flavour": default_flavour,
         }
         nxc_json_str = json.dumps(nxc_json)

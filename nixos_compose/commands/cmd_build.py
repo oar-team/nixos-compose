@@ -76,8 +76,10 @@ def cli(
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
 
-    # TODO remove use of ctx.nxc["flake"]
-    if not flavour and ("flake" not in ctx.nxc or ctx.nxc["flake"]):
+    # Do we are in flake context
+    flake = True if op.exists(op.join(ctx.envdir, "flake.nix")) else False
+
+    if not flavour and not flake:
         if ctx.platform:
             flavour = ctx.platform.default_flavour
             click.echo(
@@ -128,8 +130,7 @@ def cli(
     if nixpkgs:
         build_cmd += f" -I nixpkgs={nixpkgs}"
 
-    # TODO remove use of ctx.nxc["flake"]
-    if flavour_arg and ("flake" not in ctx.nxc or not ctx.nxc["flake"]):
+    if flavour_arg and not flake:
         build_cmd += f" {flavour_arg}"
 
     #
@@ -154,7 +155,7 @@ def cli(
 
     build_cmd += f" -o {out_link}"
 
-    if ("flake" in ctx.nxc) and ctx.nxc["flake"]:
+    if flake:
         if flavour:
             if nix_flake_support and not legacy_nix:
                 build_cmd += f' ".#packages.x86_64-linux.{flavour}"'
