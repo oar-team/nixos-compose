@@ -1,4 +1,7 @@
 *.py[cod]
 *~
-poc*
-/nxc*
+attic*
+nxc*
+live*
+*.egg
+*.egg-info
