@@ -329,12 +329,11 @@ def launch_ssh_kexec(ctx, ip=None):
             ki = f"KERNEL={ctx.push_path}kernel INITRD={ctx.push_path}initrd"
             user = "root@"
         else:
+            base_path = ctx.envdir
             if ctx.artifact:
                 base_path = os.path.join(
                     ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
                 )
-            else:
-                base_path = ctx.envdir
             kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
             ki = ""
             user = ""
@@ -391,7 +390,13 @@ def push_on_machines(ctx):
 
     kernel = ctx.deployment_info["all"]["kernel"]
     initrd = ctx.deployment_info["all"]["initrd"]
-    kexec_script = op.join(ctx.envdir, "kexec_scripts/kexec.sh")
+
+    base_path = ctx.envdir
+    if ctx.artifact:
+        base_path = os.path.join(
+            ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+        )
+    kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
 
     if shutil.which("kastafior"):
         raise NotImplementedError

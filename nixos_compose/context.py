@@ -1,7 +1,8 @@
 import os
-import os.path as op
 import sys
 import time
+
+import json
 
 from io import open
 from functools import update_wrapper
@@ -9,7 +10,8 @@ from functools import update_wrapper
 import click
 
 from .platform import Grid5000Platform
-from .state import State
+
+# from .state import State
 
 CONTEXT_SETTINGS = dict(
     auto_envvar_prefix="nixos_compose", help_option_names=["-h", "--help"]
@@ -56,17 +58,17 @@ class Context(object):
             with open(self.env_id_file, "w+") as fd:
                 fd.write(env_id + "\n")
 
-    @property
-    def state(self):
-        if not hasattr(self, "_state"):
-            self._state = State(self, state_file=self.state_file)
-        return self._state
-
-    def update(self):
-        self.state_file = op.join(self.envdir, "state.json")
-        if "platform" in self.state:
-            if self.state["platform"] == "Grid5000":
-                self.platform = Grid5000Platform(self)
+    #    @property
+    #    def state(self):
+    #        if not hasattr(self, "_state"):
+    #            self._state = State(self, state_file=self.state_file)
+    #        return self._state
+    #
+    #    def update(self):
+    #        self.state_file = op.join(self.envdir, "state.json")
+    #        if "platform" in self.state:
+    #            if self.state["platform"] == "Grid5000":
+    #                self.platform = Grid5000Platform(self)
 
     def assert_valid_env(self):
         if not os.path.isdir(self.envdir):
@@ -114,6 +116,11 @@ class Context(object):
     def show_elapsed_time(self):
         duration = "{:.2f}".format(self.elapsed_time())
         self.vlog("Elapsed Time: " + (click.style(duration, fg="green")) + " seconds")
+
+    def load_nxc(self, f):
+        self.nxc = json.load(f)
+        if "platform" in self.nxc and self.nxc["platform"] == "Grid5000":
+            self.platform = Grid5000Platform(self)
 
 
 def make_pass_decorator(ensure=False):

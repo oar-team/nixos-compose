@@ -68,10 +68,14 @@ class EventHandler(pyinotify.ProcessEvent):
     "--push-path",
     help="remote path where to push image, kernel and kexec_script on machines (use to re-kexec)",
 )
+@click.option(
+    "--reuse",
+    is_flag=True,
+    help="supposed a previous succeded start (w/ root access via ssh)",
+)
 @click.option("--composition", type=click.STRING, help="specify composition")
 @click.option("--flavour", type=click.STRING, help="specify flavour")
 @pass_context
-@on_finished(lambda ctx: ctx.state.dump())
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
@@ -83,6 +87,7 @@ def cli(
     sudo,
     push_path,
     forward_ssh_port,
+    reuse,
     composition,
     flavour,
 ):
@@ -97,7 +102,7 @@ def cli(
 
     build_path = op.join(ctx.envdir, "build")
 
-    if not ctx.state["built"] or not op.exists(build_path):
+    if not op.exists(build_path):
         raise click.ClickException(
             "You need build composition first, with nxc build command"
         )
@@ -215,7 +220,10 @@ def cli(
 
     if not machines_file and ctx.platform:
         machines = ctx.platform.retrieve_machines(ctx)
-        (ssh, sudo, push_path) = ctx.platform.get_start_values(ctx)
+        if reuse:
+            (ssh, sudo, push_path) = ctx.platform.subsequent_start_values
+        else:
+            (ssh, sudo, push_path) = ctx.platform.first_start_values
         if ctx.ssh is None:
             ctx.ssh = ssh
         if ctx.sudo is None:
@@ -244,7 +252,6 @@ def cli(
             launch_ssh_kexec(ctx)
             time.sleep(10)
             wait_ssh_ports(ctx)
-            ctx.state["started"] = True
             sys.exit(0)
 
     # use_remote_deployment = False

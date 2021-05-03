@@ -10,14 +10,13 @@ from halo import Halo
 class Platform(object):
     def __init__(self, ctx, name):  # TODO ctx remove ?
         self.name = name
-        ctx.state["platform"] = name  # TODO remove ?
         self.copy_from_store = False
 
     def retrieve_machines(self, ctx):
         pass
 
-    def get_start_values(self, ctx):
-        pass
+    # def get_start_values(self, ctx):
+    #    pass
 
 
 class Grid5000Platform(Platform):
@@ -34,11 +33,11 @@ class Grid5000Platform(Platform):
 
         oar_job = None
         oar_job_id_str = None
-        oar_job_id_prev_str = None
+        # oar_job_id_prev_str = None
         halo = False
 
-        if "oar_job_id" in ctx.state:
-            oar_job_id_prev_str = str(ctx.state["oar_job_id"])
+        # if "oar_job_id" in ctx.state:
+        #    oar_job_id_prev_str = str(ctx.state["oar_job_id"])
 
         def oarstat():
             output = subprocess.check_output("oarstat -u -J", shell=True)
@@ -48,12 +47,6 @@ class Grid5000Platform(Platform):
         o = oarstat()
         if "OAR_JOB_ID" in os.environ:
             oar_job_id_str = os.environ["OAR_JOB_ID"]
-        elif (
-            oar_job_id_prev_str
-            and oar_job_id_prev_str in o
-            and o[oar_job_id_prev_str]["state"] == "Running"
-        ):
-            oar_job_id_str = str(ctx.state["oar_job_id"])
         else:
             # we get the last one
             oar_job_ids = [int(jid) for jid in o.keys()]
@@ -65,9 +58,19 @@ class Grid5000Platform(Platform):
             raise click.ClickException(
                 click.style("Unable to find a OAR_JOB_ID candidate", fg="red")
             )
+
+        ctx.log(f"target OAR_JOB_ID={oar_job_id_str}")
+
         # TODO test when job exist but not Running or Launching (other states not supported)
         if oar_job_id_str in o.keys():
             oar_job = o[oar_job_id_str]
+            if oar_job["state"] not in ["Running", "Launching", "Waiting"]:
+                raise click.ClickException(
+                    click.style(
+                        f"fail to acquire OAR job {oar_job_id_str} in state: {oar_job['state']}",
+                        fg="red",
+                    )
+                )
 
         if oar_job["state"] != "Running":
             spinner = Halo(text=f"Waiting OAR job: {oar_job['Job_Id']}", spinner="dots")
@@ -86,18 +89,10 @@ class Grid5000Platform(Platform):
         self.oar_job_id = int(oar_job_id_str)
         self.oar_job = oar_job
 
-        if "oar_job_id" not in ctx.state:
-            ctx.state["oar_job_id"] = self.oar_job_id
+        # for oarsh but alter env
+        os.environ["OAR_JOB_ID"] = oar_job_id_str
 
         return oar_job["assigned_network_address"]
-
-    def get_start_values(self, ctx):
-        assert "oar_job_id" in ctx.state
-        if ctx.state["started"]:
-            return self.subsequent_start_values
-        else:
-            os.environ["OAR_JOB_ID"] = str(self.oar_job_id)
-            return self.first_start_values
 
 
 # class LocalPlatform(Platform):
@@ -112,7 +107,6 @@ def platform_detection(ctx):
         plt = click.style("   Grid'5000", fg="green")
         click.echo("   " + plt + " detected")
         ctx.platform = Grid5000Platform(ctx)
-        ctx.state["platform"] = ctx.platform.name
     else:
         click.echo("      no particular platform detected, local mode will be used")
     return

@@ -8,7 +8,7 @@ from io import open
 
 import click
 
-from ..context import pass_context, on_finished
+from ..context import pass_context
 from ..platform import platform_detection
 from ..utils import copy_tree, copy_file
 
@@ -125,7 +125,7 @@ in
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
 @pass_context
-@on_finished(lambda ctx: ctx.state.dump())
+# @on_finished(lambda ctx: ctx.state.dump())
 def cli(
     ctx,
     example,
@@ -237,6 +237,8 @@ def cli(
             "composition": composition_file,
             "default_flavour": default_flavour,
         }
+        if ctx.platform:
+            nxc_json["platform"] = ctx.platform.name
         nxc_json_str = json.dumps(nxc_json)
 
         ctx.nxc = nxc_json

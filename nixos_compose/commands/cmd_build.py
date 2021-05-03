@@ -44,7 +44,6 @@ from ..actions import copy_result_from_store
     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 )
 @pass_context
-@on_finished(lambda ctx: ctx.state.dump())
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
@@ -176,7 +175,6 @@ def cli(
             ctx.compose_info_file = op.join(build_path, ctx.composition_flavour_prefix)
             copy_result_from_store(ctx)
 
-        ctx.state["built"] = True
         ctx.glog("Build completed")
     else:
         ctx.log("Dry-run:")

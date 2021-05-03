@@ -2,8 +2,6 @@ import os
 import os.path as op
 import sys
 
-import json
-
 import click
 
 from . import VERSION
@@ -49,12 +47,13 @@ def cli(ctx, envdir, verbose, debug):
         else:
             ctx.nxc_file = op.abspath("nxc.json")
         with open(ctx.nxc_file, "r") as f:
-            ctx.nxc = json.load(f)
+            ctx.load_nxc(f)
+
         ctx.envdir = op.dirname(ctx.nxc_file)
 
     ctx.verbose = verbose
     ctx.debug = debug
-    ctx.update()
+    # ctx.update() not use
 
 
 def main(args=sys.argv[1:]):
