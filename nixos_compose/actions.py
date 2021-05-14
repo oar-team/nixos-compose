@@ -193,6 +193,11 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
     #    if k in compose_info:
     #        deployment[k] = compose_info[k]
 
+    # If there is too much nodes httpd must used to tranfert deployment info,
+    # due to kernel parameter size limit (deployment_info_b64 certainly will exceed it)
+    if len(deployment["deployment"]) > 4:
+        ctx.use_httpd = True
+
     json_deployment = json.dumps(deployment, indent=2)
 
     deploy_dir = op.join(ctx.envdir, "deploy")
@@ -211,9 +216,13 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
 
 
 def generate_kexec_scripts(ctx):
-    # deploy = "deploy=http://172.16.31.101:8000/deployment.json"
-    generate_deploy_info_b64(ctx)
-    deployinfo_b64 = ctx.deployment_info_b64
+    if ctx.use_httpd:
+        base_url = f"http://{ctx.httpd.ip}:{ctx.httpd.port}"
+        deploy_info_src = f"{base_url}/deploy/{ctx.composition_flavour_prefix}.json"
+    else:
+        generate_deploy_info_b64(ctx)
+        deploy_info_src = ctx.deployment_info_b64
+
     if ctx.artifact:
         base_path = os.path.join(
             ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
@@ -228,7 +237,7 @@ def generate_kexec_scripts(ctx):
         initrd_path = f"{base_path}/initrd"
         kexec_args = "-l $KERNEL --initrd=$INITRD "
         kexec_args += (
-            f"--append='deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
+            f"--append='deploy:{deploy_info_src} console=tty0 console=ttyS0,115200'"
         )
         script_path = os.path.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
@@ -246,7 +255,7 @@ def generate_kexec_scripts(ctx):
             initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += f"--append='init={init_path} deploy:{deployinfo_b64} console=tty0 console=ttyS0,115200'"
+            kexec_args += f"--append='init={init_path} deploy:{deploy_info_src} console=tty0 console=ttyS0,115200'"
             script_path = os.path.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")

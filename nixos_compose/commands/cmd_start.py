@@ -25,8 +25,8 @@ from ..actions import (
     wait_ssh_ports,
 )
 
-# from ..httpd import HTTPDaemon
 from ..driver import driver
+from ..httpd import HTTPDaemon
 
 DRIVER_MODES = {
     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
@@ -73,6 +73,11 @@ class EventHandler(pyinotify.ProcessEvent):
     is_flag=True,
     help="supposed a previous succeded start (w/ root access via ssh)",
 )
+@click.option(
+    "--remote-deployment-info",
+    is_flag=True,
+    help="deployement info is served by http (in place of kernel parameters)",
+)
 @click.option("--composition", type=click.STRING, help="specify composition")
 @click.option("--flavour", type=click.STRING, help="specify flavour")
 @pass_context
@@ -90,6 +95,7 @@ def cli(
     reuse,
     composition,
     flavour,
+    remote_deployment_info,
 ):
     """Start multi Nixos composition."""
     ctx.log("Starting")
@@ -97,6 +103,9 @@ def cli(
     ctx.ssh = ssh
     ctx.sudo = sudo
     ctx.push_path = push_path
+
+    if remote_deployment_info:
+        ctx.use_httpd = True
 
     machines = []
 
@@ -239,14 +248,25 @@ def cli(
         print(ctx.ip_addresses, ctx.host2ip_address)
 
     ctx.log("Generate: deployment.json")
+
     generate_deployment_info(ctx)
 
     if ctx.ip_addresses and (
-        ("vm" not in ctx.flavour) or ("vm" in ctx.flavour and not ctx.flavour.vm)
+        ("vm" not in ctx.flavour) or ("vm" in ctx.flavour and not ctx.flavour["vm"])
     ):
+
+        if ctx.use_httpd:
+            ctx.vlog("Launch: httpd to distribute deployment.json")
+            ctx.httpd = HTTPDaemon(ctx=ctx)
+
         generate_kexec_scripts(ctx)
+
         if ctx.push_path:
             push_on_machines(ctx)
+
+        if ctx.use_httpd:
+            ctx.httpd.start(directory=ctx.envdir)
+
         if not driver_repl:
             ctx.log("Launch ssh(s) kexec")
             launch_ssh_kexec(ctx)
@@ -262,11 +282,13 @@ def cli(
 
     test_script = read_test_script(ctx.compose_info)
 
+    # Semantic bug !
     if ctx.ip_addresses:
         ctx.mode = DRIVER_MODES["remote"]
     else:
         ctx.mode = DRIVER_MODES["vm"]
 
+    # Semantic bug !
     ctx.mode = DRIVER_MODES["vm-ssh"]
     test_script = None
 
@@ -274,5 +296,7 @@ def cli(
     # launch_vm(ctx, deployment, 0)
     # wait_ssh_ports(ctx, ips, False)
     # httpd.stop()
+    if ctx.use_httpd:
+        ctx.httpd.stop()
 
     ctx.glog("That's All Folk")

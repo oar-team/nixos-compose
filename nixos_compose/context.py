@@ -50,6 +50,8 @@ class Context(object):
         self.push_path = None
         self.platform = None
         self.artifact = False  # use artifact
+        self.use_httpd = False
+        self.httpd = None
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
