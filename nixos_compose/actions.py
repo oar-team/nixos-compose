@@ -237,7 +237,7 @@ def generate_kexec_scripts(ctx):
         initrd_path = f"{base_path}/initrd"
         kexec_args = "-l $KERNEL --initrd=$INITRD "
         kexec_args += (
-            f"--append='deploy:{deploy_info_src} console=tty0 console=ttyS0,115200'"
+            f"--append='deploy={deploy_info_src} console=tty0 console=ttyS0,115200'"
         )
         script_path = os.path.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
@@ -255,7 +255,7 @@ def generate_kexec_scripts(ctx):
             initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += f"--append='init={init_path} deploy:{deploy_info_src} console=tty0 console=ttyS0,115200'"
+            kexec_args += f"--append='init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200'"
             script_path = os.path.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")

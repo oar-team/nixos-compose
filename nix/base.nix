@@ -25,19 +25,19 @@
                 set -- $(IFS==; echo $o)
                 echo "$2 server" > /etc/hosts
                 ;;
-            deploy:*)
+            deploy=*)
                 echo "Retrieve deployment configuration"
                 deployment_json="/mnt-root/etc/deployment.json"
                 ip_addr=$(ip route get 1.0.0.0 | awk '{print $NF;exit}')
-                set -- $(IFS=:; echo $o)
-                if [ $2 == "https" ] || [ $2 == "http" ]
+                d=$(echo $o | cut -c8-)
+                set -- $(IFS=:; echo $d)
+                if [ $1 == "https" ] || [ $1 == "http" ]
                 then
-                   url=$(echo $o | cut -c8-)
-                   echo "Use http(s) to get deployment configuration at $url"
-                   wget -q "$url" -O $deployment_json
+                   echo "Use http(s) to get deployment configuration at $d"
+                   wget -q "$d" -O $deployment_json
                 else
                    echo "Use base64 decode to deployment configuration"
-                   echo "$2" | base64 -d >> $deployment_json
+                   echo "$d" | base64 -d >> $deployment_json
                 fi
                 role_init=$(jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.init)\""  $deployment_json)
                 set -- $(IFS=" "; echo $role_init)
