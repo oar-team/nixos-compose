@@ -28,7 +28,7 @@ from base64 import b64encode
 
 from .context import Context
 from .actions import launch_ssh_kexec
-
+from .httpd import HTTPDaemon
 
 CHAR_TO_KEY = {
     "A": "shift-a",
@@ -788,15 +788,10 @@ class Machine:
 
         print(f'VM_ID {environment["VM_ID"]}')
 
-        print(self.script)
-        print(environment)
-        time.sleep(10000)
-        # import pdb; pdb.set_trace()
         print("process")
         self.process = subprocess.Popen(
             self.script,
-            stdin=subprocess.PIPE,
-            # stdin=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=True,
@@ -1025,15 +1020,25 @@ def driver(ctx, driver_repl, test_script=None):
             debug_stage1 = os.environ["DEBUG_STAGE1"]
 
         if "DEPLOY" not in os.environ:
-            deployment_info_str = json.dumps(deployment)
-            deploy_info_b64 = b64encode(deployment_info_str.encode()).decode()
-
-            if len(deploy_info_b64) > (4096 - 256):
-                log.log(
-                    "The base64 encoded deploy data is too large: use an http server to serve it"
+            if context.use_httpd:
+                if not context.httpd:
+                    context.httpd = HTTPDaemon(ctx=context)
+                    context.httpd.start(directory=context.envdir)
+                base_url = f"http://10.0.2.2:{context.httpd.port}"
+                deploy_info_src = (
+                    f"{base_url}/deploy/{context.composition_flavour_prefix}.json"
                 )
-                sys.exit(1)
-            os.environ["DEPLOY"] = f"deploy:{deploy_info_b64}"
+            else:
+                deployment_info_str = json.dumps(deployment)
+                deploy_info_src = b64encode(deployment_info_str.encode()).decode()
+
+                if len(deploy_info_src) > (4096 - 256):
+                    log.log(
+                        "The base64 encoded deploy data is too large: use an http server to serve it"
+                    )
+                    sys.exit(1)
+            os.environ["DEPLOY"] = f"deploy={deploy_info_src}"
+            print(f"deploy={deploy_info_src}")
         else:
             log.log(f'Variable environment DEPLOY: {os.environ["DEPLOY"]}')
 
@@ -1066,7 +1071,7 @@ def driver(ctx, driver_repl, test_script=None):
                 qemu_script = v["qemu_script"]
 
             if debug_stage1 and (debug_stage1 == name):
-                # debloy="DEPLOY=deploy:http://10.0.2.1:8000/deploy/composition::vm-ramdisk.json \\\n"
+                # debloy="DEPLOY=deploy=http://10.0.2.1:8000/deploy/composition::vm-ramdisk.json \\\n"
                 params = f'{debug_var_base}INIT={v["init"]} \\\n'
                 debug = " DEBUG_INITRD=boot.debug1mounts "
                 params = f'{params}QEMU_VDE_SOCKET={vde_socket}{debug}VM_ID={v["vm_id"]} ROLE={name} \\\n'
