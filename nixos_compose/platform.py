@@ -41,6 +41,10 @@ class Grid5000Platform(Platform):
 
         def oarstat():
             output = subprocess.check_output("oarstat -u -J", shell=True)
+            if not output:
+                raise click.ClickException(
+                    click.style("Not oar job is present for this user", fg="red")
+                )
             ctx.vlog(output)
             return json.loads(output)
 
