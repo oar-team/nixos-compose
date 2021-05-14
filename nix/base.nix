@@ -30,11 +30,11 @@
                 deployment_json="/mnt-root/etc/deployment.json"
                 ip_addr=$(ip route get 1.0.0.0 | awk '{print $NF;exit}')
                 set -- $(IFS=:; echo $o)
-                h=$(echo $2 | head -c 7)
-                if [ $h == "https:/" ] || [ $h == "http://" ]
+                if [ $2 == "https" ] || [ $2 == "http" ]
                 then
-                   echo "Use http(s) to get deployment configuration"
-                   wget -q "$2" -O $deployment_json
+                   url=$(echo $o | cut -c8-)
+                   echo "Use http(s) to get deployment configuration at $url"
+                   wget -q "$url" -O $deployment_json
                 else
                    echo "Use base64 decode to deployment configuration"
                    echo "$2" | base64 -d >> $deployment_json

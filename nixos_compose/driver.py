@@ -142,7 +142,7 @@ def create_vlan(vlan_nr: str) -> Tuple[str, str, "subprocess.Popen[bytes]", Any]
         "-s",
         vde_socket,
         "--dirmode",
-        "0700",
+        "0770",
         "--group",
         "users",
     ]
@@ -150,18 +150,7 @@ def create_vlan(vlan_nr: str) -> Tuple[str, str, "subprocess.Popen[bytes]", Any]
 
     pty_master, pty_slave = pty.openpty()
     vde_process = subprocess.Popen(
-        [
-            "sudo",
-            "vde_switch",
-            "-tap",
-            "tap0",
-            "-s",
-            vde_socket,
-            "--dirmode",
-            "0770",
-            "--group",
-            "users",
-        ],
+        vde_cmd,
         stdin=pty_slave,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -791,27 +780,36 @@ class Machine:
                 "ROLE": f"role={self.name}",
             }
         )
+
+        print(f'VM_ID {environment["VM_ID"]}')
+
         if context.mode["image"]["distribution"] == "all-in-one":
             environment["INIT"] = self.init
 
-        # print(self.script)
+        print(f'VM_ID {environment["VM_ID"]}')
+
+        print(self.script)
+        print(environment)
+        time.sleep(10000)
+        # import pdb; pdb.set_trace()
         print("process")
         self.process = subprocess.Popen(
             self.script,
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.PIPE,
+            # stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=True,
             cwd=self.state_dir,
             env=environment,
         )
+
         print("accept monitor")
         self.monitor, _ = self.monitor_socket.accept()
         print("accept shell")
         if context.mode["shell"] == "chardev":
             self.shell, _ = self.shell_socket.accept()
 
-        print("after accept")
         # Store last serial console lines for use
         # of wait_for_console_text
         self.last_lines: Queue = Queue()
@@ -989,7 +987,6 @@ def check_ssh_port(hosts):
     log.log("All ssh ports are ready")
 
 
-# def driver_mode(ctx, driver_mode, flavour, deployment_info, driver_repl, test_script=None):
 def driver(ctx, driver_repl, test_script=None):
     global context
     context = ctx
@@ -1022,22 +1019,34 @@ def driver(ctx, driver_repl, test_script=None):
         #     ssh_key_pub_b64 = b64encode(deployment["ssh_key.pub"].encode()).decode()
         #     qemu_append = "ssh_key.pub:" + ssh_key_pub_b64
         #     deployment.pop("ssh_key.pub")
+        debug_stage1 = None
+        debug_var_base = ""
+        if "DEBUG_STAGE1" in os.environ:
+            debug_stage1 = os.environ["DEBUG_STAGE1"]
 
-        deployment_info_str = json.dumps(deployment)
-        deploy_info_b64 = b64encode(deployment_info_str.encode()).decode()
+        if "DEPLOY" not in os.environ:
+            deployment_info_str = json.dumps(deployment)
+            deploy_info_b64 = b64encode(deployment_info_str.encode()).decode()
 
-        if len(deploy_info_b64) > (4096 - 256):
-            log.log(
-                "The base64 encoded deploy data is too large: use an http server to serve it"
-            )
-            sys.exit(1)
+            if len(deploy_info_b64) > (4096 - 256):
+                log.log(
+                    "The base64 encoded deploy data is too large: use an http server to serve it"
+                )
+                sys.exit(1)
+            os.environ["DEPLOY"] = f"deploy:{deploy_info_b64}"
+        else:
+            log.log(f'Variable environment DEPLOY: {os.environ["DEPLOY"]}')
 
-        # os.environ["QEMU_APPEND"] = qemu_append
+        for var_env in ["QEMU_APPEND", "DEBUG_INITRD"]:
+            if var_env in os.environ:
+                log.log(f"Variable environment {var_env}: {os.environ[var_env]}")
+
         base_qemu_script = None
-        os.environ["DEPLOY"] = f"deploy:{deploy_info_b64}"
         if mode["image"]["distribution"] == "all-in-one":
             os.environ["KERNEL"] = deployment["all"]["kernel"]
             os.environ["INITRD"] = deployment["all"]["initrd"]
+            if debug_stage1:
+                debug_var_base = f'KERNEL={deployment["all"]["kernel"]} \\\nINITRD={deployment["all"]["initrd"]} \\\n'
             base_qemu_script = deployment["all"]["qemu_script"]
 
         ip_addresses = []
@@ -1056,18 +1065,27 @@ def driver(ctx, driver_repl, test_script=None):
             else:
                 qemu_script = v["qemu_script"]
 
-            machines.append(
-                create_machine(
-                    {
-                        "name": name,
-                        "startCommand": qemu_script,
-                        "ip": ip,
-                        "vm_id": v["vm_id"],
-                        "keepVmState": False,
-                        "init": v["init"],
-                    }
+            if debug_stage1 and (debug_stage1 == name):
+                # debloy="DEPLOY=deploy:http://10.0.2.1:8000/deploy/composition::vm-ramdisk.json \\\n"
+                params = f'{debug_var_base}INIT={v["init"]} \\\n'
+                debug = " DEBUG_INITRD=boot.debug1mounts "
+                params = f'{params}QEMU_VDE_SOCKET={vde_socket}{debug}VM_ID={v["vm_id"]} ROLE={name} \\\n'
+                print()
+                print(f"{params}{qemu_script}")
+                print()
+            else:
+                machines.append(
+                    create_machine(
+                        {
+                            "name": name,
+                            "startCommand": qemu_script,
+                            "ip": ip,
+                            "vm_id": v["vm_id"],
+                            "keepVmState": False,
+                            "init": v["init"],
+                        }
+                    )
                 )
-            )
     else:
         # ssh launching case
         # TO CONTINUE
