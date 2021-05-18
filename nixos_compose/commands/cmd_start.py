@@ -282,15 +282,14 @@ def cli(
 
     test_script = read_test_script(ctx.compose_info)
 
-    # Semantic bug !
     if ctx.ip_addresses:
         ctx.mode = DRIVER_MODES["remote"]
     else:
         ctx.mode = DRIVER_MODES["vm"]
 
-    # Semantic bug !
-    ctx.mode = DRIVER_MODES["vm-ssh"]
-    test_script = None
+    if forward_ssh_port:
+        ctx.mode = DRIVER_MODES["vm-ssh"]
+        test_script = None
 
     driver(ctx, driver_repl, test_script)
     # launch_vm(ctx, deployment, 0)
