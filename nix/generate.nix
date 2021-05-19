@@ -4,7 +4,8 @@ composition:
 let
   pkgs = (import nixpkgs) { inherit system; };
   lib = pkgs.lib;
-  compositionSet = composition { inherit pkgs lib; };
+  modulesPath = "${toString nixpkgs}/nixos";
+  compositionSet = composition { inherit pkgs lib modulesPath; };
   nodes = compositionSet.nodes;
   testScriptRaw =
     if compositionSet ? testScript then compositionSet.testScript else "";
