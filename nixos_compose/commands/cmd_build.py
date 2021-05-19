@@ -22,6 +22,11 @@ from ..actions import copy_result_from_store
     multiple=True,
     help="add a path to the list of locations used to look up <...> file names",
 )
+@click.option(
+    "--nix-flags",
+    type=click.STRING,
+    help='add nix flags (aka options) to nix build command, --nix-flags "--impure"',
+)
 @click.option("--out-link", "-o", help="path of the symlink to the build result")
 @click.option("--nixpkgs", "-n", help="set <nixpkgs> ex: channel:nixos-20.09")
 @click.option(
@@ -50,6 +55,7 @@ def cli(
     ctx,
     composition_file,
     nix_path,
+    nix_flags,
     out_link,
     nixpkgs,
     flavour,
@@ -160,6 +166,10 @@ def cli(
                 build_cmd += f' ".#packages.x86_64-linux.{flavour}"'
             else:
                 build_cmd += f" -A packages.x86_64-linux.{flavour}"
+
+    # add additional nix flags if any
+    if nix_flags:
+        build_cmd += " " + nix_flags
     # else:
     # TODO remove legacy_nix and use default.nix -> build_cmd += "-I composition={composition_file}"
     #    if not legacy_nix:
