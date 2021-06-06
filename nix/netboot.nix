@@ -49,7 +49,7 @@ with lib;
     #  options = [ "trans=virtio" "version=9p2000.L" ];
     #};
 
-    boot.initrd.availableKernelModules = [ "squashfs" "overlay" ];
+    boot.initrd.availableKernelModules = [ "squashfs" "overlay" "igb" "ixgbe" ];
     boot.initrd.kernelModules = [ "loop" "overlay" ];
 
     # Closures to be copied to the Nix store, namely the init
