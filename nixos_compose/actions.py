@@ -236,9 +236,7 @@ def generate_kexec_scripts(ctx):
         kernel_path = f"{base_path}/kernel"
         initrd_path = f"{base_path}/initrd"
         kexec_args = "-l $KERNEL --initrd=$INITRD "
-        kexec_args += (
-            f"--append='deploy={deploy_info_src} console=tty0 console=ttyS0,115200'"
-        )
+        kexec_args += f"--append='deploy={deploy_info_src} console=tty0 console=ttyS0,115200 $DEBUG_INITRD'"
         script_path = os.path.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
@@ -255,7 +253,7 @@ def generate_kexec_scripts(ctx):
             initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += f"--append='init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200'"
+            kexec_args += f"--append='init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 $DEBUG_INITRD'"
             script_path = os.path.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
@@ -331,7 +329,7 @@ def copy_result_from_store(ctx):
 #
 
 
-def launch_ssh_kexec(ctx, ip=None):
+def launch_ssh_kexec(ctx, ip=None, debug=False):
     if "all" in ctx.deployment_info:
         if ctx.push_path:
             kexec_script = f"{ctx.push_path}/kexec.sh"
@@ -350,6 +348,14 @@ def launch_ssh_kexec(ctx, ip=None):
             sudo = f"SUDO={ctx.sudo}"
         else:
             sudo = ""
+
+        if "DEBUG_STAGE1" in os.environ or debug:
+            # debug_stage1 = os.environ["DEBUG_STAGE1"]
+            # TODO
+            ctx.wlog(
+                "Machine selection not yet supported within ssh_kexec. Debug_stage1 will apply to all."
+            )
+            ki = f" {ki} DEBUG_INITRD=boot.debug1mounts "
 
         def one_ssh_kexec(ip_addr):
             ssh_cmd = f'{ctx.ssh} {user}{ip_addr} "screen -dm bash -c \\"{sudo} {ki} {kexec_script}\\""'

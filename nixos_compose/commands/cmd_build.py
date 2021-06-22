@@ -70,6 +70,8 @@ def cli(
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
 
+    build_cmd = ""
+
     description_flavours_file = op.abspath(op.join(ctx.envdir, "nix/flavours.json"))
     description_flavours = json.load(open(description_flavours_file, "r"))
 
@@ -124,11 +126,6 @@ def cli(
     ):
         nix_flake_support = True
 
-    if legacy_nix:
-        build_cmd = "nix-build"
-    else:
-        build_cmd = "nix build"
-
     if show_trace:
         build_cmd += " --show-trace"
 
@@ -163,9 +160,14 @@ def cli(
     if flake:
         if flavour:
             if nix_flake_support and not legacy_nix:
-                build_cmd += f' ".#packages.x86_64-linux.{flavour}"'
+                build_cmd = f'nix build {build_cmd} ".#packages.x86_64-linux.{flavour}"'
             else:
-                build_cmd += f" -A packages.x86_64-linux.{flavour}"
+                build_cmd = f"nix-build {build_cmd} -A packages.x86_64-linux.{flavour}"
+    else:
+        if legacy_nix:
+            build_cmd = f"nix-build {build_cmd}"
+        else:
+            build_cmd = f"nix build {build_cmd}"
 
     # add additional nix flags if any
     if nix_flags:
