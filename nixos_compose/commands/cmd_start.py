@@ -254,6 +254,7 @@ def cli(
     if ctx.ip_addresses and (
         ("vm" not in ctx.flavour) or ("vm" in ctx.flavour and not ctx.flavour["vm"])
     ):
+        ctx.mode = DRIVER_MODES["remote"]
 
         if ctx.use_httpd:
             ctx.vlog("Launch: httpd to distribute deployment.json")
@@ -273,6 +274,8 @@ def cli(
             time.sleep(10)
             wait_ssh_ports(ctx)
             sys.exit(0)
+    else:
+        ctx.mode = DRIVER_MODES["vm"]
 
     # use_remote_deployment = False
     # if use_remote_deployment:
@@ -281,11 +284,6 @@ def cli(
     #     httpd.start()
 
     test_script = read_test_script(ctx.compose_info)
-
-    if ctx.ip_addresses:
-        ctx.mode = DRIVER_MODES["remote"]
-    else:
-        ctx.mode = DRIVER_MODES["vm"]
 
     if forward_ssh_port:
         ctx.mode = DRIVER_MODES["vm-ssh"]
