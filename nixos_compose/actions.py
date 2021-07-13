@@ -25,7 +25,7 @@ DRIVER_MODES = {
 ##
 # Generate/manipulate/copy deploy, compose files
 #
-def fix_deployment_file(ctx, deployment_file):
+def get_deployment_file(ctx, deployment_file):
     def exit_is_not_file(f):
         if not op.isfile(f):
             ctx.elog(f"{f} is not a file, deployment_file option must be provided")
@@ -53,7 +53,7 @@ def fix_deployment_file(ctx, deployment_file):
 
 
 def read_deployment_info(ctx, deployment_file=None):
-    deployment_file = fix_deployment_file(ctx, deployment_file)
+    deployment_file = get_deployment_file(ctx, deployment_file)
     with open(deployment_file, "r") as f:
         deployment_info = json.load(f)
     ctx.deployment_info = deployment_info
@@ -61,7 +61,7 @@ def read_deployment_info(ctx, deployment_file=None):
 
 
 def read_deployment_info_str(ctx, deployment_file=None):
-    deployment_file = fix_deployment_file(ctx, deployment_file)
+    deployment_file = get_deployment_file(ctx, deployment_file)
     with open(deployment_file, "r") as f:
         deployment_info_str = f.read()
     return deployment_info_str
