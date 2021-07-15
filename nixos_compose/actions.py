@@ -11,6 +11,7 @@ import shutil
 import base64
 import click
 from halo import Halo
+from .kataract import generate_scp_tasks, exec_kataract_tasks
 
 # from .driver import driver_mode
 
@@ -413,22 +414,32 @@ def push_on_machines(ctx):
         )
     kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
 
-    if shutil.which("kastafior"):
-        raise NotImplementedError
-    elif shutil.which("kaput"):
-        ctx.vlog("push kernel, initrd, kexec_script on hosts with kaput")
-        joined_ip_addresses = ",".join(ctx.ip_addresses)
-        for f in [kernel, initrd, kexec_script]:
-            kaput_cmd = f"kaput -l root -n {joined_ip_addresses} {f} {ctx.push_path}"
-            ctx.vlog(kaput_cmd)
-            subprocess.call(kaput_cmd, shell=True)
-    else:
-        for ip_address in ctx.ip_addresses:
-            ctx.vlog(f"push kernel, initrd, kexec_script to {ip_address}")
-            for f in [kernel, initrd, kexec_script]:
-                subprocess.call(
-                    f"scp {f} root@{ip_address}:{ctx.push_path}", shell=True
-                )
+    ctx.vlog(
+        f"push kernel, initrd, kexec_script on {ctx.ip_addresses} with scp executed concurrently"
+    )
+    for file_input in [kernel, initrd, kexec_script]:
+        ctx.vlog(f"push: {file_input}")
+        tasks_cmd = generate_scp_tasks(
+            ctx.ip_addresses, file_input, ctx.push_path, scp="scp", user="root"
+        )
+        exec_kataract_tasks(tasks_cmd)
+
+    # if shutil.which("kastafior"):
+    #    raise NotImplementedError
+    # elif shutil.which("kaput"):
+    #     ctx.vlog("push kernel, initrd, kexec_script on hosts with kaput")
+    #     joined_ip_addresses = ",".join(ctx.ip_addresses)
+    #     for f in [kernel, initrd, kexec_script]:
+    #         kaput_cmd = f"kaput -l root -n {joined_ip_addresses} {f} {ctx.push_path}"
+    #         ctx.vlog(kaput_cmd)
+    #         subprocess.call(kaput_cmd, shell=True)
+    # else:
+    #     for ip_address in ctx.ip_addresses:
+    #         ctx.vlog(f"push kernel, initrd, kexec_script to {ip_address}")
+    #         for f in [kernel, initrd, kexec_script]:
+    #             subprocess.call(
+    #                 f"scp {f} root@{ip_address}:{ctx.push_path}", shell=True
+    #             )
 
 
 def connect(ctx, user, node):
