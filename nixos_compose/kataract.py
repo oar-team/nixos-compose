@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import argparse
 import asyncio
 from string import Template
@@ -18,6 +19,14 @@ CMD_TEE = Template(
 # B  = cmd_base.substitute({'inner_cmd' : 'until nc -z localhost 5556; do sleep 0.01; done; nc -l 4444 | tee >(cat > /dev/tcp/127.0.0.1/5555) | base64 -d > /tmp/yopB & nc -l 4446'})
 
 # A = 'until nc -z localhost 4446; do sleep 0.01; done; base64 /tmp/vm-state-client1/client1.qcow2  >/dev/tcp/127.0.0.1/4444'
+
+
+def elog(msg, *args):
+    print("\033[91mError:\033[0m", *args, file=sys.stderr)
+
+
+def vlog(msg, *args):
+    print(*args)
 
 
 async def run(cmd):
@@ -40,7 +49,7 @@ def generate_pipe_tasks(
     hosts_rev.reverse()
 
     def cmd_tee(h, h_next):
-        print(h, h_next)
+        # print(h, h_next)
         cmd_tee = CMD_TEE.substitute(
             {
                 "host": h_next,
@@ -66,9 +75,9 @@ def generate_pipe_tasks(
 
     tasks_cmd = [end] + tees + [start]
 
-    for c in tasks_cmd:
-        print(c)
-        print("")
+    # for c in tasks_cmd:
+    #    print(c)
+    #    print("")
 
     return tasks_cmd
 
@@ -77,11 +86,11 @@ def generate_scp_tasks(hosts, file_input, file_output, scp="scp", user=""):
     if user:
         user = f"{user}@"
     tasks_cmd = [f"{scp} {file_input} {user}{h}:{file_output}" for h in hosts]
-    print(tasks_cmd)
+    # print(tasks_cmd)
     return tasks_cmd
 
 
-def exec_kataract_tasks(tasks_cmd):
+def exec_kataract_tasks(tasks_cmd, elog=elog, vlog=vlog):
 
     asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()
@@ -91,15 +100,15 @@ def exec_kataract_tasks(tasks_cmd):
     finished, unfinished = loop.run_until_complete(asyncio.wait(tasks, timeout=60))
 
     if len(unfinished) > 0:
-        print("Failed")
+        elog("Failed")
 
-    print("unfinished:", len(unfinished))
-    print("finished:", len(finished))
+    vlog(f"unfinished: {len(unfinished)}")
+    vlog(f"finished: {len(finished)}")
 
     for task in finished:
         r = task.result()
         if r[0] != 0 or r[2]:
-            print(r)
+            vlog(f"{r}")
     loop.close()
 
 

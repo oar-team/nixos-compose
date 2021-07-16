@@ -422,7 +422,7 @@ def push_on_machines(ctx):
         tasks_cmd = generate_scp_tasks(
             ctx.ip_addresses, file_input, ctx.push_path, scp="scp", user="root"
         )
-        exec_kataract_tasks(tasks_cmd)
+        exec_kataract_tasks(tasks_cmd, elog=ctx.elog, vlog=ctx.vlog)
 
     # if shutil.which("kastafior"):
     #    raise NotImplementedError
