@@ -58,7 +58,7 @@ with lib;
 
     # Create the squashfs image that contains the Nix store.
     system.build.squashfsStore =
-      pkgs.callPackage "${toString modulesPath}/../lib/make-squashfs.nix" {
+      pkgs.callPackage "${modulesPath}/../lib/make-squashfs.nix" {
         comp = "gzip -Xcompression-level 1";
         storeContents = config.netboot.storeContents;
       };

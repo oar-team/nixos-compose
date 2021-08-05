@@ -4,7 +4,7 @@ let
   pkgs = import nixpkgs { inherit system; };
   lib = pkgs.lib;
   modulesPath = "${toString nixpkgs}/nixos";
-  testingPython = import "${toString modulesPath}/lib/testing-python.nix" {
+  testingPython = import "${modulesPath}/lib/testing-python.nix" {
     inherit system extraConfigurations;
   };
 in testingPython.makeTest (composition { inherit pkgs lib modulesPath; })

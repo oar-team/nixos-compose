@@ -7,16 +7,16 @@ with lib;
   imports =
     [ # Enable devices which are usually scanned, because we don't know the
       # target system.
-      "${toString modulesPath}/installer/scan/detected.nix"
-      "${toString modulesPath}/installer/scan/not-detected.nix"
+      "${modulesPath}/installer/scan/detected.nix"
+      "${modulesPath}/installer/scan/not-detected.nix"
 
       # Allow "nixos-rebuild" to work properly by providing
       # /etc/nixos/configuration.nix.
-      "${toString modulesPath}/profiles/clone-config.nix"
+      "${modulesPath}/profiles/clone-config.nix"
 
       # Include a copy of Nixpkgs so that nixos-install works out of
       # the box.
-      "${toString modulesPath}/installer/cd-dvd/channel.nix"
+      "${modulesPath}/installer/cd-dvd/channel.nix"
     ];
 
   config = {
