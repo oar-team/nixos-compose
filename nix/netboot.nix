@@ -113,7 +113,7 @@ with lib;
 
       # After booting, register the contents of the Nix store
       # in the Nix database in the tmpfs.
-      nix_path_registration="/nix/store/nix-path-registration"
+      nix_path_registration="/nix/store/nix-path-registration-"
       if [[ -f $nix_path_registration$role ]]; then
           nix_path_registration=$nix_path_registration$role
       fi

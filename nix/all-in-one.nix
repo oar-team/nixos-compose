@@ -42,7 +42,7 @@ let
       for index in "''${!allClosureInfo[@]}"
       do
         source="''${allClosureInfo[$index]}"/registration
-        target=nix-path-registration"''${allRoles[$index]}"
+        target=nix-path-registration-"''${allRoles[$index]}"
         cp $source $target
         echo $source $target
         allRegistrations="$allRegistrations $target"
