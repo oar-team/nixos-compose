@@ -1,6 +1,6 @@
 import click
 from ..context import pass_context  # , on_started, on_finished
-from ..actions import read_deployment_info, connect, connect_tmux
+from ..actions import read_deployment_info, connect, connect_tmux, connect_docker
 
 
 @click.command("connect")
@@ -30,4 +30,7 @@ def cli(ctx, user, host, geometry, no_pane_console, deployment_file):
         # TODO  add wait_ssh
         connect_tmux(ctx, user, host, no_pane_console, geometry, "nxc")
     else:
-        connect(ctx, user, host[0])
+        if ctx.deployment_info["docker-compose-file"]:
+            connect_docker(ctx, user, host[0])
+        else:
+            connect(ctx, user, host[0])

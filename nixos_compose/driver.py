@@ -300,6 +300,7 @@ class Machine:
         self.shell_socket: Optional[int] = None
         self.monitor: Optional[socket.socket] = None
         self.allow_reboot = args.get("allowReboot", False)
+        self.docker_process = None
         if "vm_id" in args:
             self.vm_id = args["vm_id"]
         if "init" in args:
@@ -462,24 +463,37 @@ class Machine:
                     + "'{}' but it is in state ‘{}’".format(require_state, state)
                 )
 
+    def execute_docker(self, command: str) -> Tuple[int, str]:
+        try:
+            (stdout, _stderr) = self.docker_process.communicate(command.encode())
+        except subprocess.TimeoutExpired:
+            self.docker_process.kill()
+            return (-1, "")
+        status_code = self.docker_process.returncode
+        self.restart_docker()
+        return (status_code, stdout.decode())
+
     def execute(self, command: str) -> Tuple[int, str]:
-        self.connect()
+        if context.mode["docker"]:
+            return self.execute_docker(command)
+        else:
+            self.connect()
 
-        out_command = "( {} ); echo '|!=EOF' $?\n".format(command)
-        self.shell.send(out_command.encode())
+            out_command = "( {} ); echo '|!=EOF' $?\n".format(command)
+            self.shell.send(out_command.encode())
 
-        output = ""
-        status_code_pattern = re.compile(r"(.*)\|\!=EOF\s+(\d+)")
+            output = ""
+            status_code_pattern = re.compile(r"(.*)\|\!=EOF\s+(\d+)")
 
-        while True:
-            chunk = self.shell.recv(4096).decode(errors="ignore").replace("\r", "")
-            # print(chunk)
-            match = status_code_pattern.match(chunk)
-            if match:
-                output += match[1]
-                status_code = int(match[2])
-                return (status_code, output)
-            output += chunk
+            while True:
+                chunk = self.shell.recv(4096).decode(errors="ignore").replace("\r", "")
+                # print(chunk)
+                match = status_code_pattern.match(chunk)
+                if match:
+                    output += match[1]
+                    status_code = int(match[2])
+                    return (status_code, output)
+                output += chunk
 
     def succeed(self, *commands: str) -> str:
         """Execute each command and check that it succeeds."""
@@ -719,8 +733,16 @@ class Machine:
     def start(self, ordered=False) -> None:
         if context.mode["vm"]:
             self.start_vm(ordered)
+        elif context.mode["docker"]:
+            self.start_docker()
         else:
             self.start_ssh_kexec()
+
+    def start_docker(self, ordered=False) -> None:
+        global context
+        docker_compose_file = context.docker_compose_file
+        self.docker_process = subprocess.Popen(["docker-compose", "-f", docker_compose_file, "exec", "-T", self.name, "bash"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
 
     def start_vm(self, ordered=False) -> None:
         if self.booted:
@@ -831,6 +853,11 @@ class Machine:
         self.log("launch ssh kexec")
         launch_ssh_kexec(context)
 
+    def restart_docker(self) -> None:
+        if self.docker_process:
+            self.docker_process.kill()
+        self.start_docker()
+
     def socat(self) -> None:
         def create_socket(path: str) -> socket.socket:
             if os.path.exists(path):
@@ -907,10 +934,20 @@ def create_machine(args: Dict[str, Any]) -> Machine:
     return Machine(args)
 
 
+def start_docker_compose():
+    global context
+    docker_compose_file = context.docker_compose_file
+    print(docker_compose_file)
+    global log
+    with log.nested("starting docker-compose"):
+        subprocess.Popen(["docker-compose", "-f", docker_compose_file, "up", "-d"])
+
 def start_all() -> None:
     global machines
     global machines_ips
 
+    if context.mode["docker"]:
+        start_docker_compose()
     with log.nested("starting all machines"):
         for machine in machines:
             if context.mode["vm"]:
@@ -926,8 +963,13 @@ def start_all() -> None:
 def join_all() -> None:
     global machines
     with log.nested("waiting for all VMs to finish"):
-        for machine in machines:
-            machine.wait_for_shutdown()
+        if context.mode["docker"]:
+            docker_compose_file = context.docker_compose_file
+            with log.nested("waiting for all Containers to finish"):
+                subprocess.Popen(["docker-compose", "-f", docker_compose_file, "down"])
+        else:
+            for machine in machines:
+                machine.wait_for_shutdown()
 
 
 def test_script() -> None:
@@ -990,10 +1032,11 @@ def driver(ctx, driver_repl, test_script=None):
 
     deployment = context.deployment_info
 
-    assert "vm" in mode
-    assert "image" in context.flavour
+    assert "vm" in mode or "docker" in mode
+    #TODO
+    # assert "image" in context.flavour
 
-    mode["image"] = context.flavour["image"]
+    # mode["image"] = context.flavour["image"]
 
     global machines
     machines = []
@@ -1092,21 +1135,33 @@ def driver(ctx, driver_repl, test_script=None):
                     )
                 )
     else:
-        # ssh launching case
-        # TO CONTINUE
-        ip_addresses = ctx.ip_addresses
-        for ip, v in deployment["deployment"].items():
-            machines.append(
-                create_machine(
-                    {
-                        "name": v["role"],
-                        "startCommand": None,  # TOCHANGE ?
-                        "ip": ip,
-                        "keepVmState": False,
-                        "init": v["init"],
-                    }
+        if mode["docker"]:
+            nodes_names = context.compose_info["nodes"]
+            for name in nodes_names:
+                machines.append(
+                    create_machine(
+                        {
+                            "name": name,
+                            "startCommand": None,
+                        }
+                    )
                 )
-            )
+        else:
+            # ssh launching case
+            # TO CONTINUE
+            ip_addresses = ctx.ip_addresses
+            for ip, v in deployment["deployment"].items():
+                machines.append(
+                    create_machine(
+                        {
+                            "name": v["role"],
+                            "startCommand": None,  # TOCHANGE ?
+                            "ip": ip,
+                            "keepVmState": False,
+                            "init": v["init"],
+                        }
+                    )
+                )
 
     machine_eval = [
         "{0} = machines[{1}]".format(m.name, idx) for idx, m in enumerate(machines)
@@ -1127,11 +1182,16 @@ def driver(ctx, driver_repl, test_script=None):
     exec("\n".join(machine_eval), globals())
 
     start_all()
-    if not mode["vm"]:
+    if not mode["vm"] and not mode["docker"]:
         log.log("Waiting 10s for kexecs launching (and consequently sshds' shutdowns)")
         time.sleep(10)
 
-    check_ssh_port(ip_addresses)
+
+    if mode["docker"]:
+        for machine in machines:
+            machine.wait_until_succeeds("which bash")
+    else:
+        check_ssh_port(ip_addresses)
 
     if not mode["vm"]:
         for machine in machines:

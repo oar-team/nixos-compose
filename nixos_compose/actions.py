@@ -20,6 +20,7 @@ DRIVER_MODES = {
     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
     "vm": {"name": "vm", "vm": True, "shell": "chardev"},
     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
+    "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
 }
 
 
@@ -78,6 +79,7 @@ def read_test_script(compose_info_or_str):
     with open(filename, "r") as f:
         test_script = f.read()
         return test_script
+        irint(ctx.docker_compose_file)
 
 
 def read_compose_info(ctx):
@@ -150,6 +152,34 @@ def populate_deployment_forward_ssh_port(nodes):
         i = i + 1
 
     return deployment
+
+def generate_deployment_info_docker(ctx):
+    if not ctx.compose_info:
+        read_compose_info(ctx)
+
+    deployment = {
+        "nodes": ctx.compose_info["nodes"],
+        "docker-compose-file": ctx.compose_info["docker-compose-file"],
+    }
+
+    if "all" in ctx.compose_info:
+        deployment["all"] = ctx.compose_info["all"]
+
+    json_deployment = json.dumps(deployment, indent=2)
+
+    deploy_dir = op.join(ctx.envdir, "deploy")
+    if not op.exists(deploy_dir):
+        create = click.style("   create", fg="green")
+        ctx.log("   " + create + "  " + deploy_dir)
+        os.mkdir(deploy_dir)
+
+    with open(
+        op.join(deploy_dir, f"{ctx.composition_flavour_prefix}.json"), "w"
+    ) as outfile:
+        outfile.write(json_deployment)
+
+    ctx.deployment_info = deployment
+    return
 
 
 def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False):
@@ -467,6 +497,14 @@ def connect(ctx, user, node):
         ctx.wlog(f"SSH exit code is not null: {return_code}")
     sys.exit(return_code)
 
+def connect_docker(ctx, _user, node):
+    docker_compose_file = ctx.deployment_info["docker-compose-file"]
+    cmd = f"docker-compose -f {docker_compose_file} exec {node} /bin/sh -c bash"
+    return_code = subprocess.run(cmd, shell = True).returncode
+
+    if return_code:
+        ctx.wlog(f"Docker exit code is not null: {return_code}")
+    sys.exit(return_code)
 
 def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc"):
 

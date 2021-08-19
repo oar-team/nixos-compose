@@ -29,7 +29,6 @@ let
     version = "3.4";
     x-nxc = {
       inherit image;
-      flavour = "docker";
     };
   };
   baseEnv = pkgs.buildEnv { name = "container-system-env"; paths = [ pkgs.bashInteractive pkgs.coreutils ]; };
@@ -80,6 +79,7 @@ in
       inherit image;
       nodes = builtins.attrNames nodes;
       docker-compose-file = dockerComposeConfigJSON;
-      testScript = testScriptFile;
+      test_script = testScriptFile;
+      flavour = "docker";
   });}
 

@@ -1,5 +1,6 @@
 {
   description = "nixos-compose - composition to infrastructure";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs?rev=7e9b0dff974c89e070da1ad85713ff3c20b0ca97";
 
   outputs = { self, nixpkgs }:
     let
