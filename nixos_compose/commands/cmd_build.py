@@ -187,6 +187,17 @@ def cli(
             ctx.compose_info_file = op.join(build_path, ctx.composition_flavour_prefix)
             copy_result_from_store(ctx)
 
+        # Loading the docker image"
+        if flavour == "docker":
+            with open(out_link, "r") as compose_info_json:
+                content = json.load(compose_info_json)
+                docker_image = content["image"]
+                docker_load_command = f"docker load < {docker_image}"
+                subprocess.call(docker_load_command, shell=True)
+            ctx.glog("Docker Image loaded")
+
+
+
         ctx.glog("Build completed")
     else:
         ctx.log("Dry-run:")

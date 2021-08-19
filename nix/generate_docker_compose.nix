@@ -24,11 +24,11 @@ let
   # name and tag of the base container image
   name = "nxc-docker-base-image";
   tag = "latest";
+  image = import ./generate_image.nix {inherit pkgs name tag;};
   dockerComposeConfig = {
     version = "3.4";
     x-nxc = {
-      image = import ./generate_image.nix {inherit pkgs name tag;};
-      testScript = testScriptFile;
+      inherit image;
       flavour = "docker";
     };
   };
@@ -68,9 +68,17 @@ let
       ];
   }) nodes;
 
+  dockerComposeConfigJSON = pkgs.writeTextFile {
+    name = "docker-compose";
+    text = builtins.toJSON dockerComposeConfig;
+  };
+
 in
   pkgs.writeTextFile {
-    name = "docker-compose.json";
-    text = (builtins.toJSON dockerComposeConfig);
-  }
+    name = "compose-info.json";
+    text = (builtins.toJSON {
+      inherit image;
+      docker-compose-file = dockerComposeConfigJSON;
+      testScript = testScriptFile;
+  });}
 
