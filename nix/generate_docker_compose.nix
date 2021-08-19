@@ -78,6 +78,7 @@ in
     name = "compose-info.json";
     text = (builtins.toJSON {
       inherit image;
+      nodes = builtins.attrNames nodes;
       docker-compose-file = dockerComposeConfigJSON;
       testScript = testScriptFile;
   });}
