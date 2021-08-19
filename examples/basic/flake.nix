@@ -9,11 +9,12 @@
 
       nixos_test = import ./nix/nixos-test.nix;
       generate = import ./nix/generate.nix;
+      compose = import ./nix/compose.nix;
       flavours = import ./nix/flavours.nix;
 
     in {
       packages.x86_64-linux = nixpkgs.lib.mapAttrs (name: flavour:
-        generate { inherit nixpkgs system flavour; } composition) flavours // {
+        compose { inherit nixpkgs system flavour composition; }) flavours // {
           nixos-test = nixos_test { inherit nixpkgs system; } composition;
           nixos-test-driver =
             (nixos_test { inherit nixpkgs system; } composition).driver;
