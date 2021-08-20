@@ -33,6 +33,8 @@ let
   };
   baseEnv = pkgs.buildEnv { name = "container-system-env"; paths = [ pkgs.bashInteractive pkgs.coreutils ]; };
 
+  extraVolumes = if compositionSet ? extraVolumes then compositionSet.extraVolumes else [ ];
+
   dockerComposeConfig.services = builtins.mapAttrs (nodeName: nodeConfig:
     let
       config = {
@@ -64,7 +66,7 @@ let
         "/sys/fs/cgroup:/sys/fs/cgroup:ro"
         "/nix/store:/nix/store:ro"
         "${baseEnv}:/run/system:ro"
-      ];
+      ] ++ extraVolumes;
   }) nodes;
 
   dockerComposeConfigJSON = pkgs.writeTextFile {
