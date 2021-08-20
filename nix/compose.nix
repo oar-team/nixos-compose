@@ -23,6 +23,7 @@ let
 
   nixos_test = import ./nixos-test.nix;
   generate = import ./generate.nix;
+  generate_docker_compose = import ./generate_docker_compose.nix;
 
 in if _flavour.name == "nixos-test" then
   nixos_test { inherit nixpkgs system extraConfigurations; } _composition
@@ -34,6 +35,10 @@ else if _flavour.name == "nixos-test-ssh" then
     inherit nixpkgs system;
     extraConfigurations = extraConfigurations ++ [ ./base.nix ];
   } _composition).driver
+else if _flavour.name == "docker" then
+  generate_docker_compose {
+    inherit nixpkgs system extraConfigurations;
+  } _composition
 else
   generate {
     inherit nixpkgs system extraConfigurations;

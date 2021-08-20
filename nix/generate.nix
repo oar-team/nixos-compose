@@ -1,4 +1,4 @@
-{ nixpkgs, flavour, system, extraConfigurations, ... }:
+{ nixpkgs, flavour, system, extraConfigurations ? [ ] , ... }:
 composition:
 
 let

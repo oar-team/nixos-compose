@@ -17,6 +17,7 @@ from ..context import pass_context, on_finished, on_started
 from ..actions import (
     read_test_script,
     generate_deployment_info,
+    generate_deployment_info_docker,
     generate_kexec_scripts,
     read_hosts,
     translate_hosts2ip,
@@ -32,6 +33,7 @@ DRIVER_MODES = {
     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
     "vm": {"name": "vm", "vm": True, "shell": "chardev"},
     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
+    "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
 }
 
 machines_file_towait = ""
@@ -247,9 +249,14 @@ def cli(
         translate_hosts2ip(ctx, machines)
         print(ctx.ip_addresses, ctx.host2ip_address)
 
-    ctx.log("Generate: deployment.json")
 
-    generate_deployment_info(ctx)
+    if ctx.flavour_name == "docker":
+        generate_deployment_info_docker(ctx)
+        ctx.docker_compose_file = ctx.compose_info["docker-compose-file"]
+
+    else:
+        ctx.log("Generate: deployment.json")
+        generate_deployment_info(ctx)
 
     if ctx.ip_addresses and (
         ("vm" not in ctx.flavour) or ("vm" in ctx.flavour and not ctx.flavour["vm"])
@@ -274,6 +281,8 @@ def cli(
             time.sleep(10)
             wait_ssh_ports(ctx)
             sys.exit(0)
+    elif ctx.flavour_name == "docker":
+        ctx.mode = DRIVER_MODES["docker"]
     else:
         ctx.mode = DRIVER_MODES["vm"]
 
