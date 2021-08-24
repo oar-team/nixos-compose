@@ -26,8 +26,11 @@ let
 
   _flavours = if builtins.typeOf flavours == "path" then
     import flavours
+  else if builtins.typeOf flavours == "set" then
+    flavours
   else if compositions != null then
     if flavours == null then builtin_flavours else flavours
+
   else if flavour != null then
     let
       _flavour_base =
@@ -47,6 +50,7 @@ let
   };
 
   compositions_names = builtins.attrNames _compositions;
+  nb_compositions = builtins.length compositions_names;
   flavours_names = builtins.attrNames _flavours;
 
   f = composition_name: flavour_name: composition: flavour: {
@@ -71,9 +75,11 @@ let
 in builtins.listToAttrs (nixpkgs.lib.flatten (map (composition_name:
   (map (flavour_name:
     let
-      selected_flavour = builtins.getAttr flavour_name _flavours;
+      selected_flavour = builtins.getAttr flavour_name flavours;
       composition = builtins.getAttr composition_name _compositions;
     in (f composition_name flavour_name composition selected_flavour))
-    flavours_names)) compositions_names))
-// (nixpkgs.lib.mapAttrs' (name: flavour_: f_multiple_compositions flavour_)
-  multiple_compositions_flavours)
+    flavours_names)) compositions_names)) // (if nb_compositions == 1 then
+      { }
+    else
+      (nixpkgs.lib.mapAttrs' (name: flavour_: f_multiple_compositions flavour_)
+        multiple_compositions_flavours))
