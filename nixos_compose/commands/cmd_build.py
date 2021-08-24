@@ -30,7 +30,7 @@ from ..actions import copy_result_from_store
 @click.option("--out-link", "-o", help="path of the symlink to the build result")
 @click.option("--nixpkgs", "-n", help="set <nixpkgs> ex: channel:nixos-20.09")
 @click.option(
-    "-f", "--flavour", help="Use particular flavour (name or path)",
+    "-f", "--flavour", type=click.STRING, help="Use particular flavour (name or path)",
 )
 @click.option(
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
@@ -48,6 +48,22 @@ from ..actions import copy_result_from_store
 @click.option(
     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 )
+@click.option(
+    "-C",
+    "--composition-flavour",
+    type=click.STRING,
+    help="Use to specify which composition and flavour combinaison to built when muliple compostions are describe at once (see -L options to list them).",
+)
+# @click.option(
+#    "-c", "--composition", type=click.STRING,
+#    help="Use to specify which composition to built when muliple compostions are describe at once."
+# )
+@click.option(
+    "-L",
+    "--list-compositions-flavours",
+    is_flag=True,
+    help="List available combinaisons of compositions and flavours",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
@@ -64,6 +80,8 @@ def cli(
     legacy_nix,
     show_trace,
     dry_run,
+    composition_flavour,
+    list_compositions_flavours,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -126,6 +144,27 @@ def cli(
     ):
         nix_flake_support = True
 
+    if list_compositions_flavours:
+        default_nix = op.join(ctx.envdir, "default.nix")
+        if not flake and op.exists(default_nix):
+            ctx.elog("flake.nix with default.nix must be provided for this option.")
+            sys.exit(1)
+        else:
+            cmd = ["nix", "search", "-f", default_nix, "--json"]
+            raw_compositions_flavours = json.loads(
+                subprocess.check_output(cmd).decode()
+            )
+            for n, k in raw_compositions_flavours.items():
+                if n == "default":
+                    print(click.style("Default", fg="green") + ": " + k["pname"])
+                else:
+                    print(n.split(".")[2])
+            sys.exit(1)
+
+    if composition_flavour and not flake:
+        ctx.elog("flake.nix with default.nix must be provided for this option.")
+        sys.exit(1)
+
     if show_trace:
         build_cmd += " --show-trace"
 
@@ -149,20 +188,27 @@ def cli(
             else:
                 flavour = "default"
 
-        composition_name = (os.path.basename(composition_file)).split(".")[0]
-        ctx.composition_name = composition_name
-        ctx.flavour_name = flavour
-        ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
+        if composition_flavour:
+            ctx.composition_flavour_prefix = composition_flavour
+            ctx.flavour_name = composition_flavour.split("::")[-1]
+        else:
+            composition_name = (os.path.basename(composition_file)).split(".")[0]
+            ctx.composition_name = composition_name
+            ctx.flavour_name = flavour
+            ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
+
         out_link = op.join(build_path, ctx.composition_flavour_prefix)
 
     build_cmd += f" -o {out_link}"
 
     if flake:
+        if not composition_flavour and flavour:
+            composition_flavour = f"composition::{flavour}"
         if flavour:
             if nix_flake_support and not legacy_nix:
-                build_cmd = f'nix build {build_cmd} ".#packages.x86_64-linux.{flavour}"'
+                build_cmd = f'nix build {build_cmd} ".#packages.x86_64-linux.{composition_flavour}"'
             else:
-                build_cmd = f"nix-build {build_cmd} -A packages.x86_64-linux.{flavour}"
+                build_cmd = f"nix-build {build_cmd} -A packages.x86_64-linux.{composition_flavour}"
     else:
         if legacy_nix:
             build_cmd = f"nix-build {build_cmd}"
@@ -181,8 +227,10 @@ def cli(
     if not dry_run:
         ctx.glog("Starting Build")
         ctx.vlog(build_cmd)
-        subprocess.call(build_cmd, cwd=ctx.envdir, shell=True)
-
+        returncode = subprocess.call(build_cmd, cwd=ctx.envdir, shell=True)
+        if returncode:
+            ctx.elog(f"Build return code: {returncode}")
+            sys.exit(returncode)
         if copy_from_store or (ctx.platform and ctx.platform.copy_from_store):
             ctx.compose_info_file = op.join(build_path, ctx.composition_flavour_prefix)
             copy_result_from_store(ctx)
@@ -193,10 +241,11 @@ def cli(
                 content = json.load(compose_info_json)
                 docker_image = content["image"]
                 docker_load_command = f"docker load < {docker_image}"
-                subprocess.call(docker_load_command, shell=True)
+                returncode = subprocess.call(docker_load_command, shell=True)
+                if returncode:
+                    ctx.elog(f"Build return code: {returncode}")
+                    sys.exit(returncode)
             ctx.glog("Docker Image loaded")
-
-
 
         ctx.glog("Build completed")
     else:

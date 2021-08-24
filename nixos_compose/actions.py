@@ -58,6 +58,7 @@ def read_deployment_info(ctx, deployment_file=None):
     deployment_file = get_deployment_file(ctx, deployment_file)
     with open(deployment_file, "r") as f:
         deployment_info = json.load(f)
+
     ctx.deployment_info = deployment_info
     return
 
@@ -79,7 +80,6 @@ def read_test_script(compose_info_or_str):
     with open(filename, "r") as f:
         test_script = f.read()
         return test_script
-        irint(ctx.docker_compose_file)
 
 
 def read_compose_info(ctx):
@@ -95,6 +95,30 @@ def read_compose_info(ctx):
 
     with open(ctx.compose_info_file, "r") as f:
         compose_info = json.load(f)
+
+    if "compositions_info" in compose_info:
+        ctx.vlog(
+            "Image with multiple compositions is detected, selected composition: {ctx.composition_name}"
+        )
+        ctx.all_compositions_info = compose_info
+
+        if ctx.composition_name not in ctx.all_compositions_info["compositions_info"]:
+            ctx.elog(
+                f'Composition named: "{ctx.composition_name}" is not in {ctx.compose_info_file}'
+            )
+            if ctx.composition_name == ctx.composition_basename_file:
+                ctx.elog(
+                    "When image contains multiple compositions and without default, the one to launch must by indicated via composition name option with name as prefix followed by file's label separated by @  (e.g. -c foo@compositions). The default if present, is composition with its name equals to file's label."
+                )
+            sys.exit(1)
+
+        compose_info = ctx.all_compositions_info["compositions_info"][
+            ctx.composition_name
+        ]
+        compose_info["all"] = ctx.all_compositions_info["all"]
+        ctx.flavour = ctx.all_compositions_info["flavour"]
+
+    ctx.compose_info = compose_info
 
     if "flavour" in compose_info:
         ctx.flavour = compose_info["flavour"]
@@ -152,6 +176,7 @@ def populate_deployment_forward_ssh_port(nodes):
         i = i + 1
 
     return deployment
+
 
 def generate_deployment_info_docker(ctx):
     if not ctx.compose_info:
@@ -497,14 +522,16 @@ def connect(ctx, user, node):
         ctx.wlog(f"SSH exit code is not null: {return_code}")
     sys.exit(return_code)
 
+
 def connect_docker(ctx, _user, node):
     docker_compose_file = ctx.deployment_info["docker-compose-file"]
     cmd = f"docker-compose -f {docker_compose_file} exec {node} /bin/sh -c bash"
-    return_code = subprocess.run(cmd, shell = True).returncode
+    return_code = subprocess.run(cmd, shell=True).returncode
 
     if return_code:
         ctx.wlog(f"Docker exit code is not null: {return_code}")
     sys.exit(return_code)
+
 
 def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc"):
 
