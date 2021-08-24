@@ -1,4 +1,4 @@
-{ nixpkgs, system, flavour ? "docker", extraConfigurations ? [ ],  ... }:
+{ nixpkgs, system, flavour ? "docker", extraConfigurations ? [ ], ... }:
 composition:
 
 let
@@ -24,28 +24,26 @@ let
   # name and tag of the base container image
   name = "nxc-docker-base-image";
   tag = "latest";
-  image = import ./generate_image.nix {inherit pkgs name tag;};
+  image = import ./generate_image.nix { inherit pkgs name tag; };
   dockerComposeConfig = {
     version = "3.4";
-    x-nxc = {
-      inherit image;
-    };
+    x-nxc = { inherit image; };
   };
-  baseEnv = pkgs.buildEnv { name = "container-system-env"; paths = [ pkgs.bashInteractive pkgs.coreutils ]; };
+  baseEnv = pkgs.buildEnv {
+    name = "container-system-env";
+    paths = [ pkgs.bashInteractive pkgs.coreutils ];
+  };
 
-  extraVolumes = if compositionSet ? extraVolumes then compositionSet.extraVolumes else [ ];
+  extraVolumes =
+    if compositionSet ? extraVolumes then compositionSet.extraVolumes else [ ];
 
   dockerComposeConfig.services = builtins.mapAttrs (nodeName: nodeConfig:
     let
       config = {
-        imports = [
-          ./systemd.nix
-          nodeConfig
-        ] ++ extraConfigurations;
+        imports = [ ./systemd.nix nodeConfig ] ++ extraConfigurations;
       };
       builtConfig = pkgs.nixos config;
-    in
-    {
+    in {
       cap_add = [ "SYS_ADMIN" ];
       command = [ "${builtConfig.toplevel}/init" ];
       environment = {
@@ -56,32 +54,27 @@ let
       hostname = nodeName;
       image = "${name}:${tag}";
       stop_signal = "SIGINT";
-      tmpfs = [
-        "/run"
-        "/run/wrappers:exec,suid"
-        "/tmp:exec,mode=777"
-      ];
+      tmpfs = [ "/run" "/run/wrappers:exec,suid" "/tmp:exec,mode=777" ];
       tty = true;
       volumes = [
         "/sys/fs/cgroup:/sys/fs/cgroup:ro"
         "/nix/store:/nix/store:ro"
         "${baseEnv}:/run/system:ro"
       ] ++ extraVolumes;
-  }) nodes;
+    }) nodes;
 
   dockerComposeConfigJSON = pkgs.writeTextFile {
     name = "docker-compose";
     text = builtins.toJSON dockerComposeConfig;
   };
 
-in
-  pkgs.writeTextFile {
-    name = "compose-info.json";
-    text = (builtins.toJSON {
-      inherit image;
-      nodes = builtins.attrNames nodes;
-      docker-compose-file = dockerComposeConfigJSON;
-      test_script = testScriptFile;
-      flavour = "docker";
-  });}
-
+in pkgs.writeTextFile {
+  name = "compose-info.json";
+  text = (builtins.toJSON {
+    inherit image;
+    nodes = builtins.attrNames nodes;
+    docker-compose-file = dockerComposeConfigJSON;
+    test_script = testScriptFile;
+    flavour = "docker";
+  });
+}
