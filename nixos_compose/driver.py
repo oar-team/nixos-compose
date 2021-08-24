@@ -741,8 +741,20 @@ class Machine:
     def start_docker(self, ordered=False) -> None:
         global context
         docker_compose_file = context.docker_compose_file
-        self.docker_process = subprocess.Popen(["docker-compose", "-f", docker_compose_file, "exec", "-T", self.name, "bash"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
+        self.docker_process = subprocess.Popen(
+            [
+                "docker-compose",
+                "-f",
+                docker_compose_file,
+                "exec",
+                "-T",
+                self.name,
+                "bash",
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     def start_vm(self, ordered=False) -> None:
         if self.booted:
@@ -942,11 +954,12 @@ def start_docker_compose():
     with log.nested("starting docker-compose"):
         subprocess.Popen(["docker-compose", "-f", docker_compose_file, "up", "-d"])
 
+
 def start_all() -> None:
     global machines
     global machines_ips
 
-    if context.mode["docker"]:
+    if "docker" in context.mode and context.mode["docker"]:
         start_docker_compose()
     with log.nested("starting all machines"):
         for machine in machines:
@@ -1033,10 +1046,11 @@ def driver(ctx, driver_repl, test_script=None):
     deployment = context.deployment_info
 
     assert "vm" in mode or "docker" in mode
-    #TODO
+    # TODO
     # assert "image" in context.flavour
 
-    # mode["image"] = context.flavour["image"]
+    if "image" in context.flavour:
+        mode["image"] = context.flavour["image"]
 
     global machines
     machines = []
@@ -1135,17 +1149,10 @@ def driver(ctx, driver_repl, test_script=None):
                     )
                 )
     else:
-        if mode["docker"]:
+        if "docker" in mode and mode["docker"]:
             nodes_names = context.compose_info["nodes"]
             for name in nodes_names:
-                machines.append(
-                    create_machine(
-                        {
-                            "name": name,
-                            "startCommand": None,
-                        }
-                    )
-                )
+                machines.append(create_machine({"name": name, "startCommand": None}))
         else:
             # ssh launching case
             # TO CONTINUE
@@ -1186,8 +1193,7 @@ def driver(ctx, driver_repl, test_script=None):
         log.log("Waiting 10s for kexecs launching (and consequently sshds' shutdowns)")
         time.sleep(10)
 
-
-    if mode["docker"]:
+    if "docker" in mode and mode["docker"]:
         for machine in machines:
             machine.wait_until_succeeds("which bash")
     else:
