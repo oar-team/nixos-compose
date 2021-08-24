@@ -1,4 +1,4 @@
-{ pkgs, flavour, allConfig, buildOneconfig }:
+{ pkgs, flavour, compositionName, allConfig, buildOneconfig }:
 let
 
   baseConfig = buildOneconfig "" { };
@@ -21,20 +21,19 @@ let
     pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") machinesInfo;
   allStorePaths = map (x: "${x}/store-paths") allClosureInfo;
 
-  allSquashfsStore = pkgs.stdenv.mkDerivation {
-    name = "all-squashfs.img";
-
-    nativeBuildInputs = [ pkgs.squashfsTools ];
+  allStoreInfo = pkgs.stdenv.mkDerivation {
+    name = "all-store-info";
 
     buildCommand = ''
+      mkdir $out
       sort ${
         builtins.concatStringsSep " " allStorePaths
-      } | uniq > merged-store-paths
+      } | uniq > $out/merged-store-paths
 
-      IFS=', ' read -r -a allClosureInfo <<< "${
+      IFS=' ' read -r -a allClosureInfo <<< "${
         builtins.concatStringsSep " " allClosureInfo
       }"
-      IFS=', ' read -r -a allRoles <<< "${
+      IFS=' ' read -r -a allRoles <<< "${
         builtins.concatStringsSep " " allRoles
       }"
       allRegistrations=""
@@ -42,34 +41,24 @@ let
       for index in "''${!allClosureInfo[@]}"
       do
         source="''${allClosureInfo[$index]}"/registration
-        target=nix-path-registration-"''${allRoles[$index]}"
-        cp $source $target
+        target=nix-path-registration-${compositionName}-"''${allRoles[$index]}"
+        cp $source $out/$target
         echo $source $target
         allRegistrations="$allRegistrations $target"
       done
 
-      # Generate the squashfs image.
-      mksquashfs $allRegistrations $(cat merged-store-paths) $out \
-        -keep-as-directory -all-root -b 1048576 -comp gzip -Xcompression-level 1;
+      echo $allRegistrations > $out/all-registration
+
     '';
-  };
-
-  allRamdisk = pkgs.makeInitrd {
-    inherit (baseConfig.config.boot.initrd) compressor;
-    prepend = [ "${baseConfig.config.system.build.initialRamdisk}/initrd" ];
-
-    contents = [{
-      object = allSquashfsStore;
-      symlink = "/nix-store.squashfs";
-    }];
   };
 
 in {
   nodes = machinesInfo;
-  all = {
-    squashfs_img = "${allSquashfsStore}";
-    initrd = "${allRamdisk}/initrd";
-    kernel = "${baseImage}/kernel";
-    qemu_script = "${baseConfig.config.system.build.qemu_script}";
-  };
+
+  all_store_info = "${allStoreInfo}";
+  #  #initrd = "${allRamdisk}/initrd";
+  #  #TODO move kerne
+  #  kernel = "${baseImage}/kernel";
+  #  qemu_script = "${baseConfig.config.system.build.qemu_script}";
+  #};
 }

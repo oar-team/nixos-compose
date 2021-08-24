@@ -1,6 +1,5 @@
 # This module creates netboot media containing the given NixOS
 # configuration.
-
 { config, lib, pkgs, modulesPath, ... }:
 
 with lib;
@@ -58,7 +57,7 @@ with lib;
 
     # Create the squashfs image that contains the Nix store.
     system.build.squashfsStore =
-      pkgs.callPackage "${modulesPath}/../lib/make-squashfs.nix" {
+      pkgs.callPackage "${toString modulesPath}/../lib/make-squashfs.nix" {
         comp = "gzip -Xcompression-level 1";
         storeContents = config.netboot.storeContents;
       };
@@ -92,6 +91,12 @@ with lib;
     '';
 
     boot.postBootCommands = ''
+      compositionName=""
+      if [[ -f /etc/composition ]]; then
+         compositionName=$(cat /etc/composition)
+      fi
+      echo "composition name: $compositionName"
+
       role=""
       if [[ -f /etc/role ]]; then
          role=$(cat /etc/role)
@@ -113,10 +118,11 @@ with lib;
 
       # After booting, register the contents of the Nix store
       # in the Nix database in the tmpfs.
-      nix_path_registration="/nix/store/nix-path-registration-"
-      if [[ -f $nix_path_registration$role ]]; then
-          nix_path_registration=$nix_path_registration$role
+      nix_path_registration="/nix/store/nix-path-registration"
+      if [[ -f "$nix_path_registration"-"$compositionName"-"$role" ]]; then
+          nix_path_registration="$nix_path_registration"-"$compositionName"-"$role"
       fi
+      echo "nix-store: load db $nix_path_registration"
       ${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
 
       # nixos-rebuild also requires a "system" profile and an
