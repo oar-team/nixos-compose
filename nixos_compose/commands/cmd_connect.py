@@ -1,3 +1,4 @@
+import sys
 import click
 from ..context import pass_context  # , on_started, on_finished
 from ..actions import read_deployment_info, connect, connect_tmux, connect_docker
@@ -27,6 +28,12 @@ def cli(ctx, user, host, geometry, no_pane_console, deployment_file):
     read_deployment_info(ctx, deployment_file)
 
     if not host or len(host) > 1:
+        # TODO  add wait_ssh
+        if ctx.deployment_info["docker-compose-file"]:
+            ctx.elog(
+                "Not yet implemented for Docker flavour, you must indicate only ONE host"
+            )
+            sys.exit(1)
         # TODO  add wait_ssh
         connect_tmux(ctx, user, host, no_pane_console, geometry, "nxc")
     else:
