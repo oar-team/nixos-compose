@@ -26,13 +26,11 @@ FLAKE = """{
       flavours = import ./nix/flavours.nix;
       $nur
     in {
-      packages.$${system} = nixpkgs.lib.mapAttrs (name: flavour:
-        (import ./nix/compose.nix) {
-          inherit nixpkgs system$extra_configurations flavour;
-        }) flavours;
+        packages.$${system} =
+          (import ./nix/compose.nix) { inherit nixpkgs system flavours; };
 
-      defaultPackage.$${system} = self.packages.$${system}.$default_flavour;
-
+        defaultPackage.$${system} =
+          self.packages.$${system}."composition::$default_flavour";
     };
 }"""
 

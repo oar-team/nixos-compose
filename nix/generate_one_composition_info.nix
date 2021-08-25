@@ -1,10 +1,9 @@
-{ nixpkgs, flavour, system, extraConfigurations ? [ ], ... }:
-composition:
+{ pkgs, flavour, modulesPath, system, extraConfigurations, baseConfig ? false
+, ... }:
+{ compositionName ? "", composition ? { } }:
 
 let
-  pkgs = (import nixpkgs) { inherit system; };
   lib = pkgs.lib;
-  modulesPath = "${toString nixpkgs}/nixos";
   compositionSet = composition { inherit pkgs lib modulesPath; };
   nodes = compositionSet.nodes;
   testScriptRaw =
@@ -36,9 +35,15 @@ let
   flavourConfig = import ./flavour-config.nix flavour;
 
   buildOneconfig = machine: configuration:
-    import "${toString nixpkgs}/nixos/lib/eval-config.nix" {
+    import "${modulesPath}/lib/eval-config.nix" {
       inherit system;
       modules = [
+        {
+          environment.etc."composition" = {
+            mode = "0644";
+            text = "${compositionName}";
+          };
+        }
         configuration
         commonConfig
         vmSharedDirMod
@@ -60,12 +65,18 @@ in let
 
   imageInfo = if flavour.image ? distribution && flavour.image.distribution
   == "all-in-one" then
-    import ./all-in-one.nix { inherit pkgs flavour allConfig buildOneconfig; }
+    import ./all-in-one.nix {
+      inherit pkgs flavour compositionName allConfig buildOneconfig;
+    }
   else {
     nodes =
       pkgs.lib.mapAttrs (n: m: m.config.system.build.ramdiskInfo) allConfig;
   };
-in pkgs.writeText "compose-info.json" (builtins.toJSON ({
-  test_script = testScriptFile;
-  flavour = pkgs.lib.filterAttrs (n: v: n != "extraModule") flavour;
-} // imageInfo))
+  # pkgs.writeText "compose-info.json" (builtins.toJSON ({
+  #  test_script = testScriptFile;
+  #  flavour = pkgs.lib.filterAttrs (n: v: n != "extraModule") flavour;
+  #} // imageInfo))
+in if baseConfig then
+  buildOneconfig "" { }
+else
+  { test_script = testScriptFile; } // imageInfo

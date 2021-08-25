@@ -80,7 +80,7 @@ class EventHandler(pyinotify.ProcessEvent):
     is_flag=True,
     help="deployement info is served by http (in place of kernel parameters)",
 )
-@click.option("--composition", type=click.STRING, help="specify composition")
+@click.option("-c", "--composition", type=click.STRING, help="specify composition")
 @click.option("--flavour", type=click.STRING, help="specify flavour")
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -150,7 +150,15 @@ def cli(
             notifier.stop()
             ctx.log(f"{machines_file} file created")
 
-    if not composition or not flavour:
+    if composition:
+        splitted_composition = composition.split("::")
+        ctx.composition_name = splitted_composition[0]
+        if len(splitted_composition) > 1:
+            ctx.composition_basename_file = splitted_composition[1]
+        else:
+            ctx.composition_basename_file = ctx.composition_name
+
+    if (composition is None) and (flavour is None):
         last_build_path = max(
             glob.glob(f"{build_path}/*"),
             key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
@@ -161,18 +169,29 @@ def cli(
 
         build_path = last_build_path
         ctx.composition_flavour_prefix = op.basename(last_build_path)
-        if not flavour:
-            splitted_basename = ctx.composition_flavour_prefix.split("::")
-            ctx.composition_name = splitted_basename[0]
-            ctx.flavour_name = splitted_basename[1]
-            if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
-                ctx.artifact = True
-        else:
-            raise Exception("Sorry, no composition with flavour case is not supported")
+        # if not flavour:
+        #    splitted_basename = ctx.composition_flavour_prefix.split("::")
+        #    ctx.composition_name = splitted_basename[0]
+        #    ctx.flavour_name = splitted_basename[1]
+        #    if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
+
+        splitted_basename = ctx.composition_flavour_prefix.split("::")
+
+        ctx.composition_name = splitted_basename[0]
+        ctx.composition_basename_file = ctx.composition_name
+
+        ctx.flavour_name = splitted_basename[1]
+        if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
+            ctx.artifact = True
+
+    elif (composition is None) ^ (flavour is None):
+        raise Exception(
+            "Sorry, provide only flavour or only composition is not supported"
+        )
 
     else:
-        ctx.composition_flavour_prefix = f"{composition}_{flavour}"
-        build_path = op.join(ctx.envdir, ctx.composition_flavour_prefix)
+        ctx.composition_flavour_prefix = f"{ctx.composition_basename_file}::{flavour}"
+        build_path = op.join(ctx.envdir, f"build/{ctx.composition_flavour_prefix}")
         if not op.exists(build_path):
             ctx.elog(f"Build path does not exit: {build_path}")
             ctx.elog("Possible causes:")
@@ -180,6 +199,7 @@ def cli(
                 f"    - composition or flavour does not exit: {ctx.composition_flavour_prefix}"
             )
             ctx.elog("    - build must be launched")
+            sys.exit(1)
 
     if op.isdir(build_path) and len(os.listdir(build_path)) == 0:
         ctx.wlog(f"{build_path} is an empty directory, surely a nixos-test result !")
@@ -248,7 +268,6 @@ def cli(
     if machines:
         translate_hosts2ip(ctx, machines)
         print(ctx.ip_addresses, ctx.host2ip_address)
-
 
     if ctx.flavour_name == "docker":
         generate_deployment_info_docker(ctx)
