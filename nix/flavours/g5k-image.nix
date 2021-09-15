@@ -1,17 +1,17 @@
 {
-  name = "vm-ramdisk";
-  description = "Plain vm ramdisk (all-in-memory), need lot of ram !";
-  vm = true;
+  name = "g5k-image";
+  description = "Flavour for Grid'5000 platform";
   image = {
-    type = "ramdisk";
     distribution = "all-in-one";
+    type = "tarball";
   };
   module = { config, pkgs, lib, modulesPath, ... }: {
     imports = [
-      ./shared/netboot.nix
-      ./shared/base-vm.nix
+      ./shared/base.nix
       ./shared/stage-1-cmds.nix
       ./shared/common.nix
+      ./shared/g5k-boot.nix
+      ./shared/g5k-ssh-host-keys.nix
     ];
   };
 }

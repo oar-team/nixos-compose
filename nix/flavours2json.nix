@@ -4,6 +4,9 @@
 { pkgs ? import <nixpkgs> { } }:
 let
   flavours = import ./flavours.nix;
-  filtered_flavours =
-    pkgs.lib.filterAttrsRecursive (n: v: n != "extraModule") flavours;
+  filtered_flavours = let
+    filter_flavour = f:
+      pkgs.lib.filterAttrs
+      (n: v: n == "name" || n == "description" || n == "image") f;
+  in pkgs.lib.mapAttrs (n: v: filter_flavour v) flavours;
 in pkgs.writeText "flavours-link.json" (builtins.toJSON filtered_flavours)

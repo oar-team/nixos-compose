@@ -57,7 +57,7 @@ let
       tmpfs = [ "/run" "/run/wrappers:exec,suid" "/tmp:exec,mode=777" ];
       tty = true;
       volumes = [
-        "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+        "/sys/fs/cgroup:/sys/fs/cgroup:rw" # UGLY need with systemd > 247 and docker 20.10 and systemd.unifiedCgroupHierarchy=0 (use cgroup v1)
         "/nix/store:/nix/store:ro"
         "${baseEnv}:/run/system:ro"
       ] ++ extraVolumes;

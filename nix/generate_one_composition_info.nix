@@ -31,27 +31,22 @@ let
     };
   };
 
-  commonConfig = import ./common-config.nix flavour;
-  flavourConfig = import ./flavour-config.nix flavour;
+  flavourConfig = if flavour ? module then flavour.module else { };
 
   buildOneconfig = machine: configuration:
     import "${modulesPath}/lib/eval-config.nix" {
       inherit system;
       modules = [
         {
-          environment.etc."composition" = {
+          environment.etc."nxc-composition" = {
             mode = "0644";
             text = "${compositionName}";
           };
         }
         configuration
-        commonConfig
         vmSharedDirMod
         flavourConfig
-        {
-          key = "no-manual";
-          documentation.nixos.enable = false;
-        }
+
       ] ++ extraConfigurations;
     };
 

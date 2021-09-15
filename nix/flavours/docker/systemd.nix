@@ -1,7 +1,7 @@
 /* NixOS configuration to for running a mostly normal systemd-based
    NixOS in Docker.
 */
-{ pkgs, lib, ... }: {
+{ pkgs, lib, modulesPath, ... }: {
 
   # imports = [
   #   # This profile doesn't seem to work well.
@@ -9,7 +9,7 @@
   #   This one works, but can not be imported here due because imports can not depend on pkgs.
   #   (pkgs.path + "/nixos/modules/profiles/minimal.nix")
   # ];
-  imports = [ ./minimal.nix ];
+  imports = [ "${modulesPath}/profiles/minimal.nix" ];
 
   boot.isContainer = true;
   boot.specialFileSystems = lib.mkForce { };

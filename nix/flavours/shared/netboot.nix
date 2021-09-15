@@ -20,7 +20,7 @@ with lib;
   config = {
     # Don't build the GRUB menu builder script, since we don't need it
     # here and it causes a cyclic dependency.
-    boot.loader.grub.enable = false;
+    boot.loader.grub.enable = lib.mkDefault false;
 
     fileSystems."/" = {
       fsType = "tmpfs";
@@ -78,13 +78,6 @@ with lib;
     boot.initrd.network.enable = true;
     boot.initrd.extraUtilsCommands = ''
       copy_bin_and_libs ${pkgs.jq}/bin/jq
-
-      #copy_bin_and_libs ${pkgs.iproute}/bin/ip
-      #copy_bin_and_libs ${pkgs.gawk}/bin/awk
-
-      #copy_bin_and_libs ${pkgs.strace}/bin/strace
-      #cp -pv ${pkgs.glibc}/lib/libgcc_s.so.1 $out/lib
-
       cp -pv ${pkgs.glibc}/lib/libnss_files.so.2 $out/lib
       cp -pv ${pkgs.glibc}/lib/libresolv.so.2 $out/lib
       cp -pv ${pkgs.glibc}/lib/libnss_dns.so.2 $out/lib
@@ -92,22 +85,22 @@ with lib;
 
     boot.postBootCommands = ''
       compositionName=""
-      if [[ -f /etc/composition ]]; then
-         compositionName=$(cat /etc/composition)
+      if [[ -f /etc/nxc-composition ]]; then
+         compositionName=$(cat /etc/nxc-composition)
       fi
       echo "composition name: $compositionName"
 
       role=""
-      if [[ -f /etc/role ]]; then
-         role=$(cat /etc/role)
+      if [[ -f /etc/nxc/role ]]; then
+         role=$(cat /etc/nxc/role)
          ${pkgs.inetutils}/bin/hostname $role
       fi
 
       # Add deployment's hosts if any
-      if [[ -f /etc/deployment-hosts ]]; then
+      if [[ -f /etc/nxc/deployment-hosts ]]; then
          rm -f /etc/hosts
          cat /etc/static/hosts > /etc/hosts
-         cat /etc/deployment-hosts >> /etc/hosts
+         cat /etc/nxc/deployment-hosts >> /etc/hosts
       fi
       # Execute post boot scripts optionally provided through flavour/extraModules or composition
       for post_boot_script in $(ls -d /etc/post-boot-script* 2> /dev/null);

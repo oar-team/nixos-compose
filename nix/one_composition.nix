@@ -3,9 +3,9 @@
 let
 
   nixos_test = import ./nixos-test.nix;
-  #generate = import ./generate.nix;
   multiple_compositions = import ./multiple_compositions.nix;
-  generate_docker_compose = import ./generate_docker_compose.nix;
+  generate_docker_compose =
+    import ./flavours/docker/generate_docker_compose.nix;
 
 in if flavour.name == "nixos-test" then
   nixos_test { inherit nixpkgs system extraConfigurations; } composition
@@ -15,7 +15,8 @@ else if flavour.name == "nixos-test-driver" then
 else if flavour.name == "nixos-test-ssh" then
   (nixos_test {
     inherit nixpkgs system;
-    extraConfigurations = extraConfigurations ++ [ ./base.nix ];
+    extraConfigurations = extraConfigurations
+      ++ [ ./flavours/shared/stage-1-cmds.nix ];
   } composition).driver
 else if flavour.name == "docker" then
   generate_docker_compose { inherit nixpkgs system extraConfigurations; }
@@ -25,7 +26,3 @@ else
     inherit nixpkgs system flavour extraConfigurations;
     compositions = { ${composition_name} = composition; };
   }
-  #generate {
-  #  inherit nixpkgs system extraConfigurations;
-  #  flavour = flavour;
-  #} composition
