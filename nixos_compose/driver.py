@@ -474,7 +474,7 @@ class Machine:
         return (status_code, stdout.decode())
 
     def execute(self, command: str) -> Tuple[int, str]:
-        if context.mode["docker"]:
+        if "docker" in context.mode and context.mode["docker"]:
             return self.execute_docker(command)
         else:
             self.connect()
@@ -731,9 +731,9 @@ class Machine:
         self.send_monitor_command("sendkey {}".format(key))
 
     def start(self, ordered=False) -> None:
-        if context.mode["vm"]:
+        if "vm" in context.mode and context.mode["vm"]:
             self.start_vm(ordered)
-        elif context.mode["docker"]:
+        elif "docker" in context.mode and context.mode["docker"]:
             self.start_docker()
         else:
             self.start_ssh_kexec()
@@ -1189,7 +1189,7 @@ def driver(ctx, driver_repl, test_script=None):
     exec("\n".join(machine_eval), globals())
 
     start_all()
-    if not mode["vm"] and not mode["docker"]:
+    if not mode["vm"] and not ("docker" in mode and mode["docker"]):
         log.log("Waiting 10s for kexecs launching (and consequently sshds' shutdowns)")
         time.sleep(10)
 

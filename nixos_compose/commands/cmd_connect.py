@@ -29,7 +29,7 @@ def cli(ctx, user, host, geometry, no_pane_console, deployment_file):
 
     if not host or len(host) > 1:
         # TODO  add wait_ssh
-        if ctx.deployment_info["docker-compose-file"]:
+        if "docker-compose-file" in ctx.deployment_info:
             ctx.elog(
                 "Not yet implemented for Docker flavour, you must indicate only ONE host"
             )
@@ -37,7 +37,7 @@ def cli(ctx, user, host, geometry, no_pane_console, deployment_file):
         # TODO  add wait_ssh
         connect_tmux(ctx, user, host, no_pane_console, geometry, "nxc")
     else:
-        if ctx.deployment_info["docker-compose-file"]:
+        if "docker-compose-file" in ctx.deployment_info:
             connect_docker(ctx, user, host[0])
         else:
             connect(ctx, user, host[0])
