@@ -43,6 +43,6 @@ let
 in {
   nodes = machinesInfo;
   all_store_info = "${allStoreInfo}";
-  nodesInit = pkgs.lib.mapAttrs (n: m: "${m.config.system.build.toplevel}/init")
-    allConfig;
+  #nodesInit = pkgs.lib.mapAttrs (n: m: "${m.config.system.build.toplevel}/init")
+  #  allConfig;
 }

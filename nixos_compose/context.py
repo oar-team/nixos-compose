@@ -38,7 +38,7 @@ class Context(object):
         self.flavour = {}
         self.flavour_name = None
         self.composition_name = None
-        self.composition_flavour_prefix = None
+        self.composition_flavour_prefix = None  # REMOVE _prefix ???
         self.compose_info_file = None
         self.compose_info = None
         self.deployment_info = None

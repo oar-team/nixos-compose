@@ -27,7 +27,7 @@
         case $o in
             server=*)
                 set -- $(IFS==; echo $o)
-                echo "$2 server" >> /etc/nxc/deployment-hosts
+                echo "$2 server" >> /mnt-root/etc/nxc/deployment-hosts
                 ;;
             deploy=*)
                 echo "Retrieve deployment configuration"
@@ -43,14 +43,24 @@
                    echo "Use base64 decode to deployment configuration"
                    echo "$d" | base64 -d >> $deployment_json
                 fi
-                role_init=$(jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.init)\""  $deployment_json)
-                set -- $(IFS=" "; echo $role_init)
+                composition=$(jq -r '."composition" // empty' $deployment_json)
+                echo "composition: $composition"
+                role_host=$(jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.host // \"\")\""  $deployment_json)
+                set -- $(IFS=" "; echo $role_host)
                 role=$1
-                init=$2
+                hostname=$2
                 echo "role: $role"
-                echo "init: $init"
+                echo "hostname: $hostname"
+                init=""
+                if  [ ! -z $composition ]; then
+                    init=$(jq -r ".\"$composition\".nodes.\"$role\".init" /mnt-root/nix/store/compositions-info.json)
+                    echo "init: $init"
+                fi
                 export stage2Init=$init
                 echo $role > /mnt-root/etc/nxc/role
+                if  [ ! -z $hostname ]; then
+                    echo $hostname >> /mnt-root/etc/nxc/hostname
+                fi
                 ssh_key_pub=$(jq -r '."ssh_key.pub" // empty' $deployment_json)
                 if [ ! -z "$ssh_key_pub" ]; then
                     mkdir -p /mnt-root/root/.ssh/

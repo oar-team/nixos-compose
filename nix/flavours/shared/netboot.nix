@@ -90,10 +90,22 @@ with lib;
       fi
       echo "composition name: $compositionName"
 
+      hostname=""
+      if [[ -f /etc/nxc/hostname ]]; then
+         hostname=$(cat /etc/nxc/hostname)
+      fi
+
       role=""
       if [[ -f /etc/nxc/role ]]; then
          role=$(cat /etc/nxc/role)
-         ${pkgs.inetutils}/bin/hostname $role
+         if [[ -z $hostname ]]; then
+            hostname=$role
+         fi
+      fi
+
+      if [[ ! -z $hostname ]]; then
+         echo "hostname name: $hostname"
+         ${pkgs.inetutils}/bin/hostname $hostname
       fi
 
       # Add deployment's hosts if any

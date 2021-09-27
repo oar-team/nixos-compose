@@ -13,9 +13,6 @@ import click
 from halo import Halo
 from .kataract import generate_scp_tasks, exec_kataract_tasks
 
-# from .driver import driver_mode
-
-
 DRIVER_MODES = {
     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
     "vm": {"name": "vm", "vm": True, "shell": "chardev"},
@@ -147,6 +144,7 @@ def populate_deployment_vm_by_ip(nodes_info):
     for role, v in nodes_info.items():
         ip = "10.0.2.{}".format(15 + i)
         ips.append(ip)
+        # deployment[ip] = {"role": role, "vm_id": i}
         deployment[ip] = {"role": role, "init": v["init"], "vm_id": i}
         if "qemu_script" in v:
             deployment[ip]["qemu_script"] = v["qemu_script"]
@@ -160,6 +158,7 @@ def populate_deployment_ips(nodes_info, ips):
     deployment = {}
     for role, v in nodes_info.items():
         ip = ips[i]
+        # deployment[ip] = {"role": role}
         deployment[ip] = {"role": role, "init": v["init"]}
         i = i + 1
 
@@ -245,6 +244,9 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
     if "all" in ctx.compose_info:
         deployment["all"] = ctx.compose_info["all"]
 
+    if ctx.composition_name:
+        deployment["composition"] = ctx.composition_name
+
     # for k in ["all", "flavour"]:
     #    if k in compose_info:
     #        deployment[k] = compose_info[k]
@@ -321,7 +323,22 @@ def generate_kexec_scripts(ctx):
 
 
 def generate_deploy_info_b64(ctx):
-    deployment_info_str = json.dumps(ctx.deployment_info)
+
+    deployment_info = {
+        k: ctx.deployment_info[k]
+        for k in [n for n in ctx.deployment_info.keys() if n != "deployment"]
+    }
+
+    deployment = {
+        k: {"role": v["role"]} for k, v in ctx.deployment_info["deployment"].items()
+    }
+    # TODO: function to add multiple hostnames with same role
+    # deployment = { k: {"role": v["role"], "host": "yopXXX"} for k,v in ctx.deployment_info["deployment"].items()}
+
+    deployment_info["deployment"] = deployment
+
+    deployment_info_str = json.dumps(deployment_info)
+
     ctx.deployment_info_b64 = base64.b64encode(deployment_info_str.encode()).decode()
 
     if len(ctx.deployment_info_b64) > (4096 - 256):
