@@ -24,6 +24,7 @@ from ..actions import (
     push_on_machines,
     launch_ssh_kexec,
     wait_ssh_ports,
+    realpath_from_store,
 )
 
 from ..driver import driver
@@ -159,16 +160,17 @@ def cli(
     if composition and (flavour is None):
 
         splitted_composition = composition.split("::")
+        len_splitted_composition = len(splitted_composition)
+        if len_splitted_composition == 2:
 
-        if len(splitted_composition) == 2:
             composition_name, flavour = splitted_composition
-
             composition_all_in_one_file = op.join(ctx.envdir, f"build/::{flavour}")
-            if not op.exists(composition_all_in_one_file):
+
+            if not op.lexists(composition_all_in_one_file):
                 build_path = op.join(
                     ctx.envdir, f"build/{ctx.composition_flavour_prefix}"
                 )
-                if not op.exists(build_path):
+                if not op.lexists(build_path):
                     raise Exception(f"Build file does not exist: {build_path}")
             else:
                 build_path = composition_all_in_one_file
@@ -193,26 +195,22 @@ def cli(
 
         build_path = last_build_path
         ctx.composition_flavour_prefix = op.basename(last_build_path)
-        # if not flavour:
-        #    splitted_basename = ctx.composition_flavour_prefix.split("::")
-        #    ctx.composition_name = splitted_basename[0]
-        #    ctx.flavour_name = splitted_basename[1]
-        #    if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
 
         splitted_basename = ctx.composition_flavour_prefix.split("::")
+
+        if splitted_basename[0] == "":
+            raise Exception("Sorry, composition name must be provided")
 
         ctx.composition_name = splitted_basename[0]
         ctx.composition_basename_file = ctx.composition_name
 
         ctx.flavour_name = splitted_basename[1]
-        if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
-            ctx.artifact = True
 
     if op.isdir(build_path) and len(os.listdir(build_path)) == 0:
         ctx.wlog(f"{build_path} is an empty directory, surely a nixos-test result !")
         sys.exit(2)
 
-    ctx.compose_info_file = build_path
+    ctx.compose_info_file = realpath_from_store(ctx, build_path)
     # TODO remove only available in nixpkgs version 20.03 and before
     # if build is nixos_test result open log.html
     nixos_test_log = op.join(build_path, "log.html")
