@@ -1,18 +1,6 @@
 { pkgs, flavour, compositionName, allConfig, buildOneconfig }:
 let
 
-  baseConfig = buildOneconfig "" { };
-  baseImage =
-    pkgs.runCommand "image" { buildInputs = [ pkgs.nukeReferences ]; } ''
-      mkdir $out
-      cp ${baseConfig.config.system.build.kernel}/bzImage $out/kernel
-      echo "init=${
-        builtins.unsafeDiscardStringContext
-        baseConfig.config.system.build.toplevel
-      }/init ${toString baseConfig.config.boot.kernelParams}" > $out/cmdline
-      nuke-refs $out/kernel
-    '';
-
   machinesInfo =
     pkgs.lib.mapAttrs (n: m: m.config.system.build.initClosureInfo) allConfig;
 
@@ -54,11 +42,7 @@ let
 
 in {
   nodes = machinesInfo;
-
   all_store_info = "${allStoreInfo}";
-  #  #initrd = "${allRamdisk}/initrd";
-  #  #TODO move kerne
-  #  kernel = "${baseImage}/kernel";
-  #  qemu_script = "${baseConfig.config.system.build.qemu_script}";
-  #};
+  #nodesInit = pkgs.lib.mapAttrs (n: m: "${m.config.system.build.toplevel}/init")
+  #  allConfig;
 }

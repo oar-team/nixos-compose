@@ -6,7 +6,6 @@ import click
 import json
 
 from ..context import pass_context, on_started, on_finished
-from ..actions import copy_result_from_store
 
 # FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
 # FLAVOURS = os.listdir(FLAVOURS_PATH)
@@ -35,12 +34,13 @@ from ..actions import copy_result_from_store
 @click.option(
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
-@click.option(
-    "--copy-from-store",
-    "-c",
-    is_flag=True,
-    help="Copy artifacts (initrd, kernels, ...) from Nix store to artifact directory",
-)
+# TOREMOVE
+# @click.option(
+#    "--copy-from-store",
+#    "-c",
+#    is_flag=True,
+#    help="Copy artifacts (initrd, kernels, ...) from Nix store to artifact directory",
+# )
 @click.option(
     "--legacy-nix", "-l", is_flag=True, help="Use legacy Nix's CLI.",
 )
@@ -76,7 +76,6 @@ def cli(
     nixpkgs,
     flavour,
     list_flavours,
-    copy_from_store,
     legacy_nix,
     show_trace,
     dry_run,
@@ -231,9 +230,6 @@ def cli(
         if returncode:
             ctx.elog(f"Build return code: {returncode}")
             sys.exit(returncode)
-        if copy_from_store or (ctx.platform and ctx.platform.copy_from_store):
-            ctx.compose_info_file = op.join(build_path, ctx.composition_flavour_prefix)
-            copy_result_from_store(ctx)
 
         # Loading the docker image"
         if flavour == "docker":

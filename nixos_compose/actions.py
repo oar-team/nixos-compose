@@ -2,19 +2,15 @@ import json
 import os
 import os.path as op
 import glob
-import pathlib
 import socket
 import sys
 import subprocess
 import time
-import shutil
 import base64
 import click
 from halo import Halo
 from .kataract import generate_scp_tasks, exec_kataract_tasks
-
-# from .driver import driver_mode
-
+from string import Template
 
 DRIVER_MODES = {
     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
@@ -22,6 +18,43 @@ DRIVER_MODES = {
     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
     "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
 }
+
+KADEPOY_ENV_DESC = """
+      name: $image_name
+      version: 1
+      description: NixOS
+      author: $author
+      visibility: shared
+      destructive: false
+      os: linux
+      image:
+        file: $file_image_url
+        kind: tar
+        compression: xz
+      boot:
+        kernel: /boot/bzImage
+        initrd: /boot/initrd
+        kernel_params: $kernel_params
+      filesystem: ext4
+      partition_type: 131
+      multipart: false
+"""
+
+##
+# Retrieve from path from different store location if needed
+#
+
+
+def realpath_from_store(ctx, path):
+    p = op.realpath(path)
+    if op.exists(p):
+        return p
+    for store_path in ctx.alternative_stores:
+        new_p = f"{store_path}{p[4:]}"
+        if op.exists(new_p):
+            return new_p
+    ctx.elog(f"{path} does not exist in standard store or alternate")
+    sys.exit(1)
 
 
 ##
@@ -84,44 +117,37 @@ def read_test_script(compose_info_or_str):
 
 def read_compose_info(ctx):
 
-    # TODO to remove
-    # compose_info_file = op.join(ctx.envdir, compose_info_filename)
-    # if compose_info_filename == "result" and not op.isfile(compose_info_file):
-    #     compose_info_file = op.join(ctx.envdir, "compose_info.json")
-    #     if not op.isfile(compose_info_file):
-    #         raise click.ClickException(
-    #             f"{compose_info_filename} does not exist neither compose_info.json"
-    #         )
-
+    if not op.isfile(ctx.compose_info_file):
+        raise click.ClickException(f"{ctx.compose_info_filename} does not exist")
     with open(ctx.compose_info_file, "r") as f:
         compose_info = json.load(f)
 
     if "compositions_info" in compose_info:
+        ctx.multiple_compositions = True
+        ctx.compositions_info = compose_info
         ctx.vlog(
             "Image with multiple compositions is detected, selected composition: {ctx.composition_name}"
         )
-        ctx.all_compositions_info = compose_info
 
-        if ctx.composition_name not in ctx.all_compositions_info["compositions_info"]:
+        if (
+            ctx.composition_name
+            and ctx.composition_name not in ctx.compositions_info["compositions_info"]
+        ):
             ctx.elog(
                 f'Composition named: "{ctx.composition_name}" is not in {ctx.compose_info_file}'
             )
             if ctx.composition_name == ctx.composition_basename_file:
                 ctx.elog(
-                    "When image contains multiple compositions and without default, the one to launch must by indicated via composition name option with name as prefix followed by file's label separated by @  (e.g. -c foo@compositions). The default if present, is composition with its name equals to file's label."
+                    "When image contains multiple compositions and without default, the one to launch must by indicated via composition name option with name as prefix followed by file's label separated by ::  (e.g. -c foo::g5k-ramdisk). The default if present, is composition with its name equals to file's label."
                 )
             sys.exit(1)
-
-        compose_info = ctx.all_compositions_info["compositions_info"][
-            ctx.composition_name
-        ]
-        compose_info["all"] = ctx.all_compositions_info["all"]
-        ctx.flavour = ctx.all_compositions_info["flavour"]
-
-    ctx.compose_info = compose_info
-
-    if "flavour" in compose_info:
-        ctx.flavour = compose_info["flavour"]
+        if ctx.composition_name:
+            compose_info = ctx.compositions_info["compositions_info"][
+                ctx.composition_name
+            ]
+        compose_info["all"] = ctx.compositions_info["all"]
+        compose_info["flavour"] = ctx.compositions_info["flavour"]
+        ctx.flavour = ctx.compositions_info["flavour"]
 
     ctx.compose_info = compose_info
     return
@@ -147,6 +173,7 @@ def populate_deployment_vm_by_ip(nodes_info):
     for role, v in nodes_info.items():
         ip = "10.0.2.{}".format(15 + i)
         ips.append(ip)
+        # deployment[ip] = {"role": role, "vm_id": i}
         deployment[ip] = {"role": role, "init": v["init"], "vm_id": i}
         if "qemu_script" in v:
             deployment[ip]["qemu_script"] = v["qemu_script"]
@@ -160,6 +187,7 @@ def populate_deployment_ips(nodes_info, ips):
     deployment = {}
     for role, v in nodes_info.items():
         ip = ips[i]
+        # deployment[ip] = {"role": role}
         deployment[ip] = {"role": role, "init": v["init"]}
         i = i + 1
 
@@ -227,6 +255,9 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
             "QEMU_KERNEL_PARAMS"
         ] = f"{qemu_kernel_params} ssh_key.pub:{ssh_key_pub_b64}"
 
+    # if ctx.multiple_compositions:  :: TO REMOVE ???
+    #    nodes = ctx.compose_info["nodes"]
+
     if ctx.ip_addresses:
         deployment = populate_deployment_ips(
             ctx.compose_info["nodes"], ctx.ip_addresses
@@ -244,6 +275,9 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
 
     if "all" in ctx.compose_info:
         deployment["all"] = ctx.compose_info["all"]
+
+    if ctx.composition_name:
+        deployment["composition"] = ctx.composition_name
 
     # for k in ["all", "flavour"]:
     #    if k in compose_info:
@@ -279,21 +313,19 @@ def generate_kexec_scripts(ctx):
         generate_deploy_info_b64(ctx)
         deploy_info_src = ctx.deployment_info_b64
 
-    if ctx.artifact:
-        base_path = os.path.join(
-            ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
-        )
-    else:
-        base_path = ctx.envdir
-    kexec_scripts_path = os.path.join(base_path, "kexec_scripts")
+    base_path = op.join(
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+    )
+    kexec_scripts_path = op.join(base_path, "kexec_scripts")
     os.makedirs(kexec_scripts_path, mode=0o700, exist_ok=True)
 
     if "all" in ctx.deployment_info:
-        kernel_path = f"{base_path}/kernel"
-        initrd_path = f"{base_path}/initrd"
+        kernel_path = realpath_from_store(ctx, ctx.deployment_info["all"]["kernel"])
+        initrd_path = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
+
         kexec_args = "-l $KERNEL --initrd=$INITRD "
         kexec_args += f"--append='deploy={deploy_info_src} console=tty0 console=ttyS0,115200 $DEBUG_INITRD'"
-        script_path = os.path.join(kexec_scripts_path, "kexec.sh")
+        script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
             kexec_script.write(": ''${SUDO:=sudo}\n")
@@ -310,7 +342,7 @@ def generate_kexec_scripts(ctx):
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
             kexec_args += f"--append='init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 $DEBUG_INITRD'"
-            script_path = os.path.join(kexec_scripts_path, f"kexec_{role}.sh")
+            script_path = op.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
                 kexec_script.write(": ''${SUDO:=sudo}\n")
@@ -321,7 +353,23 @@ def generate_kexec_scripts(ctx):
 
 
 def generate_deploy_info_b64(ctx):
-    deployment_info_str = json.dumps(ctx.deployment_info)
+
+    deployment_info = {
+        k: ctx.deployment_info[k]
+        for k in [n for n in ctx.deployment_info.keys() if n != "deployment"]
+    }
+
+    deployment = {
+        k: {"role": v["role"]} for k, v in ctx.deployment_info["deployment"].items()
+    }
+    # TODO: function to add multiple hostnames with same role
+    # deployment = { k: {"role": v["role"], "host": "yopXXX"} for k,v in ctx.deployment_info["deployment"].items()}
+
+    deployment_info["deployment"] = deployment
+
+    ctx.vlog(f"deploy info \n{deployment_info}")
+    deployment_info_str = json.dumps(deployment_info)
+
     ctx.deployment_info_b64 = base64.b64encode(deployment_info_str.encode()).decode()
 
     if len(ctx.deployment_info_b64) > (4096 - 256):
@@ -332,52 +380,90 @@ def generate_deploy_info_b64(ctx):
     return
 
 
-def copy_result_from_store(ctx):
-
-    if not ctx.compose_info:
-        read_compose_info(ctx)
-
-    artifact_path = op.join(
+def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
+    base_path = op.join(
         ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
     )
-    if not op.exists(artifact_path):
-        create = click.style("   create", fg="green")
-        ctx.log("   " + create + "  " + artifact_path)
-        pathlib.Path(artifact_path).mkdir(parents=True, exist_ok=True)
+    os.makedirs(base_path, mode=0o700, exist_ok=True)
+    kaenv_path = op.join(base_path, "nixos.yaml")
+    if not deploy:
+        generate_deploy_info_b64(ctx)
+        deploy = ctx.deployment_info_b64
 
-    compose_info = ctx.compose_info
+    user = os.environ["USER"]
+    with open(kaenv_path, "w") as kaenv_file:
+        t = Template(KADEPOY_ENV_DESC)
+        kaenv = t.substitute(
+            image_name="NixOS",
+            author=user,
+            file_image_url=f"http://public.grenoble.grid5000.fr/~{user}/nixos.tar.xz",
+            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {kernel_params_opts}",
+        )
+        kaenv_file.write(kaenv)
 
-    new_compose_info = compose_info.copy()
 
-    if "all" in compose_info:
-        for target in ["kernel", "initrd", "qemu_script"]:
-            new_target = op.join(artifact_path, target)
-            shutil.copy(compose_info["all"][target], new_target)
-            os.chmod(new_target, 0o644)
-            new_compose_info["all"][target] = new_target
-    else:
-        for r, v in compose_info["nodes"].items():
-            for target in ["kernel", "initrd", "qemu_script"]:
-                new_target = op.join(artifact_path, f"{target}_{r}")
-                shutil.copy(v[target], new_target)
-                os.chmod(new_target, 0o644)
-                new_compose_info["nodes"][target] = new_target
+def launch_kadeploy(ctx, dry_run=True):
+    image_path = realpath_from_store(ctx, ctx.deployment_info["all"]["image"])
+    print(f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz')
+    # TOFINISH
 
-    if "test_script" in compose_info:
-        new_target = op.join(artifact_path, "test_script")
-        shutil.copy(compose_info["test_script"], new_target)
-        os.chmod(new_target, 0o644)
-        new_compose_info["test_script"] = new_target
 
-    # save new updated compose_info
-    json_new_compose_info = json.dumps(new_compose_info, indent=2)
-    with open(
-        op.join(ctx.envdir, f"build/{ctx.composition_flavour_prefix}::artifact"), "w",
-    ) as outfile:
-        outfile.write(json_new_compose_info)
+# def copy_result_from_store(ctx):
 
-    ctx.compose_info = new_compose_info
-    ctx.log("Copy from store: " + click.style("completed", fg="green"))
+#     if not ctx.compose_info:
+#         read_compose_info(ctx)
+
+#     if ctx.multiple_compositions:
+#         composition_directory = "::"
+#     else:
+#         composition_directory = ctx.composition_name
+
+#     artifact_path = op.join(
+#         ctx.envdir, f"artifact/{composition_directory}/{ctx.flavour_name}"
+#     )
+#     if not op.exists(artifact_path):
+#         create = click.style("   create", fg="green")
+#         ctx.log("   " + create + "  " + artifact_path)
+#         pathlib.Path(artifact_path).mkdir(parents=True, exist_ok=True)
+
+#     if ctx.multiple_compositions:
+#         compose_info = ctx.compositions_info
+#     else:
+#         compose_info = ctx.compose_info
+
+#     new_compose_info = compose_info.copy()
+
+#     if "all" in compose_info:
+#         for target in ["kernel", "initrd", "qemu_script", "image"]:
+#             if target in compose_info["all"]:
+#                 new_target = op.join(artifact_path, target)
+#                 shutil.copy(compose_info["all"][target], new_target)
+#                 os.chmod(new_target, 0o644)
+#                 new_compose_info["all"][target] = new_target
+#     else:
+#         for r, v in compose_info["nodes"].items():
+#             for target in ["kernel", "initrd", "qemu_script", "image"]:
+#                 if target in v:
+#                     new_target = op.join(artifact_path, f"{target}_{r}")
+#                     shutil.copy(v[target], new_target)
+#                     os.chmod(new_target, 0o644)
+#                     new_compose_info["nodes"][target] = new_target
+
+#     if "test_script" in compose_info:
+#         new_target = op.join(artifact_path, "test_script")
+#         shutil.copy(compose_info["test_script"], new_target)
+#         os.chmod(new_target, 0o644)
+#         new_compose_info["test_script"] = new_target
+
+#     # save new updated compose_info
+#     json_new_compose_info = json.dumps(new_compose_info, indent=2)
+#     with open(
+#         op.join(ctx.envdir, f"build/{ctx.composition_flavour_prefix}::artifact"), "w",
+#     ) as outfile:
+#         outfile.write(json_new_compose_info)
+
+#     ctx.compose_info = new_compose_info
+#     ctx.log("Copy from store: " + click.style("completed", fg="green"))
 
 
 ##
@@ -392,11 +478,9 @@ def launch_ssh_kexec(ctx, ip=None, debug=False):
             ki = f"KERNEL={ctx.push_path}kernel INITRD={ctx.push_path}initrd"
             user = "root@"
         else:
-            base_path = ctx.envdir
-            if ctx.artifact:
-                base_path = os.path.join(
-                    ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
-                )
+            base_path = op.join(
+                ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+            )
             kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
             ki = ""
             user = ""
@@ -459,14 +543,21 @@ def push_on_machines(ctx):
     if "all" not in ctx.deployment_info:
         raise Exception("Sorry, only all-in-one image version is supported up to now")
 
-    kernel = ctx.deployment_info["all"]["kernel"]
-    initrd = ctx.deployment_info["all"]["initrd"]
+    kernel = realpath_from_store(ctx, ctx.deployment_info["all"]["kernel"])
+    initrd = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
 
     base_path = ctx.envdir
-    if ctx.artifact:
-        base_path = os.path.join(
-            ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
-        )
+
+    # if ctx.multiple_compositions:
+    #    subpath = "::"
+    # else:
+    # subpath = ctx.composition_name
+    # base_path = op.join(
+    #     ctx.envdir, f"artifact/{subpath}/{ctx.flavour_name}"
+    # )
+    subpath = ctx.composition_name
+    base_path = op.join(ctx.envdir, f"artifact/{subpath}/{ctx.flavour_name}")
+
     kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
 
     ctx.vlog(
@@ -636,7 +727,7 @@ def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc")
 # TODO launch_vm_deploy(ctx, deployment, httpd_port=0, debug=False):
 def launch_vm(ctx, httpd_port=0, debug=False):
 
-    if not os.path.exists("/tmp/kexec-qemu-vde1.ctl/ctl"):
+    if not op.exists("/tmp/kexec-qemu-vde1.ctl/ctl"):
         ctx.log("need sudo to create tap0 interface")
         subprocess.call("sudo true", shell=True)
 
@@ -653,7 +744,6 @@ def launch_vm(ctx, httpd_port=0, debug=False):
         cmd_qemu_script += " VM_ID={:02d} {} &".format(v["vm_id"], qemu_script)
         ctx.log("launch: {}".format(v["role"]))
         ctx.vlog(f"command: {cmd_qemu_script}")
-        # import pdb; pdb.set_trace()
         # subprocess.Popen(
         #    cmd_qemu_script,
         #    stdin=subprocess.DEVNULL,

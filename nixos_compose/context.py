@@ -38,20 +38,22 @@ class Context(object):
         self.flavour = {}
         self.flavour_name = None
         self.composition_name = None
-        self.composition_flavour_prefix = None
-        self.compose_info_file = None
-        self.compose_info = None
-        self.deployment_info = None
-        self.deployment_info_b64 = ""
+        self.composition_flavour_prefix = None  # REMOVE _prefix ???
+        self.compose_info_file = None  # change to compositions_file ?
+        self.compose_info = None  # change to compositioin of merge w/ compositionS ?
+        self.multiple_compositions = False
+        self.compositions_info = None  #
+        self.deployment_info = None  # change to deployment ?
+        self.deployment_info_b64 = ""  # change to depoloyment_b64 ?
         self.ip_addresses = []
         self.host2ip_address = {}
         self.ssh = ""
         self.sudo = ""
         self.push_path = None
         self.platform = None
-        self.artifact = False  # use artifact
         self.use_httpd = False
         self.httpd = None
+        self.alternative_stores = [f"{os.environ['HOME']}/.nix"]
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:

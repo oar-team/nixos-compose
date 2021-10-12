@@ -23,8 +23,6 @@ import tempfile
 import time
 import traceback
 import unicodedata
-import json
-from base64 import b64encode
 
 from .context import Context
 from .actions import launch_ssh_kexec
@@ -474,7 +472,7 @@ class Machine:
         return (status_code, stdout.decode())
 
     def execute(self, command: str) -> Tuple[int, str]:
-        if context.mode["docker"]:
+        if "docker" in context.mode and context.mode["docker"]:
             return self.execute_docker(command)
         else:
             self.connect()
@@ -731,9 +729,9 @@ class Machine:
         self.send_monitor_command("sendkey {}".format(key))
 
     def start(self, ordered=False) -> None:
-        if context.mode["vm"]:
+        if "vm" in context.mode and context.mode["vm"]:
             self.start_vm(ordered)
-        elif context.mode["docker"]:
+        elif "docker" in context.mode and context.mode["docker"]:
             self.start_docker()
         else:
             self.start_ssh_kexec()
@@ -1040,7 +1038,6 @@ def check_ssh_port(hosts):
 def driver(ctx, driver_repl, test_script=None):
     global context
     context = ctx
-
     mode = context.mode
 
     deployment = context.deployment_info
@@ -1086,9 +1083,9 @@ def driver(ctx, driver_repl, test_script=None):
                     f"{base_url}/deploy/{context.composition_flavour_prefix}.json"
                 )
             else:
-                deployment_info_str = json.dumps(deployment)
-                deploy_info_src = b64encode(deployment_info_str.encode()).decode()
-
+                # deployment_info_str = json.dumps(deployment)
+                # deploy_info_src = b64encode(deployment_info_str.encode()).decode()
+                deploy_info_src = context.deployment_info_b64
                 if len(deploy_info_src) > (4096 - 256):
                     log.log(
                         "The base64 encoded deploy data is too large: use an http server to serve it"
@@ -1127,14 +1124,22 @@ def driver(ctx, driver_repl, test_script=None):
             else:
                 qemu_script = v["qemu_script"]
 
-            if debug_stage1 and (debug_stage1 == name):
-                # debloy="DEPLOY=deploy=http://10.0.2.1:8000/deploy/composition::vm-ramdisk.json \\\n"
-                params = f'{debug_var_base}INIT={v["init"]} \\\n'
-                debug = " DEBUG_INITRD=boot.debug1mounts "
-                params = f'{params}QEMU_VDE_SOCKET={vde_socket}{debug}VM_ID={v["vm_id"]} ROLE={name} \\\n'
-                print()
-                print(f"{params}{qemu_script}")
-                print()
+            if debug_stage1:
+                if debug_stage1 == name:
+                    # debloy="DEPLOY=deploy=http://10.0.2.1:8000/deploy/composition::vm-ramdisk.json \\\n"
+                    # deploy="DEPLOY=deploy={context.deploy_info_src}"
+                    params = f'{debug_var_base}INIT={v["init"]} \\\n'
+                    debug = " DEBUG_INITRD=boot.debug1mounts "
+                    # params = f'{params}QEMU_VDE_SOCKET={vde_socket}{debug}VM_ID={v["vm_id"]} ROLE={name}\\\n'
+                    params = f'{params}QEMU_VDE_SOCKET={vde_socket}{debug}VM_ID={v["vm_id"]} \\\n'
+                    if "DEPLOY" in os.environ:
+                        params = f'DEPLOY={os.environ["DEPLOY"]} \\\n{params}'
+                    print()
+                    print(f"DEBUG STAGE1 on role: {name}")
+                    print(f"{params}{qemu_script}")
+                    # subprocess.call(f"{params} bash -x {qemu_script}", shell=True)
+                    subprocess.call(f"{params}{qemu_script}", shell=True)
+                    sys.exit(0)
             else:
                 machines.append(
                     create_machine(
@@ -1189,7 +1194,9 @@ def driver(ctx, driver_repl, test_script=None):
     exec("\n".join(machine_eval), globals())
 
     start_all()
-    if not mode["vm"] and not mode["docker"]:
+    # ptpython.repl.embed(locals(), globals())
+    # start_all()
+    if not mode["vm"] and not ("docker" in mode and mode["docker"]):
         log.log("Waiting 10s for kexecs launching (and consequently sshds' shutdowns)")
         time.sleep(10)
 

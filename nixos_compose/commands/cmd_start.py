@@ -24,6 +24,9 @@ from ..actions import (
     push_on_machines,
     launch_ssh_kexec,
     wait_ssh_ports,
+    realpath_from_store,
+    generate_kadeploy_envfile,
+    launch_kadeploy,
 )
 
 from ..driver import driver
@@ -35,6 +38,7 @@ DRIVER_MODES = {
     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
     "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
 }
+
 
 machines_file_towait = ""
 notifier = None
@@ -80,7 +84,13 @@ class EventHandler(pyinotify.ProcessEvent):
     is_flag=True,
     help="deployement info is served by http (in place of kernel parameters)",
 )
-@click.option("-c", "--composition", type=click.STRING, help="specify composition")
+@click.option(
+    "-c",
+    "-C",
+    "--composition",
+    type=click.STRING,
+    help="specify composition, can specify flavour e.g. composition::flavour",
+)
 @click.option("--flavour", type=click.STRING, help="specify flavour")
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -150,13 +160,32 @@ def cli(
             notifier.stop()
             ctx.log(f"{machines_file} file created")
 
-    if composition:
+    if composition and (flavour is None):
+
         splitted_composition = composition.split("::")
-        ctx.composition_name = splitted_composition[0]
-        if len(splitted_composition) > 1:
-            ctx.composition_basename_file = splitted_composition[1]
+        len_splitted_composition = len(splitted_composition)
+        if len_splitted_composition == 2:
+
+            composition_name, flavour = splitted_composition
+            composition_all_in_one_file = op.join(ctx.envdir, f"build/::{flavour}")
+
+            if not op.lexists(composition_all_in_one_file):
+                build_path = op.join(
+                    ctx.envdir, f"build/{ctx.composition_flavour_prefix}"
+                )
+                if not op.lexists(build_path):
+                    raise Exception(f"Build file does not exist: {build_path}")
+            else:
+                build_path = composition_all_in_one_file
+
+            ctx.flavour_name = flavour
+            ctx.composition_name = composition_name
+            ctx.composition_flavour_prefix = composition
+            ctx.composition_basename_file = composition_name
         else:
-            ctx.composition_basename_file = ctx.composition_name
+            raise Exception(
+                "Sorry, provide only flavour or only composition is not supported"
+            )
 
     if (composition is None) and (flavour is None):
         last_build_path = max(
@@ -169,43 +198,22 @@ def cli(
 
         build_path = last_build_path
         ctx.composition_flavour_prefix = op.basename(last_build_path)
-        # if not flavour:
-        #    splitted_basename = ctx.composition_flavour_prefix.split("::")
-        #    ctx.composition_name = splitted_basename[0]
-        #    ctx.flavour_name = splitted_basename[1]
-        #    if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
 
         splitted_basename = ctx.composition_flavour_prefix.split("::")
+
+        if splitted_basename[0] == "":
+            raise Exception("Sorry, composition name must be provided")
 
         ctx.composition_name = splitted_basename[0]
         ctx.composition_basename_file = ctx.composition_name
 
         ctx.flavour_name = splitted_basename[1]
-        if len(splitted_basename) == 3 and splitted_basename[2] == "artifact":
-            ctx.artifact = True
-
-    elif (composition is None) ^ (flavour is None):
-        raise Exception(
-            "Sorry, provide only flavour or only composition is not supported"
-        )
-
-    else:
-        ctx.composition_flavour_prefix = f"{ctx.composition_basename_file}::{flavour}"
-        build_path = op.join(ctx.envdir, f"build/{ctx.composition_flavour_prefix}")
-        if not op.exists(build_path):
-            ctx.elog(f"Build path does not exit: {build_path}")
-            ctx.elog("Possible causes:")
-            ctx.elog(
-                f"    - composition or flavour does not exit: {ctx.composition_flavour_prefix}"
-            )
-            ctx.elog("    - build must be launched")
-            sys.exit(1)
 
     if op.isdir(build_path) and len(os.listdir(build_path)) == 0:
         ctx.wlog(f"{build_path} is an empty directory, surely a nixos-test result !")
         sys.exit(2)
 
-    ctx.compose_info_file = build_path
+    ctx.compose_info_file = realpath_from_store(ctx, build_path)
     # TODO remove only available in nixpkgs version 20.03 and before
     # if build is nixos_test result open log.html
     nixos_test_log = op.join(build_path, "log.html")
@@ -286,20 +294,27 @@ def cli(
             ctx.vlog("Launch: httpd to distribute deployment.json")
             ctx.httpd = HTTPDaemon(ctx=ctx)
 
-        generate_kexec_scripts(ctx)
+        if ctx.flavour["image"]["type"] == "ramdisk":
+            generate_kexec_scripts(ctx)
 
-        if ctx.push_path:
-            push_on_machines(ctx)
+            if ctx.push_path:
+                push_on_machines(ctx)
 
         if ctx.use_httpd:
             ctx.httpd.start(directory=ctx.envdir)
 
         if not driver_repl:
-            ctx.log("Launch ssh(s) kexec")
-            launch_ssh_kexec(ctx)
-            time.sleep(10)
-            wait_ssh_ports(ctx)
-            sys.exit(0)
+            if ctx.flavour["image"]["type"] == "ramdisk":
+                ctx.log("Launch ssh(s) kexec")
+                launch_ssh_kexec(ctx)
+                time.sleep(10)
+                wait_ssh_ports(ctx)
+                sys.exit(0)
+            if ctx.flavour_name == "g5k-image":
+                generate_kadeploy_envfile(ctx)
+                launch_kadeploy(ctx)
+                sys.exit(0)
+
     elif ctx.flavour_name == "docker":
         ctx.mode = DRIVER_MODES["docker"]
     else:

@@ -1,26 +1,9 @@
-flavour:
-{ config, pkgs, lib, modulesPath, ... }: {
+{ config, pkgs, lib, modulesPath, ... }:
 
-  boot.loader.grub.enable = false;
-  #boot.kernelParams = [
-  #  "console=ttyS0,115200"
-  #  "panic=30"
-  #  "boot.panic_on_fail" # reboot the machine upon fatal boot issues
-  #];
+with lib; {
 
-  # TODO lib.versionAtLeast pkgs.lib.version "20.09" (under 20.09 mount overlay explicitly
-  fileSystems."/nix/store" = {
-    fsType = "overlay";
-    device = "overlay";
-    options = [
-      "lowerdir=/nix/.ro-store"
-      "upperdir=/nix/.rw-store/store"
-      "workdir=/nix/.rw-store/work"
-    ];
-  };
-
-  systemd.services.sshd.wantedBy = lib.mkForce [ "multi-user.target" ];
-  networking.hostName = lib.mkDefault "";
+  systemd.services.sshd.wantedBy = mkForce [ "multi-user.target" ];
+  networking.hostName = mkDefault "";
 
   # add second serial console
   #systemd.services."getty@ttyS1".enable = true;
@@ -35,11 +18,22 @@ flavour:
   boot.kernelModules = [ "kvm-intel" ];
 
   services.sshd.enable = true;
-  services.getty.autologinUser = lib.mkDefault "root";
+  services.getty.autologinUser = mkDefault "root";
+
   security.polkit.enable = false; # to reduce initrd
   services.udisks2.enable = false; # to reduce initrd
 
   system.build = rec {
+    image =
+      pkgs.runCommand "image" { buildInputs = [ pkgs.nukeReferences ]; } ''
+        mkdir $out
+        cp ${config.system.build.kernel}/bzImage $out/kernel
+        cp ${config.system.build.netbootRamdisk}/initrd $out/initrd
+        echo "init=${
+          builtins.unsafeDiscardStringContext config.system.build.toplevel
+        }/init ${toString config.boot.kernelParams}" > $out/cmdline
+        nuke-refs $out/kernel
+      '';
     initClosureInfo = {
       init = "${
           builtins.unsafeDiscardStringContext config.system.build.toplevel
@@ -69,6 +63,7 @@ flavour:
         : ''${QEMU_VDE_SOCKET:=/tmp/kexec-qemu-vde1.ctl}
         : ''${SERVER_IP:=server=10.0.2.15}
         : ''${ROLE:=}
+        : ''${GRAPHIC:=0}
 
         # zero padding: 2 digits vm_id
         VM_ID=$(printf "%02d\n" $VM_ID)
@@ -99,15 +94,32 @@ flavour:
           builtins.unsafeDiscardStringContext config.system.build.toplevel
         }/init}
 
+        if [[ $GRAPHIC == "0" ]]; then
+           NOGRAPHIC="-nographic"
+        fi
+
         qemu-kvm -name $NAME -m $MEM -kernel $KERNEL -initrd $INITRD \
         -append "loglevel=4 init=$INIT console=tty0 console=ttyS0,115200n8 $ROLE $SERVER_IP $DEBUG_INITRD $DEPLOY $QEMU_APPEND " \
-        -nographic \
         -device virtio-rng-pci \
         -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID \
         -netdev vde,id=vlan1,sock=$QEMU_VDE_SOCKET \
         -virtfs local,path=$SHARED_DIR,security_model=none,mount_tag=shared \
+        $NOGRAPHIC \
         $QEMU_OPTS
       '';
     };
   };
+
+  # misc
+  key = "no-manual";
+
+  environment.noXlibs = mkDefault true;
+
+  # This isn't perfect, but let's expect the user specifies an UTF-8 defaultLocale
+  #i18n.supportedLocales = [ (config.i18n.defaultLocale + "/UTF-8") ];
+  i18n.defaultLocale = "en_US.UTF-8";
+
+  documentation.enable = mkDefault false;
+
+  documentation.nixos.enable = mkDefault false;
 }
