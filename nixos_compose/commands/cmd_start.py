@@ -25,6 +25,8 @@ from ..actions import (
     launch_ssh_kexec,
     wait_ssh_ports,
     realpath_from_store,
+    generate_kadeploy_envfile,
+    launch_kadeploy,
 )
 
 from ..driver import driver
@@ -36,6 +38,7 @@ DRIVER_MODES = {
     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
     "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
 }
+
 
 machines_file_towait = ""
 notifier = None
@@ -291,20 +294,27 @@ def cli(
             ctx.vlog("Launch: httpd to distribute deployment.json")
             ctx.httpd = HTTPDaemon(ctx=ctx)
 
-        generate_kexec_scripts(ctx)
+        if ctx.flavour["image"]["type"] == "ramdisk":
+            generate_kexec_scripts(ctx)
 
-        if ctx.push_path:
-            push_on_machines(ctx)
+            if ctx.push_path:
+                push_on_machines(ctx)
 
         if ctx.use_httpd:
             ctx.httpd.start(directory=ctx.envdir)
 
         if not driver_repl:
-            ctx.log("Launch ssh(s) kexec")
-            launch_ssh_kexec(ctx)
-            time.sleep(10)
-            wait_ssh_ports(ctx)
-            sys.exit(0)
+            if ctx.flavour["image"]["type"] == "ramdisk":
+                ctx.log("Launch ssh(s) kexec")
+                launch_ssh_kexec(ctx)
+                time.sleep(10)
+                wait_ssh_ports(ctx)
+                sys.exit(0)
+            if ctx.flavour_name == "g5k-image":
+                generate_kadeploy_envfile(ctx)
+                launch_kadeploy(ctx)
+                sys.exit(0)
+
     elif ctx.flavour_name == "docker":
         ctx.mode = DRIVER_MODES["docker"]
     else:

@@ -1038,7 +1038,6 @@ def check_ssh_port(hosts):
 def driver(ctx, driver_repl, test_script=None):
     global context
     context = ctx
-    # import pdb; pdb.set_trace()
     mode = context.mode
 
     deployment = context.deployment_info
@@ -1196,7 +1195,6 @@ def driver(ctx, driver_repl, test_script=None):
 
     start_all()
     # ptpython.repl.embed(locals(), globals())
-    # import pdb; pdb.set_trace()
     # start_all()
     if not mode["vm"] and not ("docker" in mode and mode["docker"]):
         log.log("Waiting 10s for kexecs launching (and consequently sshds' shutdowns)")

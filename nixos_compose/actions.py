@@ -10,6 +10,7 @@ import base64
 import click
 from halo import Halo
 from .kataract import generate_scp_tasks, exec_kataract_tasks
+from string import Template
 
 DRIVER_MODES = {
     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
@@ -17,6 +18,27 @@ DRIVER_MODES = {
     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
     "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
 }
+
+KADEPOY_ENV_DESC = """
+      name: $image_name
+      version: 1
+      description: NixOS
+      author: $author
+      visibility: shared
+      destructive: false
+      os: linux
+      image:
+        file: $file_image_url
+        kind: tar
+        compression: xz
+      boot:
+        kernel: /boot/bzImage
+        initrd: /boot/initrd
+        kernel_params: $kernel_params
+      filesystem: ext4
+      partition_type: 131
+      multipart: false
+"""
 
 ##
 # Retrieve from path from different store location if needed
@@ -345,6 +367,7 @@ def generate_deploy_info_b64(ctx):
 
     deployment_info["deployment"] = deployment
 
+    ctx.vlog(f"deploy info \n{deployment_info}")
     deployment_info_str = json.dumps(deployment_info)
 
     ctx.deployment_info_b64 = base64.b64encode(deployment_info_str.encode()).decode()
@@ -355,6 +378,34 @@ def generate_deploy_info_b64(ctx):
         )
         sys.exit(1)
     return
+
+
+def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
+    base_path = op.join(
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+    )
+    os.makedirs(base_path, mode=0o700, exist_ok=True)
+    kaenv_path = op.join(base_path, "nixos.yaml")
+    if not deploy:
+        generate_deploy_info_b64(ctx)
+        deploy = ctx.deployment_info_b64
+
+    user = os.environ["USER"]
+    with open(kaenv_path, "w") as kaenv_file:
+        t = Template(KADEPOY_ENV_DESC)
+        kaenv = t.substitute(
+            image_name="NixOS",
+            author=user,
+            file_image_url=f"http://public.grenoble.grid5000.fr/~{user}/nixos.tar.xz",
+            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {kernel_params_opts}",
+        )
+        kaenv_file.write(kaenv)
+
+
+def launch_kadeploy(ctx, dry_run=True):
+    image_path = realpath_from_store(ctx, ctx.deployment_info["all"]["image"])
+    print(f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz')
+    # TOFINISH
 
 
 # def copy_result_from_store(ctx):
@@ -693,7 +744,6 @@ def launch_vm(ctx, httpd_port=0, debug=False):
         cmd_qemu_script += " VM_ID={:02d} {} &".format(v["vm_id"], qemu_script)
         ctx.log("launch: {}".format(v["role"]))
         ctx.vlog(f"command: {cmd_qemu_script}")
-        # import pdb; pdb.set_trace()
         # subprocess.Popen(
         #    cmd_qemu_script,
         #    stdin=subprocess.DEVNULL,
