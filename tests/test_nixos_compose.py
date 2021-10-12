@@ -13,14 +13,6 @@ def test_version():
     assert __version__ == "0.1.0"
 
 
-def test_build(tmp_path):
-    res = run("nxc init", shell=True, cwd=tmp_path)
-    assert not res.returncode
-
-    res = run("nxc build -l -n channel:nixos-unstable", shell=True, cwd=tmp_path)
-    assert not res.returncode
-
-
 def test_build_flake(tmp_path):
     print("created temporary directory", tmp_path)
     run("git init", shell=True, cwd=tmp_path)
