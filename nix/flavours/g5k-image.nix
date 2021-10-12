@@ -9,9 +9,12 @@
     imports = [
       ./shared/base.nix
       ./shared/stage-1-cmds.nix
+      ./shared/stage-2-cmds.nix
       ./shared/common.nix
       ./shared/g5k-boot.nix
       ./shared/g5k-ssh-host-keys.nix
     ];
+    # Kadeploy tests some ports' accessibility to follow deployment steps
+    networking.firewall.enable = false;
   };
 }

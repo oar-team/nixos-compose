@@ -1,17 +1,12 @@
 { pkgs, config, ... }: {
 
-  # system.build = rec {
-  #   image =
-  #     pkgs.runCommand "image" { buildInputs = [ pkgs.nukeReferences ]; } ''
-  #       mkdir $out
-  #       cp ${config.system.build.kernel}/bzImage $out/kernel
-  #       cp ${config.system.build.netbootRamdisk}/initrd $out/initrd
-  #       echo "init=${
-  #         builtins.unsafeDiscardStringContext config.system.build.toplevel
-  #       }/init ${toString config.boot.kernelParams}" > $out/cmdline
-  #       nuke-refs $out/kernel
-  #     '';
-  # };
+  boot.initrd.network.enable = true;
+  boot.initrd.extraUtilsCommands = ''
+    copy_bin_and_libs ${pkgs.jq}/bin/jq
+    cp -pv ${pkgs.glibc}/lib/libnss_files.so.2 $out/lib
+    cp -pv ${pkgs.glibc}/lib/libresolv.so.2 $out/lib
+    cp -pv ${pkgs.glibc}/lib/libnss_dns.so.2 $out/lib
+  '';
 
   boot.initrd.postMountCommands = ''
     allowShell=1

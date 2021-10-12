@@ -152,7 +152,7 @@ in let
   } else {
     all = {
       image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
-      initrd = "/boot/" + baseConfig.system.boot.loader.initrdFile;
+      initrd = "${baseConfig.system.build.initialRamdisk}/initrd";
       all_compositions_registration_store_path =
         "${allCompositionsRegistrationStorePath}";
       init = "${
@@ -166,5 +166,8 @@ in pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate {
     lib.filterAttrs (n: v: n == "name" || n == "description" || n == "image")
     flavour;
   compositions_info = allCompositionsInfo;
-  all = { kernel = "${baseImage}/kernel"; };
+  all = {
+    kernel = "${baseImage}/kernel";
+    stage1 = "${baseConfig.system.build.bootStage1}";
+  };
 } flavoured_all))

@@ -2,24 +2,6 @@
 
 with lib; {
 
-  #boot.loader.grub.enable = false;
-  #boot.kernelParams = [
-  #  "console=ttyS0,115200"
-  #  "panic=30"
-  #  "boot.panic_on_fail" # reboot the machine upon fatal boot issues
-  #];
-
-  # TODO versionAtLeast pkgs.version "20.09" (under 20.09 mount overlay explicitly
-  fileSystems."/nix/store" = {
-    fsType = "overlay";
-    device = "overlay";
-    options = [
-      "lowerdir=/nix/.ro-store"
-      "upperdir=/nix/.rw-store/store"
-      "workdir=/nix/.rw-store/work"
-    ];
-  };
-
   systemd.services.sshd.wantedBy = mkForce [ "multi-user.target" ];
   networking.hostName = mkDefault "";
 
@@ -37,6 +19,7 @@ with lib; {
 
   services.sshd.enable = true;
   services.getty.autologinUser = mkDefault "root";
+
   security.polkit.enable = false; # to reduce initrd
   services.udisks2.enable = false; # to reduce initrd
 
