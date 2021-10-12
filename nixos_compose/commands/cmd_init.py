@@ -122,6 +122,11 @@ in
 @click.option(
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
+@click.option(
+    "--no-flake-lock",
+    is_flag=True,
+    help="Does not set intial flake.lock, will be set by Nix during the first build",
+)
 @pass_context
 # @on_finished(lambda ctx: ctx.state.dump())
 def cli(
@@ -134,8 +139,11 @@ def cli(
     default_flavour,
     list_flavours,
     list_flavours_json,
+    no_flake_lock,
 ):
     """Initialize a new environment."""
+
+    create = click.style("   create", fg="green")
 
     nxc_json_file = op.abspath(op.join(ctx.envdir, "nxc.json"))
     description_flavours_file = op.abspath(op.join(NXC_NIX_PATH, "flavours.json"))
@@ -161,7 +169,6 @@ def cli(
         composition_file = "composition.nix"
         composition_path = op.abspath(op.join(ctx.envdir, composition_file))
         click.echo("\nCopy intial files: ")
-        create = click.style("   create", fg="green")
         click.echo("   " + create + "  " + ctx.envdir)
         os.mkdir(ctx.envdir)
 
@@ -249,6 +256,11 @@ def cli(
 
     if not no_symlink:
         os.symlink(nxc_json_file, op.abspath(op.join(ctx.envdir, "..", "nxc.json")))
+
+    if not no_flake_lock:
+        flake_lock_path = op.join(ctx.envdir, "flake.lock")
+        click.echo("   " + create + "  " + flake_lock_path)
+        copy_file(op.abspath(op.join(EXAMPLES_PATH, "flake.lock")), flake_lock_path)
 
     ctx.log(
         "\nInitialized nixos-compose environment in "
