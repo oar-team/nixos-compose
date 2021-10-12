@@ -14,6 +14,7 @@ from ..utils import copy_tree, copy_file
 
 EXAMPLES_PATH = op.abspath(op.join(op.dirname(__file__), "../..", "examples"))
 EXAMPLES = os.listdir(EXAMPLES_PATH)
+EXAMPLES.remove("flake.lock")
 NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
 
 FLAKE = """{
@@ -91,7 +92,7 @@ in
 @click.option(
     "-e",
     "--example",
-    default="composition.nix",
+    default="basic",
     help="Use example",
     show_default=True,
     type=click.Choice(EXAMPLES),
