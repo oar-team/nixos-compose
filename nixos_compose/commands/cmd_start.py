@@ -161,7 +161,6 @@ def cli(
             ctx.log(f"{machines_file} file created")
 
     if composition and (flavour is None):
-
         splitted_composition = composition.split("::")
         len_splitted_composition = len(splitted_composition)
         if len_splitted_composition == 2:
@@ -170,9 +169,7 @@ def cli(
             composition_all_in_one_file = op.join(ctx.envdir, f"build/::{flavour}")
 
             if not op.lexists(composition_all_in_one_file):
-                build_path = op.join(
-                    ctx.envdir, f"build/{ctx.composition_flavour_prefix}"
-                )
+                build_path = op.join(ctx.envdir, f"build/{composition}")
                 if not op.lexists(build_path):
                     raise Exception(f"Build file does not exist: {build_path}")
             else:

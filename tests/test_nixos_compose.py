@@ -65,6 +65,7 @@ def test_start_docker(tmp_path):
     run_test("nxc build -f docker", tmp_path)
 
     run_test("nxc start", tmp_path)
+    run_test("nxc start -C composition::docker", tmp_path)
 
     f = open(f"{tmp_path}/nxc/deploy/composition::docker.json", "r")
     docker_compose_file = json.load(f)["docker-compose-file"]
