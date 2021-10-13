@@ -94,8 +94,6 @@ def cli(
             example = "basic-nur"
 
     example_path = op.abspath(op.join(EXAMPLES_PATH, example))
-
-    example_path = op.abspath(op.join(EXAMPLES_PATH, example))
     if op.isdir(example_path):
         copy_tree(example_path, ctx.envdir)
         copy_tree(
