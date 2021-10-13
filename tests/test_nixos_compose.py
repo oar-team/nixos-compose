@@ -37,3 +37,17 @@ def test_build_nur(tmp_path):
     # res = run("nxc build -C composition::nixos-test", shell=True, cwd=tmp_path)
     res = run("nxc build", shell=True, cwd=tmp_path)
     assert not res.returncode
+
+
+def test_build_multi_compositions(tmp_path):
+    print("created temporary directory", tmp_path)
+    run("git init", shell=True, cwd=tmp_path)
+
+    res = run("nxc init -e multi-compositions", shell=True, cwd=tmp_path)
+    assert not res.returncode
+
+    run("git add nxc", shell=True, cwd=tmp_path)
+
+    # res = run("nxc build -C composition::nixos-test", shell=True, cwd=tmp_path)
+    res = run("nxc build -C bar::nixos-test", shell=True, cwd=tmp_path)
+    assert not res.returncode
