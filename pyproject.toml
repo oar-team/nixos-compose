@@ -4,7 +4,14 @@ version = "0.1.0"
 description = ""
 authors = ["Olivier Richard <olivier.richard@imag.fr>"]
 license = "MIT"
-include = ["examples", "nix", "tools"]
+include = [
+     { path = 'examples', format = 'wheel' },
+     { path = 'nix', format = 'wheel' },
+     #{ path = 'tools', format = 'wheel' }
+     { path = 'examples', format = 'sdist' },
+     { path = 'nix', format = 'sdist'  }
+     #{ path = 'tools', format = 'sdist' }
+    ]
 
 [tool.poetry.dependencies]
 python = "^3.7"
