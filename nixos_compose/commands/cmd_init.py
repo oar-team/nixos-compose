@@ -10,7 +10,7 @@ import click
 
 from ..context import pass_context
 
-# from ..platform import platform_detection
+from ..platform import platform_detection
 from ..utils import copy_tree, copy_file
 
 EXAMPLES_PATH = op.abspath(op.join(op.dirname(__file__), "../..", "examples"))
@@ -93,6 +93,9 @@ def cli(
         else:
             example = "basic-nur"
 
+    if not disable_detection:
+        platform_detection(ctx)
+
     example_path = op.abspath(op.join(EXAMPLES_PATH, example))
     if op.isdir(example_path):
         copy_tree(example_path, ctx.envdir)
@@ -103,7 +106,7 @@ def cli(
         raise click.ClickException(f"Example must be a directory: {example_path}")
 
     nxc_json = {
-        # "composition": composition_file,
+        "composition": "composition.nix",  # TODO to enhance
         "default_flavour": default_flavour,
     }
 
