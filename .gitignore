@@ -1,7 +1,6 @@
 *.py[cod]
 *~
 attic*
-nxc*
 live*
 *.egg
 *.egg-info
