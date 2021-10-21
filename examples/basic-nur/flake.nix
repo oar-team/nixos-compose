@@ -1,8 +1,11 @@
 {
-  description = "nixos-compose - composition to infrastructure";
+  description = "nixos-compose - basic setup with external NUR repo";
 
-  inputs.NUR.url = "github:nix-community/NUR";
-  #inputs.alice.url = "path:/home/some_path/nur-alice";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    NUR.url = "github:nix-community/NUR";
+    #inputs.alice.url = "path:/home/some_path/nur-alice";
+  };
 
   outputs = { self, nixpkgs, NUR }:
     let
@@ -15,7 +18,6 @@
         # for repo override if needed
         #repoOverrides = { inherit alice; };
       };
-
       extraConfigurations = [
         # add nur attribute to pkgs
         {

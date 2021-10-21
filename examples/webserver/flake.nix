@@ -1,5 +1,9 @@
 {
-  description = "nixos-compose - composition to infrastructure";
+  description = "nixos-compose - basic webserver setup";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  };
 
   outputs = { self, nixpkgs }:
     let
