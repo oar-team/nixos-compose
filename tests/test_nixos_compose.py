@@ -26,30 +26,20 @@ def test_version():
 
 
 def test_build(tmp_path):
-    print("created temporary directory", tmp_path)
-
     run_init("nxc init", tmp_path)
-
     # run_test("nxc build -C composition::nixos-test", tmp_path)
     run_test("nxc build", tmp_path)
-
     # s1 = json.dumps({"built": True, "started": False}, sort_keys=True)
     # j1 = json.load(open(f"{tmp_path}/nxc/state.json"))
     # assert s1 == json.dumps(j1)
 
 
 def test_build_nur(tmp_path):
-    print("created temporary directory", tmp_path)
-
     run_init("nxc init --nur", tmp_path)
-
-    # run_test("nxc build -C composition::nixos-test", tmp_path)
     run_test("nxc build", tmp_path)
 
 
 def test_build_multi_compositions(tmp_path):
-    print("created temporary directory", tmp_path)
-
     run_init("nxc init -e multi-compositions", tmp_path)
 
     # run_test("nxc build", tmp_path) # TODEBUG
@@ -57,9 +47,12 @@ def test_build_multi_compositions(tmp_path):
     run_test("nxc build -C foo::nixos-test", tmp_path)
 
 
-def test_start_docker(tmp_path):
-    print("created temporary directory", tmp_path)
+def test_build_kernel_5_4(tmp_path):
+    run_init("nxc init -e kernel", tmp_path)
+    run_test("nxc build -C linux_5_4::nixos-test", tmp_path)
 
+
+def test_start_docker(tmp_path):
     run_init("nxc init", tmp_path)
 
     # run_test("nxc build -C composition::nixos-test", tmp_path)
