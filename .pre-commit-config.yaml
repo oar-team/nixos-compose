@@ -8,6 +8,10 @@ repos:
     rev: 3.8.3
     hooks:
       - id: flake8
+        args:
+          - "--max-line-length=88"
+          - "--ignore=E501,E203,W503"
+          - "--exclude=.git,__pycache__,setup.py,nix,examples,examples/spark/spark_sample.py"
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
