@@ -7,12 +7,8 @@
   };
   module = { config, pkgs, lib, modulesPath, ... }: {
     imports = [
-      ./shared/base.nix
-      ./shared/stage-1-cmds.nix
-      ./shared/stage-2-cmds.nix
-      ./shared/common.nix
+      ./shared/g5k-common.nix
       ./shared/netboot.nix
-      ./shared/g5k-ssh-host-keys.nix
     ];
   };
 }

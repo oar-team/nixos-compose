@@ -2,6 +2,10 @@
 
 with lib; {
 
+  boot.initrd.availableKernelModules =
+    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "i40e" "mlx5_core" ];
+  boot.kernelModules = [ "kvm-intel" ];
+
   systemd.services.sshd.wantedBy = mkForce [ "multi-user.target" ];
   networking.hostName = mkDefault "";
 
@@ -13,9 +17,9 @@ with lib; {
   #serviceConfig.Restart = "always"; # restart when session is closed
   #};
 
-  boot.initrd.availableKernelModules =
-    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "i40e" "mlx5_core" ];
-  boot.kernelModules = [ "kvm-intel" ];
+  #boot.initrd.availableKernelModules =
+  #  [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "i40e" "mlx5_core" ];
+  #boot.kernelModules = [ "kvm-intel" ];
 
   services.sshd.enable = true;
   services.getty.autologinUser = mkDefault "root";

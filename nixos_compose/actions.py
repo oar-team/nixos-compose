@@ -279,6 +279,10 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
     if ctx.composition_name:
         deployment["composition"] = ctx.composition_name
 
+    # Add user, used to determine nfs mount path on Grid'5000 by example
+    # TODO: add option to override this (
+    deployment["user"] = os.environ["USER"]
+
     # for k in ["all", "flavour"]:
     #    if k in compose_info:
     #        deployment[k] = compose_info[k]

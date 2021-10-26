@@ -6,15 +6,21 @@
     type = "tarball";
   };
   module = { config, pkgs, lib, modulesPath, ... }: {
-    imports = [
-      ./shared/base.nix
-      ./shared/stage-1-cmds.nix
-      ./shared/stage-2-cmds.nix
-      ./shared/common.nix
-      ./shared/g5k-boot.nix
-      ./shared/g5k-ssh-host-keys.nix
-    ];
-    # Kadeploy tests some ports' accessibility to follow deployment steps
-    networking.firewall.enable = false;
+    imports = [ ./shared/g5k-common.nix ];
+
+    boot.loader.grub.enable = true;
+    boot.loader.grub.version = 2;
+    boot.loader.grub.device = "/dev/root";
+
+    fileSystems."/" = {
+      device = "/dev/root";
+      autoResize = true;
+      fsType = "ext4";
+    };
+
+    swapDevices = [ ];
+
+    nix.maxJobs = lib.mkDefault 32;
+    powerManagement.cpuFreqGovernor = lib.mkDefault "powersave";
   };
 }
