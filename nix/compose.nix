@@ -1,7 +1,6 @@
 # { nixpkgs, system, compositions, flavours, extraConfigurations ? [ ] }:
-{ nixpkgs ? <nixpkgs>, system ? builtins.currentSystem, flavour ? null
-, composition ? null, compositions ? null, flavours ? null
-, extraConfigurations ? [ ] }:
+{ nixpkgs, system ? builtins.currentSystem, flavour ? null, composition ? null
+, compositions ? null, flavours ? null, extraConfigurations ? [ ] }:
 
 let
   builtin_flavours = import ./flavours.nix;
@@ -45,9 +44,8 @@ let
         builtin_flavours.${_flavour_base.name} // _flavour_base
       else
         _flavour_base
-  else {
-    nixos-test = import ./flavours/nixos-test.nix;
-  };
+  else
+    builtin_flavours;
 
   compositions_names = builtins.attrNames _compositions;
   nb_compositions = builtins.length compositions_names;
@@ -75,7 +73,7 @@ let
 in builtins.listToAttrs (nixpkgs.lib.flatten (map (composition_name:
   (map (flavour_name:
     let
-      selected_flavour = builtins.getAttr flavour_name flavours;
+      selected_flavour = builtins.getAttr flavour_name _flavours;
       composition = builtins.getAttr composition_name _compositions;
     in (f composition_name flavour_name composition selected_flavour))
     flavours_names)) compositions_names)) // (if nb_compositions == 1 then
