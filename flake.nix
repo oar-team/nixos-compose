@@ -32,5 +32,7 @@
           buildInputs = with pkgs; [ poetry ];
           inputsFrom = builtins.attrValues self.packages.${system};
         };
-      });
+
+    }) //
+  {lib = import ./nix/lib.nix;};
 }
