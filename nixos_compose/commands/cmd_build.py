@@ -90,7 +90,14 @@ def cli(
     build_cmd = ""
 
     description_flavours_file = op.abspath(op.join(ctx.envdir, "nix/flavours.json"))
-    description_flavours = json.load(open(description_flavours_file, "r"))
+
+    if op.exists(description_flavours_file):
+        description_flavours = json.load(open(description_flavours_file, "r"))
+    else:
+        # TODO: Above a temporary fallback when nix/flavours.json is not present (typically when nix is accessed w/ flake). Some discussions is need to set better approach (typically use output of nix flake show --json)
+        description_flavours = json.loads(
+            '{"docker":{"description":"Docker-Compose based","image":{},"name":"docker"},"g5k-image":{"description":"Flavour for Grid 5000 platform","image":{"distribution":"all-in-one","type":"tarball"},"name":"g5k-image"},"g5k-ramdisk":{"description":"Flavour for Grid 5000 platform","image":{"distribution":"all-in-one","type":"ramdisk"},"name":"g5k-ramdisk"},"nixos-test":{"description":"Nixos Test from provided Nixpkgs","name":"nixos-test"},"nixos-test-driver":{"description":"Nixos Test Driver from provided Nixpkgs","name":"nixos-test-driver"},"nixos-test-ssh":{"description":"Nixos Test Driver from provided Nixpkgs but managed differently (forwared ssh ports)","name":"nixos-test-ssh"},"vm-ramdisk":{"description":"Plain vm ramdisk (all-in-memory), need lot of ram !","image":{"distribution":"all-in-one","type":"ramdisk"},"name":"vm-ramdisk"}}'
+        )
 
     flavours = [k for k in description_flavours.keys()]
 
