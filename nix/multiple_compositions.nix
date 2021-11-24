@@ -165,6 +165,7 @@ in pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate {
   flavour =
     lib.filterAttrs (n: v: n == "name" || n == "description" || n == "image")
     flavour;
+  system = system;
   compositions_info = allCompositionsInfo;
   all = {
     kernel = "${baseImage}/kernel";

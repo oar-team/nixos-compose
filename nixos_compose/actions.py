@@ -19,6 +19,12 @@ DRIVER_MODES = {
     "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
 }
 
+KADEPOY_ARCH = {
+    "x86_64-linux" : "x86_64",
+    "powerpc64le-linux" : "ppc64le",
+    "aarch64-linux": "aarch64",
+}
+
 KADEPOY_ENV_DESC = """
       name: $image_name
       version: 1
@@ -27,6 +33,7 @@ KADEPOY_ENV_DESC = """
       visibility: shared
       destructive: false
       os: linux
+      arch: $system
       image:
         file: $file_image_url
         kind: tar
@@ -385,6 +392,9 @@ def generate_deploy_info_b64(ctx):
 
 
 def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
+    if not ctx.compose_info:
+        read_compose_info(ctx)
+
     base_path = op.join(
         ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
     )
@@ -395,11 +405,13 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
         deploy = ctx.deployment_info_b64
 
     user = os.environ["USER"]
+    system = ctx.compositions_info["system"]
     with open(kaenv_path, "w") as kaenv_file:
         t = Template(KADEPOY_ENV_DESC)
         kaenv = t.substitute(
             image_name="NixOS",
             author=user,
+            system = KADEPOY_ARCH[system],
             file_image_url=f"http://public.grenoble.grid5000.fr/~{user}/nixos.tar.xz",
             kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {kernel_params_opts}",
         )
