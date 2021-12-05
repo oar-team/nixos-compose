@@ -15,8 +15,7 @@ else if flavour.name == "nixos-test-driver" then
 else if flavour.name == "nixos-test-ssh" then
   (nixos_test {
     inherit nixpkgs system;
-    extraConfigurations = extraConfigurations
-      ++ [ ./flavours/shared/stage-1-cmds.nix ];
+    extraConfigurations = extraConfigurations ++ [ flavour.module ];
   } composition).driver
 else if flavour.name == "docker" then
   generate_docker_compose { inherit nixpkgs system extraConfigurations; }

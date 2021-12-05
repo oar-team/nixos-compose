@@ -23,6 +23,8 @@ import tempfile
 import time
 import traceback
 import unicodedata
+import json
+
 
 from .context import Context
 from .actions import launch_ssh_kexec
@@ -1045,7 +1047,6 @@ def driver(ctx, driver_repl, test_script=None):
     assert "vm" in mode or "docker" in mode
     # TODO
     # assert "image" in context.flavour
-
     if "image" in context.flavour:
         mode["image"] = context.flavour["image"]
 
@@ -1083,9 +1084,13 @@ def driver(ctx, driver_repl, test_script=None):
                     f"{base_url}/deploy/{context.composition_flavour_prefix}.json"
                 )
             else:
-                # deployment_info_str = json.dumps(deployment)
-                # deploy_info_src = b64encode(deployment_info_str.encode()).decode()
-                deploy_info_src = context.deployment_info_b64
+                if not context.deployment_info_b64:
+                    deployment_info_str = json.dumps(deployment)
+                    deploy_info_src = base64.b64encode(
+                        deployment_info_str.encode()
+                    ).decode()
+                else:
+                    deploy_info_src = context.deployment_info_b64
                 if len(deploy_info_src) > (4096 - 256):
                     log.log(
                         "The base64 encoded deploy data is too large: use an http server to serve it"
