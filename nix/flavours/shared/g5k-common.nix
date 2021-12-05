@@ -1,5 +1,5 @@
 { config, lib, pkgs, modulesPath, ... }: {
-# move g5k-boot into g5k-image ?
+  # move g5k-boot into g5k-image ?
 
   imports = [
     ./base.nix
@@ -12,7 +12,7 @@
   ];
 
   boot.initrd.availableKernelModules =
-      [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" ];
+    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" ];
   boot.kernelModules = [ "kvm-intel" ];
 
   # Kadeploy tests some ports' accessibility to follow deployment steps
@@ -22,7 +22,7 @@
 
   systemd.services.nxc-script = {
     after = [ "network.target" "network-online.target" ];
-    wants =  [ "network-online.target" ];
+    wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig.Type = "oneshot";
     #path = [ pkgs.hostname pkgs.iproute pkgs.jq ];
