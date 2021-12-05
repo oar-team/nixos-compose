@@ -6,9 +6,6 @@
     type = "ramdisk";
   };
   module = { config, pkgs, lib, modulesPath, ... }: {
-    imports = [
-      ./shared/g5k-common.nix
-      ./shared/netboot.nix
-    ];
+    imports = [ ./shared/g5k-common.nix ./shared/netboot.nix ];
   };
 }

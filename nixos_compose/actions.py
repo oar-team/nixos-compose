@@ -339,9 +339,9 @@ def generate_kexec_scripts(ctx):
         script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
-            kexec_script.write(": ''${SUDO:=sudo}\n")
-            kexec_script.write(": ''${KERNEL:=" + kernel_path + "}\n")
-            kexec_script.write(": ''${INITRD:=" + initrd_path + "}\n")
+            kexec_script.write(": ${SUDO:=sudo}\n")
+            kexec_script.write(": ${KERNEL:=" + kernel_path + "}\n")
+            kexec_script.write(": ${INITRD:=" + initrd_path + "}\n")
             kexec_script.write(f"$SUDO kexec {kexec_args}\n")
             kexec_script.write("$SUDO kexec -e\n")
         os.chmod(script_path, 0o755)

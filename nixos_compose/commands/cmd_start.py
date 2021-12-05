@@ -11,6 +11,9 @@ import glob
 
 import pyinotify
 import asyncio
+import re
+import tempfile
+
 
 from ..context import pass_context, on_finished, on_started
 
@@ -50,6 +53,11 @@ class EventHandler(pyinotify.ProcessEvent):
             notifier.loop.stop()
 
 
+# TODO define scope of dry_run, must you dry_run deployment file creation ?
+# Also how to address driver part
+# def dry_run_print(ctx, launch_cmd):
+#     ctx.log("Dry-run:")
+#     ctx.log("   launch command:              {launch_cmd}")
 @click.command("start")
 @click.option("-r", "--driver-repl", is_flag=True, help="driver repl")
 @click.option(
@@ -92,6 +100,9 @@ class EventHandler(pyinotify.ProcessEvent):
     help="specify composition, can specify flavour e.g. composition::flavour",
 )
 @click.option("--flavour", type=click.STRING, help="specify flavour")
+# @click.option(
+#     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
+# )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
@@ -108,6 +119,7 @@ def cli(
     composition,
     flavour,
     remote_deployment_info,
+    # dry_run,
 ):
     """Start multi Nixos composition."""
     ctx.log("Starting")
@@ -220,26 +232,32 @@ def cli(
 
     nixos_test_driver = op.join(build_path, "bin/nixos-test-driver")
     if op.exists(nixos_test_driver) and op.isfile(nixos_test_driver):
+        test_script = None
+        # Deduce which nixos_test_driver is used (WARNNING: very fragile)
+        with open(nixos_test_driver) as f:
+            driver_script = f.read()
+
+        after_nixos_21_05 = False
+
+        if "startScript" in driver_script:
+            after_nixos_21_05 = True
+            ctx.vlog("Detected Nixos Test Driver post 21.05")
+        else:
+            ctx.vlog("Detected Nixos Test Driver pre 21.11")
+
         if machines_file:
             raise click.ClickException(
                 "Nixos Driver detected, --machines-files can not by use here."
             )
         ctx.log("Nixos Driver detected")
+
         if not driver_repl:
             test_script = read_test_script(op.join(build_path, "test-script"))
-            os.environ["tests"] = test_script
 
         elif forward_ssh_port:
             test_script = "start_all(); [m.forward_port(22022+i, 22) for i, m in enumerate(machines)]; join_all();"
-            os.environ["tests"] = test_script
-            import re
+            nodes = [n.split("-")[1] for n in re.findall(r"run-\w+-vm", driver_script)]
 
-            with open(nixos_test_driver) as f:
-                driver_script = f.readlines()
-
-            nodes = [
-                n.split("-")[1] for n in re.findall(r"run-\w+-vm", driver_script[3])
-            ]
             if not ctx.compose_info:
                 ctx.compose_info = {}
             ctx.compose_info["nodes"] = nodes
@@ -251,7 +269,29 @@ def cli(
         else:
             qemu_opts = ""
         os.environ["QEMU_OPTS"] = f"{qemu_opts} -nographic"
-        subprocess.call(nixos_test_driver, shell=True)
+        print(f"qemu_opts: {qemu_opts}")
+        print(f"cmd: {nixos_test_driver}")
+
+        if not test_script:
+            ctx.wlog("Not test_script provided")
+
+        cmd = nixos_test_driver
+
+        if not after_nixos_21_05:
+            if test_script:
+                os.environ["tests"] = test_script
+            subprocess.call(cmd)
+        else:
+            if driver_repl:
+                cmd = f"{cmd} -I"
+            if test_script:
+                with tempfile.NamedTemporaryFile() as tmp:
+                    ctx.vlog(f"Create temporay test_script {tmp.name}")
+                    tmp.write(test_script.encode())
+                    tmp.seek(0)
+                    subprocess.call(f"{cmd} {tmp.name}", shell=True)
+            else:
+                subprocess.call(cmd, shell=True)
         sys.exit(0)
 
     if not machines_file and ctx.platform:
@@ -282,11 +322,8 @@ def cli(
         ctx.log("Generate: deployment.json")
         generate_deployment_info(ctx)
 
-    if ctx.ip_addresses and (
-        ("vm" not in ctx.flavour) or ("vm" in ctx.flavour and not ctx.flavour["vm"])
-    ):
+    if ctx.ip_addresses and (ctx.flavour["name"] != "vm-ramdisk"):
         ctx.mode = DRIVER_MODES["remote"]
-
         if ctx.use_httpd:
             ctx.vlog("Launch: httpd to distribute deployment.json")
             ctx.httpd = HTTPDaemon(ctx=ctx)
