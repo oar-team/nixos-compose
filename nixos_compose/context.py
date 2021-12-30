@@ -34,17 +34,17 @@ class Context(object):
         self.workdir = self.current_dir
         self.debug = False
         self.prefix = "nxc"
-        self.mode = {}
-        self.flavour = {}
-        self.flavour_name = None
+
+        self.flavour = None
         self.composition_name = None
         self.composition_flavour_prefix = None  # REMOVE _prefix ???
         self.compose_info_file = None  # change to compositions_file ?
         self.compose_info = None  # change to compositioin of merge w/ compositionS ?
         self.multiple_compositions = False
-        self.compositions_info = None  #
+        self.compositions_info = None  # Rename to compositions_flavour ????
+        self.deployment_filename: str = ""
         self.deployment_info = None  # change to deployment ?
-        self.deployment_info_b64 = ""  # change to depoloyment_b64 ?
+        self.deployment_info_b64 = ""  # change to depolyment_b64 ?
         self.ip_addresses = []
         self.host2ip_address = {}
         self.ssh = ""
@@ -53,6 +53,7 @@ class Context(object):
         self.platform = None
         self.use_httpd = False
         self.httpd = None
+        self.forward_ssh_port = False
         self.alternative_stores = [f"{os.environ['HOME']}/.nix"]
 
     def init_workdir(self, env_name, env_id):

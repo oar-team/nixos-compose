@@ -14,34 +14,37 @@ import asyncio
 import re
 import tempfile
 
+import ptpython.repl
 
 from ..context import pass_context, on_finished, on_started
+from ..flavours import get_flavour_by_name
+
 
 from ..actions import (
     read_test_script,
-    generate_deployment_info,
-    generate_deployment_info_docker,
-    generate_kexec_scripts,
+    # generate_deployment_info,
+    # generate_deployment_info_docker,
+    # generate_kexec_scripts,
     read_hosts,
     translate_hosts2ip,
-    push_on_machines,
-    launch_ssh_kexec,
-    wait_ssh_ports,
+    # push_on_machines,
+    # launch_ssh_kexec,
+    # wait_ssh_ports,
     realpath_from_store,
-    generate_kadeploy_envfile,
-    launch_kadeploy,
+    # generate_kadeploy_envfile,
+    # launch_kadeploy,
 )
 
-from ..driver import driver
+
+from ..driver.driver import Driver
 from ..httpd import HTTPDaemon
 
-DRIVER_MODES = {
-    "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
-    "vm": {"name": "vm", "vm": True, "shell": "chardev"},
-    "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
-    "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
-}
-
+# DRIVER_MODES = {
+#     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
+#     "vm": {"name": "vm", "vm": True, "shell": "chardev"},
+#     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
+#     "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
+# }
 
 machines_file_towait = ""
 notifier = None
@@ -59,7 +62,12 @@ class EventHandler(pyinotify.ProcessEvent):
 #     ctx.log("Dry-run:")
 #     ctx.log("   launch command:              {launch_cmd}")
 @click.command("start")
-@click.option("-r", "--driver-repl", is_flag=True, help="driver repl")
+@click.option(
+    "-I",
+    "--interactive",
+    is_flag=True,
+    help="drop into a python repl with driver functions",
+)
 @click.option(
     "-F",
     "--forward-ssh-port",
@@ -67,7 +75,7 @@ class EventHandler(pyinotify.ProcessEvent):
     help="forward ssh port with nixos-test-driver forward-ssh-port",
 )
 @click.option(
-    "-f",
+    "-m",
     "--machines-file",
     type=click.Path(resolve_path=True),
     help="file that contains remote machines names to (duplicates are considered as one).",
@@ -99,7 +107,12 @@ class EventHandler(pyinotify.ProcessEvent):
     type=click.STRING,
     help="specify composition, can specify flavour e.g. composition::flavour",
 )
-@click.option("--flavour", type=click.STRING, help="specify flavour")
+@click.option(
+    "-f", "--flavour", type=click.STRING, help="specify flavour",
+)
+@click.option(
+    "--test-script", type=click.STRING, help="specify flavour",
+)
 # @click.option(
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
@@ -108,7 +121,7 @@ class EventHandler(pyinotify.ProcessEvent):
 @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
     ctx,
-    driver_repl,
+    interactive,
     machines_file,
     wait,
     ssh,
@@ -119,9 +132,18 @@ def cli(
     composition,
     flavour,
     remote_deployment_info,
+    test_script,
     # dry_run,
 ):
-    """Start multi Nixos composition."""
+    """Start Nixos Composition."""
+
+    flavour_name = flavour
+
+    if test_script:
+        raise click.ClickException(
+            "alternative test-scipt execution not yet implemented"
+        )
+
     ctx.log("Starting")
 
     ctx.ssh = ssh
@@ -131,8 +153,6 @@ def cli(
     if remote_deployment_info:
         ctx.use_httpd = True
 
-    machines = []
-
     build_path = op.join(ctx.envdir, "build")
 
     if not op.exists(build_path):
@@ -140,6 +160,8 @@ def cli(
             "You need build composition first, with nxc build command"
         )
 
+    # Handle cases where machines list must be provided
+    machines = []
     if machines_file and not op.isfile(machines_file):
         raise click.ClickException(f"{machines_file} file does not exist")
 
@@ -149,7 +171,7 @@ def cli(
     if wait:
         if not machines_file:
             raise click.ClickException(
-                "You need to provide --machines-files option with --wait"
+                "You need to provide --machines-file option with --wait"
             )
 
         if not op.isfile(machines_file):
@@ -172,13 +194,15 @@ def cli(
             notifier.stop()
             ctx.log(f"{machines_file} file created")
 
-    if composition and (flavour is None):
+    # Determine composition and flavour name
+    # First case composition is given not flavour name
+    if composition and (flavour_name is None):
         splitted_composition = composition.split("::")
         len_splitted_composition = len(splitted_composition)
         if len_splitted_composition == 2:
 
-            composition_name, flavour = splitted_composition
-            composition_all_in_one_file = op.join(ctx.envdir, f"build/::{flavour}")
+            composition_name, flavour_name = splitted_composition
+            composition_all_in_one_file = op.join(ctx.envdir, f"build/::{flavour_name}")
 
             if not op.lexists(composition_all_in_one_file):
                 build_path = op.join(ctx.envdir, f"build/{composition}")
@@ -187,7 +211,7 @@ def cli(
             else:
                 build_path = composition_all_in_one_file
 
-            ctx.flavour_name = flavour
+            ctx.flavour = get_flavour_by_name(flavour_name)(ctx)
             ctx.composition_name = composition_name
             ctx.composition_flavour_prefix = composition
             ctx.composition_basename_file = composition_name
@@ -196,7 +220,7 @@ def cli(
                 "Sorry, provide only flavour or only composition is not supported"
             )
 
-    if (composition is None) and (flavour is None):
+    if composition is None:  # and (not flavour_name is None):
         last_build_path = max(
             glob.glob(f"{build_path}/*"),
             key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
@@ -216,7 +240,12 @@ def cli(
         ctx.composition_name = splitted_basename[0]
         ctx.composition_basename_file = ctx.composition_name
 
-        ctx.flavour_name = splitted_basename[1]
+        if flavour_name:
+            raise Exception(
+                f"Only one flavour name is expected: {flavour_name} {splitted_basename[1]}"
+            )
+        else:
+            ctx.flavour = get_flavour_by_name(splitted_basename[1])(ctx)
 
     if op.isdir(build_path) and len(os.listdir(build_path)) == 0:
         ctx.wlog(f"{build_path} is an empty directory, surely a nixos-test result !")
@@ -251,10 +280,10 @@ def cli(
             )
         ctx.log("Nixos Driver detected")
 
-        if not driver_repl:
+        if not interactive:
             test_script = read_test_script(op.join(build_path, "test-script"))
 
-        elif forward_ssh_port:
+        if forward_ssh_port:
             test_script = "start_all(); [m.forward_port(22022+i, 22) for i, m in enumerate(machines)]; join_all();"
             nodes = [n.split("-")[1] for n in re.findall(r"run-\w+-vm", driver_script)]
 
@@ -262,7 +291,11 @@ def cli(
                 ctx.compose_info = {}
             ctx.compose_info["nodes"] = nodes
 
-            generate_deployment_info(ctx, forward_ssh_port=True)
+            # TODO
+            print("TODO")
+            exit(0)
+            # generate_deployment_info(ctx, forward_ssh_port=True)
+            ctx.flavour.generate_deployment_info()
 
         if "QEMU_OPTS" in os.environ:
             qemu_opts = os.environ["QEMU_OPTS"]
@@ -282,7 +315,7 @@ def cli(
                 os.environ["tests"] = test_script
             subprocess.call(cmd)
         else:
-            if driver_repl:
+            if interactive:
                 cmd = f"{cmd} -I"
             if test_script:
                 with tempfile.NamedTemporaryFile() as tmp:
@@ -314,45 +347,42 @@ def cli(
         translate_hosts2ip(ctx, machines)
         print(ctx.ip_addresses, ctx.host2ip_address)
 
-    if ctx.flavour_name == "docker":
-        generate_deployment_info_docker(ctx)
-        ctx.docker_compose_file = ctx.compose_info["docker-compose-file"]
+    ctx.flavour.generate_deployment_info()
 
-    else:
-        ctx.log("Generate: deployment.json")
-        generate_deployment_info(ctx)
-
-    if ctx.ip_addresses and (ctx.flavour["name"] != "vm-ramdisk"):
-        ctx.mode = DRIVER_MODES["remote"]
+    if ctx.ip_addresses and (ctx.flavour.name != "vm-ramdisk"):
+        # ctx.mode = DRIVER_MODES["remote"]
         if ctx.use_httpd:
             ctx.vlog("Launch: httpd to distribute deployment.json")
             ctx.httpd = HTTPDaemon(ctx=ctx)
 
-        if ctx.flavour["image"]["type"] == "ramdisk":
-            generate_kexec_scripts(ctx)
+        # TODO
+        # if ctx.flavour.image["type"] == "ramdisk":
+        #    generate_kexec_scripts(ctx)
 
-            if ctx.push_path:
-                push_on_machines(ctx)
+        # TODO
+        # if ctx.push_path:
+        #        push_on_machines(ctx)
 
         if ctx.use_httpd:
             ctx.httpd.start(directory=ctx.envdir)
 
-        if not driver_repl:
-            if ctx.flavour["image"]["type"] == "ramdisk":
-                ctx.log("Launch ssh(s) kexec")
-                launch_ssh_kexec(ctx)
-                time.sleep(10)
-                wait_ssh_ports(ctx)
-                sys.exit(0)
-            if ctx.flavour_name == "g5k-image":
-                generate_kadeploy_envfile(ctx)
-                launch_kadeploy(ctx)
-                sys.exit(0)
+        if not interactive:
+            ctx.flavour.launch()
+            # if ctx.flavour["image"]["type"] == "ramdisk":
+            #     ctx.log("Launch ssh(s) kexec")
+            #     launch_ssh_kexec(ctx)
+            #     time.sleep(10)
+            #     wait_ssh_ports(ctx)
+            #     sys.exit(0)
+            # if ctx.flavour_name == "g5k-image":
+            #     generate_kadeploy_envfile(ctx)
+            #     launch_kadeploy(ctx)
+            #     sys.exit(0)
 
-    elif ctx.flavour_name == "docker":
-        ctx.mode = DRIVER_MODES["docker"]
-    else:
-        ctx.mode = DRIVER_MODES["vm"]
+    # elif ctx.flavour_name == "docker":
+    #     ctx.mode = DRIVER_MODES["docker"]
+    # else:
+    #     ctx.mode = DRIVER_MODES["vm"]
 
     # use_remote_deployment = False
     # if use_remote_deployment:
@@ -363,13 +393,31 @@ def cli(
     test_script = read_test_script(ctx.compose_info)
 
     if forward_ssh_port:
-        ctx.mode = DRIVER_MODES["vm-ssh"]
+        # ctx.mode = DRIVER_MODES["vm-ssh"]
+        ctx.forward_ssh_port = forward_ssh_port
         test_script = None
 
-    driver(ctx, driver_repl, test_script)
+    # driver(ctx, driver_repl, test_script)
     # launch_vm(ctx, deployment, 0)
     # wait_ssh_ports(ctx, ips, False)
     # httpd.stop()
+
+    with Driver(
+        # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
+        ctx,
+        [],
+        [],
+        test_script,
+        False,
+    ) as driver:
+        if interactive:
+            ptpython.repl.embed(driver.test_symbols(), {})
+        else:
+            tic = time.time()
+            driver.run_tests()
+            toc = time.time()
+            ctx.glog.info(f"test script finished in {(toc-tic):.2f}s")
+
     if ctx.use_httpd:
         ctx.httpd.stop()
 
