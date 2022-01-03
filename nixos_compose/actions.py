@@ -267,7 +267,7 @@ def generate_kexec_scripts(ctx):
         deploy_info_src = ctx.deployment_info_b64
 
     base_path = op.join(
-        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
     )
     kexec_scripts_path = op.join(base_path, "kexec_scripts")
     os.makedirs(kexec_scripts_path, mode=0o700, exist_ok=True)
@@ -404,7 +404,7 @@ def launch_ssh_kexec(ctx, ip=None, debug=False):
             user = "root@"
         else:
             base_path = op.join(
-                ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+                ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
             )
             kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
             ki = ""

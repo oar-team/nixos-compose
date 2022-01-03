@@ -1,9 +1,19 @@
 import os
 import os.path as op
+import time
 from string import Template
 
 from ..flavour import Flavour
-from ..actions import read_compose_info, realpath_from_store, generate_deploy_info_b64
+from ..actions import (
+    read_compose_info,
+    realpath_from_store,
+    generate_deployment_info,
+    generate_deploy_info_b64,
+    generate_kexec_scripts,
+    launch_ssh_kexec,
+    wait_ssh_ports,
+    ssh_connect,
+)
 
 # from ..driver.logger import rootlog
 
@@ -74,7 +84,34 @@ class G5kRamdiskFlavour(Flavour):
     def __init__(self, ctx):
         super().__init__(ctx)
 
+        self.name = "g5k-ramdisk"
+
+    def generate_deployment_info(self):
+        generate_deployment_info(self.ctx)
+
+    def generate_kexec_scripts(self):
+        generate_kexec_scripts(self.ctx)
+
+    def launch(self):
+        launch_ssh_kexec(self.ctx)
+        time.sleep(10)
+        wait_ssh_ports(self.ctx)
+
+    def ext_connect(self, user, node, execute):
+        return ssh_connect(self.ctx, user, node, execute)
+
 
 class G5KImageFlavour(Flavour):
     def __init__(self, ctx):
         super().__init__(ctx)
+
+        self.name = "g5k-image"
+
+    def generate_deployment_info(self):
+        generate_deployment_info(self.ctx)
+
+    def launch(self):
+        print("Launch TODO")
+
+    def ext_connect(self, user, node, execute):
+        return ssh_connect(self.ctx, user, node, execute)

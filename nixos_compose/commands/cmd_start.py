@@ -19,7 +19,6 @@ import ptpython.repl
 from ..context import pass_context, on_finished, on_started
 from ..flavours import get_flavour_by_name
 
-
 from ..actions import (
     read_test_script,
     # generate_deployment_info,
@@ -27,7 +26,7 @@ from ..actions import (
     # generate_kexec_scripts,
     read_hosts,
     translate_hosts2ip,
-    # push_on_machines,
+    push_on_machines,
     # launch_ssh_kexec,
     # wait_ssh_ports,
     realpath_from_store,
@@ -35,16 +34,8 @@ from ..actions import (
     # launch_kadeploy,
 )
 
-
 from ..driver.driver import Driver
 from ..httpd import HTTPDaemon
-
-# DRIVER_MODES = {
-#     "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
-#     "vm": {"name": "vm", "vm": True, "shell": "chardev"},
-#     "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
-#     "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
-# }
 
 machines_file_towait = ""
 notifier = None
@@ -350,24 +341,22 @@ def cli(
     ctx.flavour.generate_deployment_info()
 
     if ctx.ip_addresses and (ctx.flavour.name != "vm-ramdisk"):
-        # ctx.mode = DRIVER_MODES["remote"]
         if ctx.use_httpd:
             ctx.vlog("Launch: httpd to distribute deployment.json")
             ctx.httpd = HTTPDaemon(ctx=ctx)
 
-        # TODO
-        # if ctx.flavour.image["type"] == "ramdisk":
-        #    generate_kexec_scripts(ctx)
+        if hasattr(ctx.flavour, "generate_kexec_scripts"):
+            ctx.flavour.generate_kexec_scripts()
 
-        # TODO
-        # if ctx.push_path:
-        #        push_on_machines(ctx)
+        if ctx.push_path:
+            push_on_machines(ctx)
 
         if ctx.use_httpd:
             ctx.httpd.start(directory=ctx.envdir)
 
         if not interactive:
             ctx.flavour.launch()
+            sys.exit(0)
             # if ctx.flavour["image"]["type"] == "ramdisk":
             #     ctx.log("Launch ssh(s) kexec")
             #     launch_ssh_kexec(ctx)
