@@ -2,6 +2,8 @@ import os
 import os.path as op
 import time
 from string import Template
+import click
+import subprocess
 
 from ..flavour import Flavour
 from ..actions import (
@@ -52,7 +54,7 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
         read_compose_info(ctx)
 
     base_path = op.join(
-        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
     )
     os.makedirs(base_path, mode=0o700, exist_ok=True)
     kaenv_path = op.join(base_path, "nixos.yaml")
@@ -72,12 +74,6 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
             kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {kernel_params_opts}",
         )
         kaenv_file.write(kaenv)
-
-
-def launch_kadeploy(ctx, dry_run=True):
-    image_path = realpath_from_store(ctx, ctx.deployment_info["all"]["image"])
-    print(f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz')
-    # TOFINISH
 
 
 class G5kRamdiskFlavour(Flavour):
@@ -111,7 +107,37 @@ class G5KImageFlavour(Flavour):
         generate_deployment_info(self.ctx)
 
     def launch(self):
-        print("Launch TODO")
+        generate_kadeploy_envfile(self.ctx)
+        image_path = realpath_from_store(
+            self.ctx, self.ctx.deployment_info["all"]["image"]
+        )
+        cmd_copy_image = f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz && chmod 644 ~{os.environ["USER"]}/public/nixos.tar.xz'
+        if click.confirm(
+            f'Do you want to copy image to ~{os.environ["USER"]}/public/nixos.tar.xz ?'
+        ):
+            try:
+                subprocess.call(cmd_copy_image, shell=True)
+            except Exception as ex:
+                raise click.ClickException(f"Failed to copy image: {ex}")
+        else:
+            print(f"You can copy image with: {cmd_copy_image}")
+        base_path = op.join(
+            self.ctx.envdir,
+            f"artifact/{self.ctx.composition_name}/{self.ctx.flavour.name}",
+        )
+        cmd_kadeploy = (
+            f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f $OAR_NODEFILE -k'
+        )
+
+        if click.confirm(
+            "Do you want to kadeploy nixos.tar.xz image on nodes from $OAR_NODEFILE"
+        ):
+            try:
+                subprocess.call(cmd_kadeploy, shell=True)
+            except Exception as ex:
+                raise click.ClickException(f"Failed to execute kadeploy command: {ex}")
+        else:
+            print(f"You can kadeploy image with: {cmd_kadeploy}")
 
     def ext_connect(self, user, node, execute):
         return ssh_connect(self.ctx, user, node, execute)
