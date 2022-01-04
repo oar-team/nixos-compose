@@ -10,6 +10,7 @@ FLAVOUR_MAP = {
     "docker": "docker::DockerFlavour",
     "vm-ramdisk": "vm_ramdisk::VmRamdiskFlavour",
     "nixos-test": "nixos_test::NixosTestFlavour",
+    "nixos-test-driver": "nixos_test::NixosTestDriverFlavour",
     "nixos-test-ssh": "nixos_test::NixosTestSshFlavour",
     "g5k-ramdisk": "grid5000::G5kRamdiskFlavour",
     "g5k-image": "grid5000::G5KImageFlavour",
