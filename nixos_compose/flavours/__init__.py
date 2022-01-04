@@ -22,6 +22,7 @@ class ClassNotFound(ValueError):
 
 
 def get_flavour_by_name(name):
+
     if name in FLAVOUR_MAP:
         mod, cls = FLAVOUR_MAP[name].split("::")
 

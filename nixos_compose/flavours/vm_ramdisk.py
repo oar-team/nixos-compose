@@ -3,7 +3,7 @@ import sys
 import json
 import base64
 import subprocess
-import HTTPDaemon
+from ..httpd import HTTPDaemon
 
 from ..flavour import Flavour
 from ..actions import generate_deployment_info, ssh_connect
@@ -138,7 +138,7 @@ class VmRamdiskFlavour(Flavour):
     def start(self, machine):
         machine._start_vm()
 
-    def ext_connect(self, user, node, execute):
+    def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)
 
     # def start_all(self):
