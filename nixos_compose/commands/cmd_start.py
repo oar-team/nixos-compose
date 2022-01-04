@@ -218,13 +218,14 @@ def cli(
             search_path = f"{build_path}/*::{flavour_name}"
         else:
             search_path = f"{build_path}/*"
-        last_build_path = max(
-            glob.glob(search_path),
-            key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
-        )
 
-        if not last_build_path:
+        build_paths = glob.glob(search_path)
+        if not build_paths:
             raise click.ClickException("Failed to find last build")
+
+        last_build_path = max(
+            build_paths, key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
+        )
 
         ctx.log("Use last build:")
         ctx.glog(last_build_path)
