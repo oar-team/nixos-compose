@@ -198,7 +198,9 @@ def cli(
             if not op.lexists(composition_all_in_one_file):
                 build_path = op.join(ctx.envdir, f"build/{composition}")
                 if not op.lexists(build_path):
-                    raise Exception(f"Build file does not exist: {build_path}")
+                    raise click.ClickException(
+                        f"Build file does not exist: {build_path}"
+                    )
             else:
                 build_path = composition_all_in_one_file
 
@@ -211,11 +213,18 @@ def cli(
                 "Sorry, provide only flavour or only composition is not supported"
             )
 
-    if composition is None:  # and (not flavour_name is None):
+    if composition is None:
+        if flavour_name:
+            search_path = f"{build_path}/*::{flavour_name}"
+        else:
+            search_path = f"{build_path}/*"
         last_build_path = max(
-            glob.glob(f"{build_path}/*"),
+            glob.glob(search_path),
             key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
         )
+
+        if not last_build_path:
+            raise click.ClickException("Failed to find last build")
 
         ctx.log("Use last build:")
         ctx.glog(last_build_path)
@@ -226,17 +235,15 @@ def cli(
         splitted_basename = ctx.composition_flavour_prefix.split("::")
 
         if splitted_basename[0] == "":
-            raise Exception("Sorry, composition name must be provided")
+            raise click.ClickException("Sorry, composition name must be provided")
 
         ctx.composition_name = splitted_basename[0]
         ctx.composition_basename_file = ctx.composition_name
 
         if flavour_name:
-            raise Exception(
-                f"Only one flavour name is expected: {flavour_name} {splitted_basename[1]}"
-            )
-        else:
-            ctx.flavour = get_flavour_by_name(splitted_basename[1])(ctx)
+            assert flavour_name == splitted_basename[1]
+
+        ctx.flavour = get_flavour_by_name(splitted_basename[1])(ctx)
 
     if op.isdir(build_path) and len(os.listdir(build_path)) == 0:
         ctx.wlog(f"{build_path} is an empty directory, surely a nixos-test result !")
