@@ -542,25 +542,24 @@ def ssh_connect(ctx, user, node, execute=True):
         return ssh_cmd
 
 
-def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc"):
-
+def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if not nodes:
         nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
 
     ssh_cmds = [ctx.flavour.ext_connect(user, node, execute=False) for node in nodes]
 
-    console = 1
-    if no_pane_console:
-        console = 0
+    console = 0
+    if pane_console:
+        console = 1
 
     if not geometry:
-        if not no_pane_console:
-            if len(nodes) > 4:
-                geometry = "1+4+4"
-            else:
-                geometry = f"1+{len(nodes)}"
+        geometry = ""
+        if pane_console:
+            geometry = "1+"
+        if len(nodes) > 4:
+            geometry += "4+4"
         else:
-            geometry = "4+4"
+            geometry += f"{len(nodes)}"
 
     # translate geometry
     if "+" in geometry and "*" in geometry:
@@ -597,20 +596,24 @@ def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc")
         cmd = "tmux new -d"
         subprocess.call(cmd, shell=True)
 
+    i = 0
+
     cmd = f"tmux new-window -n {window_name} -d"
+    if not pane_console:
+        cmd += f" {cmds[i]}"
+        i += 1
     subprocess.call(cmd, shell=True)
 
     # cmd = f'tmux splitw -h -p 50 -t {window_name}.0 "{ssh_cmds[0]}"'
     # subprocess.call(cmd, shell=True)
 
-    i = 0
     for v in range(nb_splitv):
         ratio_h = round(100.0 / (nb_splitv - v))
         if ratio_h != 100:
             cmd = f"tmux splitw -h -p {ratio_h} -t {window_name}.0 {cmds[i]}"
             pane0 = 1
-            print("vertical |", cmd)
-            print(round(100 * (1.0 / (nb_splitv - v))))
+            # print("vertical |", cmd)
+            # print(round(100 * (1.0 / (nb_splitv - v))))
             subprocess.call(cmd, shell=True)
             i += 1
         else:
@@ -619,6 +622,7 @@ def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc")
         for h in range(splitw[v] - 1):
             ratio_v = round(100 * (1 - (1.0 / (splitw[v] - h))))
             cmd = f"tmux splitw -v -p {ratio_v} -t {window_name}.{h+pane0} {cmds[i]}"
+            # print(cmd)
             subprocess.call(cmd, shell=True)
             i += 1
 

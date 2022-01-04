@@ -22,14 +22,12 @@ from ..flavours import get_flavour_by_name
     "--flavour",
     help="flavour, by default it's extracted from deployment file name",
 )
-@click.option(
-    "-nc", "--no-pane-console", is_flag=True, help="Remove addtional pane console"
-)
+@click.option("-pc", "--pane-console", is_flag=True, help="Add a pane console")
 @click.argument("host", nargs=-1)
 @pass_context
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, user, host, geometry, no_pane_console, deployment_file, flavour):
+def cli(ctx, user, host, geometry, pane_console, deployment_file, flavour):
     """Connect to host."""
     read_deployment_info(ctx, deployment_file)
 
@@ -47,7 +45,7 @@ def cli(ctx, user, host, geometry, no_pane_console, deployment_file, flavour):
 
     if not host or len(host) > 1:
         # TODO  add wait_ssh
-        connect_tmux(ctx, user, host, no_pane_console, geometry, "nxc")
+        connect_tmux(ctx, user, host, pane_console, geometry, "nxc")
     else:
         ctx.flavour.ext_connect(user, host[0])
 
