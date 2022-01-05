@@ -760,6 +760,7 @@ class Machine:
                 self.log_serial(line)
 
         self.serial_thread = threading.Thread(target=process_serial_output)
+        # self.serial_thread.daemon = True
         self.serial_thread.start()
 
         self.wait_for_monitor_prompt()
@@ -854,9 +855,14 @@ class Machine:
         self.send_monitor_command("set_link virtio-net-pci.1 on")
 
     def release(self) -> None:
+        if hasattr(self.ctx.flavour, "release"):
+            return self.ctx.flavour.release(self)
+
         if self.pid is None:
             return
+
         rootlog.info(f"kill machine (pid {self.pid})")
+
         assert self.process
         assert self.shell
         assert self.monitor

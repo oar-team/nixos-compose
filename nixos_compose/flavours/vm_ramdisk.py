@@ -6,7 +6,7 @@ import subprocess
 from ..httpd import HTTPDaemon
 
 from ..flavour import Flavour
-from ..actions import generate_deployment_info, ssh_connect
+from ..actions import generate_deployment_info, ssh_connect, kill_proc_tree
 from ..driver.vlan import VLan
 from ..driver.logger import rootlog
 from ..driver.machine import Machine, StartScript
@@ -137,6 +137,23 @@ class VmRamdiskFlavour(Flavour):
 
     def start(self, machine):
         machine._start_vm()
+
+    def release(self, machine):
+        if machine.pid is None:
+            return
+        rootlog.info(f"kill machine (pid {machine.pid})")
+        assert machine.process
+        assert machine.shell
+        assert machine.monitor
+        assert machine.serial_thread
+
+        # Kill children
+        kill_proc_tree(machine.pid, include_parent=False)
+
+        machine.process.terminate()
+        machine.shell.close()
+        machine.monitor.close()
+        machine.serial_thread.join()
 
     def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)
