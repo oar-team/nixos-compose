@@ -7,6 +7,7 @@ import tempfile
 from .logger import rootlog
 from .machine import Machine, retry
 from .vlan import VLan
+from ..flavours import use_flavour_method_if_any
 
 
 class Driver:
@@ -63,12 +64,13 @@ class Driver:
         return self
 
     def __exit__(self, *_: Any) -> None:
+        self.cleanup()
+
+    @use_flavour_method_if_any
+    def cleanup(self):
         with rootlog.nested("cleanup"):
-            if hasattr(self.ctx.flavour, "cleanup"):
-                self.ctx.flavour.cleanup()
-            else:
-                for machine in self.machines:
-                    machine.release()
+            for machine in self.machines:
+                machine.release()
 
     def subtest(self, name: str) -> Iterator[None]:
         """Group logs under a given test name"""
@@ -134,14 +136,9 @@ class Driver:
             if machine.is_up():
                 machine.execute("sync")
 
+    @use_flavour_method_if_any
     def start_all(self) -> None:
         """Start all machines"""
-        if hasattr(self.ctx.flavour, "start_all"):
-            self.ctx.flavour.start_all()
-        else:
-            self._start_all()
-
-    def _start_all(self) -> None:
         with rootlog.nested("start all VMs"):
             for machine in self.machines:
                 machine.start()

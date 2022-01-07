@@ -34,3 +34,25 @@ def get_flavour_by_name(name):
         return getattr(mod, cls)
     except AttributeError:
         raise ClassNotFound(f"Could not find flavour class {cls} in flavour module.")
+
+
+def use_flavour_method_if_any(f):
+    def wrapper(*args, **kwargs):
+        attr_name = f.__name__
+        flavour = args[0].ctx.flavour
+        if hasattr(flavour, attr_name):
+            g = getattr(flavour, attr_name)
+            if len(args) == 1:
+                if not kwargs:
+                    return g()
+                else:
+                    return g(**kwargs)
+            else:
+                if not kwargs:
+                    return g(*args[1:])
+                else:
+                    return g(*args[1:], **kwargs)
+        else:
+            return f(*args, **kwargs)
+
+    return wrapper

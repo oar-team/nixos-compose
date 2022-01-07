@@ -17,6 +17,7 @@ import threading
 import time
 
 from .logger import rootlog
+from ..flavours import use_flavour_method_if_any
 
 CHAR_TO_KEY = {
     "A": "shift-a",
@@ -412,12 +413,10 @@ class Machine:
                 break
         return "".join(output_buffer)
 
+    @use_flavour_method_if_any
     def execute(
         self, command: str, check_return: bool = True, timeout: Optional[int] = 900
     ) -> Tuple[int, str]:
-
-        if hasattr(self.ctx.flavour, "execute"):
-            return self.ctx.flavour.execute(command)
 
         self.connect()
 
@@ -440,6 +439,7 @@ class Machine:
 
         return (rc, output.decode())
 
+    @use_flavour_method_if_any
     def shell_interact(self) -> None:
         """Allows you to interact with the guest shell
         Should only be used during test development, not in the production test."""
@@ -854,9 +854,8 @@ class Machine:
         """Make the machine reachable."""
         self.send_monitor_command("set_link virtio-net-pci.1 on")
 
+    @use_flavour_method_if_any
     def release(self) -> None:
-        if hasattr(self.ctx.flavour, "release"):
-            return self.ctx.flavour.release(self)
 
         if self.pid is None:
             return
