@@ -544,6 +544,9 @@ def ssh_connect(ctx, user, node, execute=True):
         return ssh_cmd
 
 
+NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
+
+
 def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if not nodes:
         nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
@@ -556,12 +559,12 @@ def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
 
     if not geometry:
         geometry = ""
+        nb_panes = len(nodes)
         if pane_console:
-            geometry = "1+"
-        if len(nodes) > 4:
-            geometry += "4+4"
-        else:
-            geometry += f"{len(nodes)}"
+            nb_panes += 1
+
+        if nb_panes < 9:
+            geometry = NB_PANES_2_GEOMETRY[nb_panes - 1]
 
     # translate geometry
     if "+" in geometry and "*" in geometry:
