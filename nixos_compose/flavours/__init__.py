@@ -42,16 +42,7 @@ def use_flavour_method_if_any(f):
         flavour = args[0].ctx.flavour
         if hasattr(flavour, attr_name):
             g = getattr(flavour, attr_name)
-            if len(args) == 1:
-                if not kwargs:
-                    return g()
-                else:
-                    return g(**kwargs)
-            else:
-                if not kwargs:
-                    return g(*args[1:])
-                else:
-                    return g(*args[1:], **kwargs)
+            return g(*args, **kwargs)
         else:
             return f(*args, **kwargs)
 

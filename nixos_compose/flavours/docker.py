@@ -9,7 +9,7 @@ from ..actions import read_compose_info
 from ..driver.logger import rootlog
 from ..driver.machine import Machine
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 def generate_deployment_info_docker(ctx):
@@ -47,6 +47,8 @@ class DockerFlavour(Flavour):
     docker_compose_file = None
     machines: List[Machine] = []
 
+    started_all = False
+
     def __init__(self, ctx):
         super().__init__(ctx)
 
@@ -65,7 +67,12 @@ class DockerFlavour(Flavour):
                 Machine(self.ctx, tmp_dir=tmp_dir, start_command="", name=name,)
             )
 
-    def start_all(self):
+    def connect(self, machine):
+        if machine.connected:
+            return
+        self.start_all()
+
+    def start_all(self, driver):
         with rootlog.nested("starting docker-compose"):
             subprocess.Popen(
                 ["docker-compose", "-f", self.docker_compose_file, "up", "-d"]
@@ -73,6 +80,7 @@ class DockerFlavour(Flavour):
 
         for machine in self.machines:
             self.start(machine)
+            self.connected = True
 
     def start(self, machine):
         assert machine.name
@@ -93,7 +101,13 @@ class DockerFlavour(Flavour):
             stderr=subprocess.PIPE,
         )
 
-    def execute(self, command: str, machine) -> Tuple[int, str]:
+    def execute(
+        self,
+        machine,
+        command: str,
+        check_return: bool = True,
+        timeout: Optional[int] = 900,
+    ) -> Tuple[int, str]:
         docker_process = self.docker_processes[machine]
         try:
             (stdout, _stderr) = docker_process.communicate(command.encode())
@@ -109,7 +123,7 @@ class DockerFlavour(Flavour):
             self.docker_processes[machine]
         self.start(machine)
 
-    def cleanup(self):
+    def cleanup(self, driver):
         # TODO handle stdout/stderr
         subprocess.Popen(
             [

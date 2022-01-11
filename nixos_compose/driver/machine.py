@@ -444,9 +444,6 @@ class Machine:
         """Allows you to interact with the guest shell
         Should only be used during test development, not in the production test."""
 
-        if hasattr(self.ctx.flavour, "shell_interact"):
-            return self.ctx.flavour.shell_interact(self)
-
         self.connect()
         self.log("Terminal is ready (there is no prompt):")
 
@@ -591,6 +588,7 @@ class Machine:
     def wait_for_job(self, jobname: str) -> None:
         self.wait_for_unit(jobname)
 
+    @use_flavour_method_if_any
     def connect(self) -> None:
         if self.connected:
             return
