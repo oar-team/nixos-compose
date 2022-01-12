@@ -72,7 +72,7 @@ class DockerFlavour(Flavour):
             return
         self.start_all()
 
-    def start_all(self, driver):
+    def start_all(self):
         with rootlog.nested("starting docker-compose"):
             subprocess.Popen(
                 ["docker-compose", "-f", self.docker_compose_file, "up", "-d"]
@@ -108,9 +108,14 @@ class DockerFlavour(Flavour):
         check_return: bool = True,
         timeout: Optional[int] = 900,
     ) -> Tuple[int, str]:
+
+        self.connect(machine)
+
         docker_process = self.docker_processes[machine]
         try:
-            (stdout, _stderr) = docker_process.communicate(command.encode())
+            (stdout, _stderr) = docker_process.communicate(
+                command.encode(), timeout=timeout
+            )
         except subprocess.TimeoutExpired:
             docker_process.kill()
             return (-1, "")
@@ -123,7 +128,7 @@ class DockerFlavour(Flavour):
             self.docker_processes[machine]
         self.start(machine)
 
-    def cleanup(self, driver):
+    def cleanup(self):
         # TODO handle stdout/stderr
         subprocess.Popen(
             [
