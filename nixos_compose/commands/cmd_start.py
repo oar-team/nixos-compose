@@ -22,8 +22,6 @@ from ..flavours import get_flavour_by_name
 from ..actions import (
     read_test_script,
     # generate_deployment_info,
-    # generate_deployment_info_docker,
-    # generate_kexec_scripts,
     read_hosts,
     translate_hosts2ip,
     push_on_machines,
@@ -102,7 +100,10 @@ class EventHandler(pyinotify.ProcessEvent):
     "-f", "--flavour", type=click.STRING, help="specify flavour",
 )
 @click.option(
-    "--test-script", type=click.STRING, help="specify flavour",
+    "-t", "--test-script", is_flag=True, help="execute testscript",
+)
+@click.option(
+    "--file-test-script", type=click.STRING, help="alternative testscript",
 )
 # @click.option(
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
@@ -124,13 +125,19 @@ def cli(
     flavour,
     remote_deployment_info,
     test_script,
+    file_test_script,
     # dry_run,
 ):
     """Start Nixos Composition."""
 
     flavour_name = flavour
-
     if test_script:
+        execute_test_script = True
+        test_script = None
+    else:
+        execute_test_script = False
+
+    if file_test_script:
         raise click.ClickException(
             "alternative test-scipt execution not yet implemented"
         )
@@ -399,6 +406,9 @@ def cli(
     # wait_ssh_ports(ctx, ips, False)
     # httpd.stop()
 
+    if not interactive and not execute_test_script:
+        test_script = "start_all()"
+
     with Driver(
         # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
         ctx,
@@ -409,12 +419,14 @@ def cli(
     ) as driver:
         if interactive:
             ptpython.repl.embed(driver.test_symbols(), {})
-        else:
+        elif execute_test_script:
             tic = time.time()
             driver.run_tests()
             toc = time.time()
-            ctx.glog.info(f"test script finished in {(toc-tic):.2f}s")
-
+            ctx.glog(f"test script finished in {(toc-tic):.2f}s")
+        else:
+            print("juste start")
+            driver.test_script()
     if ctx.use_httpd:
         ctx.httpd.stop()
 
