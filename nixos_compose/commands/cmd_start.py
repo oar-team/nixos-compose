@@ -147,6 +147,8 @@ def cli(
     ctx.ssh = ssh
     ctx.sudo = sudo
     ctx.push_path = push_path
+    ctx.interactive = interactive
+    ctx.execute_test_script = execute_test_script
 
     if remote_deployment_info:
         ctx.use_httpd = True

@@ -64,7 +64,8 @@ class Driver:
         return self
 
     def __exit__(self, *_: Any) -> None:
-        self.cleanup()
+        if self.ctx.interactive or self.ctx.execute_test_script:
+            self.cleanup()
 
     @use_flavour_method_if_any
     def cleanup(self):
@@ -124,7 +125,7 @@ class Driver:
 
     def test_script(self) -> None:
         """Run the test script"""
-        with rootlog.nested("run the VM test script"):
+        with rootlog.nested("run the test script"):
             symbols = self.test_symbols()  # call eagerly
             exec(self.tests, symbols, None)
 

@@ -67,6 +67,20 @@ class DockerFlavour(Flavour):
                 Machine(self.ctx, tmp_dir=tmp_dir, start_command="", name=name,)
             )
 
+    def check(self, state="running"):
+        check_process = subprocess.check_output(
+            [
+                "docker-compose",
+                "-f",
+                self.docker_compose_file,
+                "ps",
+                "--services",
+                "--filter",
+                f"status={state}",
+            ],
+        )
+        return len(check_process.splitlines())
+
     def connect(self, machine):
         if machine.connected:
             return
@@ -77,6 +91,8 @@ class DockerFlavour(Flavour):
             subprocess.Popen(
                 ["docker-compose", "-f", self.docker_compose_file, "up", "-d"]
             )
+
+        self.wait_on_check()
 
         for machine in self.machines:
             self.start(machine)
@@ -130,6 +146,8 @@ class DockerFlavour(Flavour):
 
     def cleanup(self):
         # TODO handle stdout/stderr
+        if not self.docker_compose_file:
+            self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
         subprocess.Popen(
             [
                 "docker-compose",
@@ -140,13 +158,15 @@ class DockerFlavour(Flavour):
             ]
         )
 
+    def shell_interact(self, machine) -> None:
+        self.connect(machine)
+        print("not yet implemented")
+
     def ext_connect(self, user, node, execute=True):
         if not self.docker_compose_file:
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
 
         cmd = f"docker-compose -f {self.docker_compose_file} exec -u {user} {node} /bin/sh -c bash"
-
-        print(cmd)
 
         if execute:
             return_code = subprocess.run(cmd, shell=True).returncode
