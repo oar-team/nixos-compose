@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List
 import os
 import tempfile
+import signal
 
 from .logger import rootlog
 from .machine import Machine, retry
@@ -64,8 +65,10 @@ class Driver:
         return self
 
     def __exit__(self, *_: Any) -> None:
-        if self.ctx.interactive or self.ctx.execute_test_script:
-            self.cleanup()
+        if not self.ctx.interactive and not self.ctx.execute_test_script:
+            with rootlog.nested("wait for ever"):
+                signal.sigwait(signal.valid_signals())
+        self.cleanup()
 
     @use_flavour_method_if_any
     def cleanup(self):
