@@ -79,7 +79,7 @@ class DockerFlavour(Flavour):
                 f"status={state}",
             ],
         )
-        return len(check_process.splitlines())
+        return len(check_process.decode().rstrip("\n").splitlines())
 
     def connect(self, machine):
         if machine.connected:
