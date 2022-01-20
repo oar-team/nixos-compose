@@ -1,5 +1,3 @@
-import json
-
 from subprocess import run
 
 from nixos_compose import __version__
@@ -52,16 +50,6 @@ def test_build_kernel_5_4(tmp_path):
     run_test("nxc build -C linux_5_4::nixos-test", tmp_path)
 
 
-def test_start_docker(tmp_path):
+def test_build_vm_ramdisk(tmp_path):
     run_init("nxc init", tmp_path)
-
-    # run_test("nxc build -C composition::nixos-test", tmp_path)
-    run_test("nxc build -f docker", tmp_path)
-
-    run_test("nxc start", tmp_path)
-    run_test("nxc start -C composition::docker", tmp_path)
-
-    f = open(f"{tmp_path}/nxc/deploy/composition::docker.json", "r")
-    docker_compose_file = json.load(f)["docker-compose-file"]
-    print("cleaning docker")
-    run_test(f"docker-compose -f {docker_compose_file} down", tmp_path)
+    run_test("nxc build -f vm-ramdisk", tmp_path)
