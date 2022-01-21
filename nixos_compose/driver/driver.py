@@ -66,9 +66,11 @@ class Driver:
 
     def __exit__(self, *_: Any) -> None:
         if not self.ctx.interactive and not self.ctx.execute_test_script:
-            with rootlog.nested("wait for ever"):
-                signal.sigwait(signal.valid_signals())
-        self.cleanup()
+            if self.ctx.sigwait:
+                with rootlog.nested("wait any signal to exit"):
+                    signal.sigwait(signal.valid_signals())
+        else:
+            self.cleanup()
 
     @use_flavour_method_if_any
     def cleanup(self):

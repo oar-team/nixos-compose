@@ -105,6 +105,12 @@ class EventHandler(pyinotify.ProcessEvent):
 @click.option(
     "--file-test-script", type=click.STRING, help="alternative testscript",
 )
+@click.option(
+    "-w",
+    "--sigwait",
+    is_flag=True,
+    help="wait any signal to exit after a start only action (not testscript execution or interactive use)",
+)
 # @click.option(
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
@@ -126,6 +132,7 @@ def cli(
     remote_deployment_info,
     test_script,
     file_test_script,
+    sigwait,
     # dry_run,
 ):
     """Start Nixos Composition."""
@@ -149,6 +156,7 @@ def cli(
     ctx.push_path = push_path
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
+    ctx.sigwait = sigwait
 
     if remote_deployment_info:
         ctx.use_httpd = True
