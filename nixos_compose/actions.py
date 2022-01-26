@@ -8,44 +8,11 @@ import subprocess
 import time
 import base64
 import click
+import signal
+import psutil
 from halo import Halo
 from .kataract import generate_scp_tasks, exec_kataract_tasks
-from string import Template
 
-DRIVER_MODES = {
-    "vm-ssh": {"name": "vm-ssh", "vm": True, "shell": "ssh"},
-    "vm": {"name": "vm", "vm": True, "shell": "chardev"},
-    "remote": {"name": "ssh", "vm": False, "shell": "ssh"},
-    "docker": {"name": "docker", "vm": False, "docker": True, "shell": "chardev"},
-}
-
-KADEPOY_ARCH = {
-    "x86_64-linux" : "x86_64",
-    "powerpc64le-linux" : "ppc64le",
-    "aarch64-linux": "aarch64",
-}
-
-KADEPOY_ENV_DESC = """
-      name: $image_name
-      version: 1
-      description: NixOS
-      author: $author
-      visibility: shared
-      destructive: false
-      os: linux
-      arch: $system
-      image:
-        file: $file_image_url
-        kind: tar
-        compression: xz
-      boot:
-        kernel: /boot/bzImage
-        initrd: /boot/initrd
-        kernel_params: $kernel_params
-      filesystem: ext4
-      partition_type: 131
-      multipart: false
-"""
 
 ##
 # Retrieve from path from different store location if needed
@@ -95,17 +62,16 @@ def get_deployment_file(ctx, deployment_file):
 
 
 def read_deployment_info(ctx, deployment_file=None):
-    deployment_file = get_deployment_file(ctx, deployment_file)
-    with open(deployment_file, "r") as f:
+    ctx.deployment_filename = get_deployment_file(ctx, deployment_file)
+    with open(ctx.deployment_filename, "r") as f:
         deployment_info = json.load(f)
-
     ctx.deployment_info = deployment_info
     return
 
 
 def read_deployment_info_str(ctx, deployment_file=None):
-    deployment_file = get_deployment_file(ctx, deployment_file)
-    with open(deployment_file, "r") as f:
+    ctx.deployment_filename = get_deployment_file(ctx, deployment_file)
+    with open(ctx.deployment_filename, "r") as f:
         deployment_info_str = f.read()
     return deployment_info_str
 
@@ -130,11 +96,13 @@ def read_compose_info(ctx):
         compose_info = json.load(f)
 
     if "compositions_info" in compose_info:
-        ctx.multiple_compositions = True
         ctx.compositions_info = compose_info
-        ctx.vlog(
-            "Image with multiple compositions is detected, selected composition: {ctx.composition_name}"
-        )
+
+        if len(compose_info["compositions_info"]) > 1:
+            ctx.multiple_compositions = True
+            ctx.vlog(
+                f"Image with multiple compositions is detected, selected composition: {ctx.composition_name}"
+            )
 
         if (
             ctx.composition_name
@@ -154,7 +122,12 @@ def read_compose_info(ctx):
             ]
         compose_info["all"] = ctx.compositions_info["all"]
         compose_info["flavour"] = ctx.compositions_info["flavour"]
-        ctx.flavour = ctx.compositions_info["flavour"]
+
+        compose_flavour_name = ctx.compositions_info["flavour"]["name"]
+        if ctx.flavour.name != compose_flavour_name:
+            raise click.ClickException(
+                f"Selected flavour ({ctx.flavour.name}) differs from compose info ({compose_flavour_name})"
+            )
 
     ctx.compose_info = compose_info
     return
@@ -213,36 +186,7 @@ def populate_deployment_forward_ssh_port(nodes):
     return deployment
 
 
-def generate_deployment_info_docker(ctx):
-    if not ctx.compose_info:
-        read_compose_info(ctx)
-
-    deployment = {
-        "nodes": ctx.compose_info["nodes"],
-        "docker-compose-file": ctx.compose_info["docker-compose-file"],
-    }
-
-    if "all" in ctx.compose_info:
-        deployment["all"] = ctx.compose_info["all"]
-
-    json_deployment = json.dumps(deployment, indent=2)
-
-    deploy_dir = op.join(ctx.envdir, "deploy")
-    if not op.exists(deploy_dir):
-        create = click.style("   create", fg="green")
-        ctx.log("   " + create + "  " + deploy_dir)
-        os.mkdir(deploy_dir)
-
-    with open(
-        op.join(deploy_dir, f"{ctx.composition_flavour_prefix}.json"), "w"
-    ) as outfile:
-        outfile.write(json_deployment)
-
-    ctx.deployment_info = deployment
-    return
-
-
-def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False):
+def generate_deployment_info(ctx, ssh_pub_key_file=None):
     if not ctx.compose_info:
         read_compose_info(ctx)
 
@@ -251,7 +195,7 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
     with open(ssh_pub_key_file, "r") as f:
         sshkey_pub = f.read().rstrip()
 
-    if forward_ssh_port and sshkey_pub:
+    if ctx.forward_ssh_port and sshkey_pub:
         # QEMU_KERNEL_PARAMS environement variable is used to give ssh pub
         # key with nixos-test-ssh flavour (see boot.initrd.postMountCommands in nix/base.nix)
         qemu_kernel_params = ""
@@ -269,7 +213,7 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None, forward_ssh_port=False)
         deployment = populate_deployment_ips(
             ctx.compose_info["nodes"], ctx.ip_addresses
         )
-    elif forward_ssh_port:
+    elif ctx.forward_ssh_port:
         deployment = populate_deployment_forward_ssh_port(ctx.compose_info["nodes"])
     else:
         deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
@@ -325,7 +269,7 @@ def generate_kexec_scripts(ctx):
         deploy_info_src = ctx.deployment_info_b64
 
     base_path = op.join(
-        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
     )
     kexec_scripts_path = op.join(base_path, "kexec_scripts")
     os.makedirs(kexec_scripts_path, mode=0o700, exist_ok=True)
@@ -389,39 +333,6 @@ def generate_deploy_info_b64(ctx):
         )
         sys.exit(1)
     return
-
-
-def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
-    if not ctx.compose_info:
-        read_compose_info(ctx)
-
-    base_path = op.join(
-        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
-    )
-    os.makedirs(base_path, mode=0o700, exist_ok=True)
-    kaenv_path = op.join(base_path, "nixos.yaml")
-    if not deploy:
-        generate_deploy_info_b64(ctx)
-        deploy = ctx.deployment_info_b64
-
-    user = os.environ["USER"]
-    system = ctx.compositions_info["system"]
-    with open(kaenv_path, "w") as kaenv_file:
-        t = Template(KADEPOY_ENV_DESC)
-        kaenv = t.substitute(
-            image_name="NixOS",
-            author=user,
-            system = KADEPOY_ARCH[system],
-            file_image_url=f"http://public.grenoble.grid5000.fr/~{user}/nixos.tar.xz",
-            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {kernel_params_opts}",
-        )
-        kaenv_file.write(kaenv)
-
-
-def launch_kadeploy(ctx, dry_run=True):
-    image_path = realpath_from_store(ctx, ctx.deployment_info["all"]["image"])
-    print(f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz')
-    # TOFINISH
 
 
 # def copy_result_from_store(ctx):
@@ -495,7 +406,7 @@ def launch_ssh_kexec(ctx, ip=None, debug=False):
             user = "root@"
         else:
             base_path = op.join(
-                ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour_name}"
+                ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
             )
             kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
             ki = ""
@@ -604,7 +515,7 @@ def push_on_machines(ctx):
     #             )
 
 
-def connect(ctx, user, node):
+def ssh_connect(ctx, user, node, execute=True):
     if not ctx.deployment_info:
         read_deployment_info(ctx)
 
@@ -623,50 +534,37 @@ def connect(ctx, user, node):
     else:
         ssh_cmd += f"{host}"
 
-    return_code = subprocess.run(ssh_cmd, shell=True).returncode
+    if execute:
+        return_code = subprocess.run(ssh_cmd, shell=True).returncode
 
-    if return_code:
-        ctx.wlog(f"SSH exit code is not null: {return_code}")
-    sys.exit(return_code)
-
-
-def connect_docker(ctx, _user, node):
-    docker_compose_file = ctx.deployment_info["docker-compose-file"]
-    cmd = f"docker-compose -f {docker_compose_file} exec {node} /bin/sh -c bash"
-    return_code = subprocess.run(cmd, shell=True).returncode
-
-    if return_code:
-        ctx.wlog(f"Docker exit code is not null: {return_code}")
-    sys.exit(return_code)
+        if return_code:
+            ctx.wlog(f"SSH exit code is not null: {return_code}")
+        sys.exit(return_code)
+    else:
+        return ssh_cmd
 
 
-def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc"):
+NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
 
+
+def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if not nodes:
         nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
 
-    ssh_cmds = []
-    for h, v in ctx.deployment_info["deployment"].items():
-        if v["role"] in nodes:
-            ssh_port = ""
-            if "ssh-port" in v:
-                ssh_port = f'-p {v["ssh-port"]}'
-            ssh_cmds.append(
-                f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} {ssh_port} {h}"
-            )
+    ssh_cmds = [ctx.flavour.ext_connect(user, node, execute=False) for node in nodes]
 
-    console = 1
-    if no_pane_console:
-        console = 0
+    console = 0
+    if pane_console:
+        console = 1
 
     if not geometry:
-        if not no_pane_console:
-            if len(nodes) > 4:
-                geometry = "1+4+4"
-            else:
-                geometry = f"1+{len(nodes)}"
-        else:
-            geometry = "4+4"
+        geometry = ""
+        nb_panes = len(nodes)
+        if pane_console:
+            nb_panes += 1
+
+        if nb_panes < 9:
+            geometry = NB_PANES_2_GEOMETRY[nb_panes - 1]
 
     # translate geometry
     if "+" in geometry and "*" in geometry:
@@ -703,20 +601,24 @@ def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc")
         cmd = "tmux new -d"
         subprocess.call(cmd, shell=True)
 
+    i = 0
+
     cmd = f"tmux new-window -n {window_name} -d"
+    if not pane_console:
+        cmd += f" {cmds[i]}"
+        i += 1
     subprocess.call(cmd, shell=True)
 
     # cmd = f'tmux splitw -h -p 50 -t {window_name}.0 "{ssh_cmds[0]}"'
     # subprocess.call(cmd, shell=True)
 
-    i = 0
     for v in range(nb_splitv):
         ratio_h = round(100.0 / (nb_splitv - v))
         if ratio_h != 100:
             cmd = f"tmux splitw -h -p {ratio_h} -t {window_name}.0 {cmds[i]}"
             pane0 = 1
-            print("vertical |", cmd)
-            print(round(100 * (1.0 / (nb_splitv - v))))
+            # print("vertical |", cmd)
+            # print(round(100 * (1.0 / (nb_splitv - v))))
             subprocess.call(cmd, shell=True)
             i += 1
         else:
@@ -725,6 +627,7 @@ def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc")
         for h in range(splitw[v] - 1):
             ratio_v = round(100 * (1 - (1.0 / (splitw[v] - h))))
             cmd = f"tmux splitw -v -p {ratio_v} -t {window_name}.{h+pane0} {cmds[i]}"
+            # print(cmd)
             subprocess.call(cmd, shell=True)
             i += 1
 
@@ -741,6 +644,7 @@ def connect_tmux(ctx, user, nodes, no_pane_console, geometry, window_name="nxc")
 
 # TODO launch_vm(ctx, kexec_info, debug=False):
 # TODO launch_vm_deploy(ctx, deployment, httpd_port=0, debug=False):
+# NOT USED
 def launch_vm(ctx, httpd_port=0, debug=False):
 
     if not op.exists("/tmp/kexec-qemu-vde1.ctl/ctl"):
@@ -760,26 +664,27 @@ def launch_vm(ctx, httpd_port=0, debug=False):
         cmd_qemu_script += " VM_ID={:02d} {} &".format(v["vm_id"], qemu_script)
         ctx.log("launch: {}".format(v["role"]))
         ctx.vlog(f"command: {cmd_qemu_script}")
-        # subprocess.Popen(
-        #    cmd_qemu_script,
-        #    stdin=subprocess.DEVNULL,
-        # stdout=subprocess.STDOUT,
-        # stderr=subprocess.STDOUT,
-        #    shell=True,
-        # cwd=self.state_dir,
-        # env=environment,
-        # )
-        # subprocess.call(cmd_qemu_script, shell=True)
-        # time.sleep(110)
 
 
-# def launch_driver_vm(
-#     ctx, deployment, flavour, ips, httpd_port=0, driver_repl=False, test_script=None
-# ):
-#     driver_mode(DRIVER_MODES["vm"], flavour, deployment, driver_repl, test_script)
-#     # driver_vm(deployment, ips, test_script)
-
-# def launch_driver_ssh(
-#         ctx, deployment, flavour, ips, httpd_port, driver_repl, test_script, ssh, sudo
-# ):
-#     driver_mode(DRIVER_MODES["remote"], flavour, deployment, driver_repl, test_script)
+# Helpers
+def kill_proc_tree(
+    pid, sig=signal.SIGTERM, include_parent=True, timeout=None, on_terminate=None
+):
+    """Kill a process tree (including grandchildren) with signal
+    "sig" and return a (gone, still_alive) tuple.
+    "on_terminate", if specified, is a callback function which is
+    called as soon as a child terminates.
+    From: https://psutil.readthedocs.io/en/latest/#kill-process-tree
+    """
+    assert pid != os.getpid(), "won't kill myself"
+    parent = psutil.Process(pid)
+    children = parent.children(recursive=True)
+    if include_parent:
+        children.append(parent)
+    for p in children:
+        try:
+            p.send_signal(sig)
+        except psutil.NoSuchProcess:
+            pass
+    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    return (gone, alive)
