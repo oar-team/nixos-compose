@@ -41,12 +41,14 @@ from ..context import pass_context, on_started, on_finished
 #    is_flag=True,
 #    help="Copy artifacts (initrd, kernels, ...) from Nix store to artifact directory",
 # )
-@click.option(
-    "--legacy-nix", "-l", is_flag=True, help="Use legacy Nix's CLI.",
-)
 @click.option("--show-trace", is_flag=True, help="Show Nix trace")
 @click.option(
     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
+)
+@click.option(
+    "--dry-build",
+    is_flag=True,
+    help="Eval build expression and show store entry without building derivation",
 )
 @click.option(
     "-C",
@@ -76,9 +78,9 @@ def cli(
     nixpkgs,
     flavour,
     list_flavours,
-    legacy_nix,
     show_trace,
     dry_run,
+    dry_build,
     composition_flavour,
     list_compositions_flavours,
 ):
@@ -108,29 +110,26 @@ def cli(
         sys.exit(0)
 
     # Do we are in flake context
-    flake = True if op.exists(op.join(ctx.envdir, "flake.nix")) else False
+    if not op.exists(op.join(ctx.envdir, "flake.nix")):
+        ctx.elog("Not Found flake.nix file")
+        sys.exit(1)
 
-    if not flavour and not flake:
-        if ctx.platform:
-            flavour = ctx.platform.default_flavour
-            click.echo(
-                f"Platform's default flavour setting: {click.style(flavour, fg='green')}"
-            )
-        else:
-            flavour = "nixos-test"
+    # if not flavour and not flake:
+    #     if ctx.platform:
+    #         flavour = ctx.platform.default_flavour
+    #         click.echo(
+    #             f"Platform's default flavour setting: {click.style(flavour, fg='green')}"
+    #         )
+    #     else:
+    #         flavour = "nixos-test
+    #        "
 
     # import pdb; pdb.set_trace()
-    flavour_arg = ""
+
     if flavour:
         if flavour not in flavours and not op.isfile(flavour):
-            raise click.ClickException(
-                f'"{flavour}" is neither a supported flavour nor flavour_path'
-            )
-        else:
-            if flavour in flavours:
-                flavour_arg = f" --argstr flavour {flavour}"
-            else:
-                flavour_arg = f" --arg flavour {op.abspath(flavour)}"
+            ctx.elog(f'"{flavour}" is neither a supported flavour nor flavour_path')
+            sys.exit(1)
 
     if not composition_file:
         composition_file = ctx.nxc["composition"]
@@ -141,35 +140,28 @@ def cli(
     # if out_link == "result":
     #    out_link = op.join(ctx.envdir, out_link)
 
-    nix_flake_support = False
-    if not subprocess.call(
+    if subprocess.call(
         "nix flake --help",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         shell=True,
     ):
-        nix_flake_support = True
+        ctx.elog("Nix flakes must be enabled")
+        sys.exit(1)
 
     if list_compositions_flavours:
-        default_nix = op.join(ctx.envdir, "default.nix")
-        if not flake and op.exists(default_nix):
-            ctx.elog("flake.nix with default.nix must be provided for this option.")
-            sys.exit(1)
-        else:
-            cmd = ["nix", "search", "-f", default_nix, "--json"]
-            raw_compositions_flavours = json.loads(
-                subprocess.check_output(cmd).decode()
-            )
-            for n, k in raw_compositions_flavours.items():
-                if n == "default":
-                    print(click.style("Default", fg="green") + ": " + k["pname"])
-                else:
-                    print(n.split(".")[2])
-            sys.exit(1)
-
-    if composition_flavour and not flake:
-        ctx.elog("flake.nix with default.nix must be provided for this option.")
-        sys.exit(1)
+        cmd = ["nix", "flake", "show", "--json"]
+        raw_compositions_flavours = json.loads(subprocess.check_output(cmd).decode())
+        for compo_flavour in raw_compositions_flavours["packages"][
+            "x86_64-linux"
+        ].keys():
+            print(compo_flavour)
+        print(
+            click.style("Default", fg="green")
+            + ": "
+            + raw_compositions_flavours["defaultPackage"]["x86_64-linux"]["name"]
+        )
+        sys.exit(0)
 
     if show_trace:
         build_cmd += " --show-trace"
@@ -177,10 +169,6 @@ def cli(
     if nixpkgs:
         build_cmd += f" -I nixpkgs={nixpkgs}"
 
-    if flavour_arg and not flake:
-        build_cmd += f" {flavour_arg}"
-
-    #
     if not out_link:
         build_path = op.join(ctx.envdir, "build")
         if not op.exists(build_path):
@@ -205,21 +193,17 @@ def cli(
 
         out_link = op.join(build_path, ctx.composition_flavour_prefix)
 
-    build_cmd += f" -o {out_link}"
-
-    if flake:
-        if not composition_flavour and flavour:
-            composition_flavour = f"composition::{flavour}"
-        if flavour:
-            if nix_flake_support and not legacy_nix:
-                build_cmd = f'nix build {build_cmd} ".#packages.x86_64-linux.{composition_flavour}"'
-            else:
-                build_cmd = f"nix-build {build_cmd} -A packages.x86_64-linux.{composition_flavour}"
+    if dry_build:
+        build_cmd = f"nix eval {build_cmd} --raw"
     else:
-        if legacy_nix:
-            build_cmd = f"nix-build {build_cmd}"
-        else:
-            build_cmd = f"nix build {build_cmd}"
+        build_cmd = f"nix build {build_cmd}"
+        if out_link:
+            build_cmd += f" -o {out_link}"
+
+    if not composition_flavour and flavour:
+        composition_flavour = f"composition::{flavour}"
+    if flavour:
+        build_cmd = f'{build_cmd} ".#packages.x86_64-linux.{composition_flavour}"'
 
     # add additional nix flags if any
     if nix_flags:
@@ -239,7 +223,7 @@ def cli(
             sys.exit(returncode)
 
         # Loading the docker image"
-        if flavour == "docker":
+        if flavour == "docker" and not dry_build:
             with open(out_link, "r") as compose_info_json:
                 content = json.load(compose_info_json)
                 docker_image = content["image"]
@@ -250,7 +234,7 @@ def cli(
                     sys.exit(returncode)
             ctx.glog("Docker Image loaded")
 
-        ctx.glog("Build completed")
+        ctx.glog("\nBuild completed")
     else:
         ctx.log("Dry-run:")
         ctx.log(f"   working directory:          {ctx.envdir}")
