@@ -69,6 +69,7 @@ class Driver:
             if self.ctx.sigwait:
                 with rootlog.nested("wait any signal to exit"):
                     signal.sigwait(signal.valid_signals())
+                    self.cleanup()
         else:
             self.cleanup()
 
