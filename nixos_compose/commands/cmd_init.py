@@ -70,6 +70,12 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
     default=False,
     help="Either use the local templates or not",
 )
+@click.option(
+    "--list-templates-json",
+    is_flag=True,
+    default=False,
+    help="Display the list of available templates as JSON",
+)
 @pass_context
 # @on_finished(lambda ctx: ctx.state.dump())
 def cli(
@@ -84,6 +90,7 @@ def cli(
     no_flake_lock,
     template,
     use_local_templates,
+    list_templates_json,
 ):
     """Initialize a new environment."""
 
@@ -100,6 +107,19 @@ def cli(
 
     if list_flavours_json:
         print(json.dumps(description_flavours, indent=4))
+        sys.exit(0)
+
+    if list_templates_json:
+        out_file = "/tmp/.template_list.json"
+        flake_location = "." if use_local_templates else "git+https://gitlab.inria.fr/nixos-compose/nixos-compose"
+        subprocess.call(
+            f"nix build {flake_location}#showTemplates -o {out_file}",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            shell=True,
+        )
+        list_templates = json.load(open(out_file, "r"))
+        print(json.dumps(list_templates, indent=4))
         sys.exit(0)
 
     if nur:

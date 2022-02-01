@@ -23,8 +23,13 @@
         };
 
         packageName = "nixos-compose";
-      in {
-        packages.${packageName} = app;
+      in rec {
+        packages = {
+          ${packageName} = app;
+          showTemplates = pkgs.writeText "templates.json" (
+            builtins.toJSON (builtins.mapAttrs (name: value: value.description) self.templates)
+          );
+        };
 
         defaultPackage = self.packages.${system}.${packageName};
 
