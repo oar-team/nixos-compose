@@ -1,7 +1,7 @@
 import os
 import os.path as op
 import json
-
+import subprocess
 import sys
 
 from io import open
@@ -57,6 +57,19 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
     is_flag=True,
     help="Does not set intial flake.lock, will be set by Nix during the first build",
 )
+@click.option(
+    "-t",
+    "--template",
+    default="basic",
+    help="Use a template",
+    show_default=True,
+)
+@click.option(
+    "--use-local-templates",
+    is_flag=True,
+    default=False,
+    help="Either use the local templates or not",
+)
 @pass_context
 # @on_finished(lambda ctx: ctx.state.dump())
 def cli(
@@ -69,6 +82,8 @@ def cli(
     list_flavours,
     list_flavours_json,
     no_flake_lock,
+    template,
+    use_local_templates,
 ):
     """Initialize a new environment."""
 
@@ -96,14 +111,23 @@ def cli(
     if not disable_detection:
         platform_detection(ctx)
 
-    example_path = op.abspath(op.join(EXAMPLES_PATH, example))
-    if op.isdir(example_path):
-        copy_tree(example_path, ctx.envdir)
-        copy_tree(
-            NXC_NIX_PATH, op.abspath(op.join(ctx.envdir, "nix")),
+    if template is not None:
+        flake_location = "." if use_local_templates else "git+https://gitlab.inria.fr/nixos-compose/nixos-compose"
+        subprocess.call(
+            f"nix flake new -t {flake_location}#{template} nxc",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            shell=True,
         )
     else:
-        raise click.ClickException(f"Example must be a directory: {example_path}")
+        example_path = op.abspath(op.join(EXAMPLES_PATH, example))
+        if op.isdir(example_path):
+            copy_tree(example_path, ctx.envdir)
+            copy_tree(
+                NXC_NIX_PATH, op.abspath(op.join(ctx.envdir, "nix")),
+            )
+        else:
+            raise click.ClickException(f"Example must be a directory: {example_path}")
 
     nxc_json = {
         "composition": "composition.nix",  # TODO to enhance
