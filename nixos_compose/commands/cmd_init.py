@@ -60,7 +60,7 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
 @click.option(
     "-t",
     "--template",
-    default="basic",
+    default=None,
     help="Use a template",
     show_default=True,
 )
