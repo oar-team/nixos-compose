@@ -37,6 +37,10 @@ let
   extraVolumes =
     if compositionSet ? extraVolumes then compositionSet.extraVolumes else [ ];
 
+  dockerPorts =
+    if compositionSet ? dockerPorts then compositionSet.dockerPorts else { };
+
+
   dockerComposeConfig.services = builtins.mapAttrs (nodeName: nodeConfig:
     let
       config = {
@@ -61,6 +65,7 @@ let
         "/nix/store:/nix/store:ro"
         "${baseEnv}:/run/system:ro"
       ] ++ extraVolumes;
+      ports = if dockerPorts ? "${nodeName}" then dockerPorts."${nodeName}" else [ ];
     }) nodes;
 
   dockerComposeConfigJSON = pkgs.writeTextFile {
