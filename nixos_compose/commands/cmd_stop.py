@@ -17,7 +17,7 @@ from ..flavours import get_flavour_by_name
 )
 @pass_context
 def cli(ctx, flavour, deployment_file):
-    """Build multi Nixos composition."""
+    """Stop Nixos composition."""
     ctx.log("Stopping")
 
     flavour_name = flavour
