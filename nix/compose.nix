@@ -70,7 +70,7 @@ let
     v ? image && v.image ? distribution && v.image.distribution == "all-in-one")
     _flavours;
 
-in builtins.listToAttrs (nixpkgs.lib.flatten (map (composition_name:
+in (builtins.listToAttrs (nixpkgs.lib.flatten (map (composition_name:
   (map (flavour_name:
     let
       selected_flavour = builtins.getAttr flavour_name _flavours;
@@ -80,4 +80,5 @@ in builtins.listToAttrs (nixpkgs.lib.flatten (map (composition_name:
       { }
     else
       (nixpkgs.lib.mapAttrs' (name: flavour_: f_multiple_compositions flavour_)
-        multiple_compositions_flavours))
+        multiple_compositions_flavours)))
+// (import ./flavours2json.nix { pkgs = nixpkgs.legacyPackages.${system}; })

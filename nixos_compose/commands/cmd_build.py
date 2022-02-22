@@ -91,28 +91,20 @@ def cli(
 
     build_cmd = ""
 
-    description_flavours_file = op.abspath(op.join(ctx.envdir, "nix/flavours.json"))
+    # Do we are in flake context
+    if not op.exists(op.join(ctx.envdir, "flake.nix")):
+        ctx.elog("Not Found flake.nix file")
+        sys.exit(1)
 
-    if op.exists(description_flavours_file):
-        description_flavours = json.load(open(description_flavours_file, "r"))
-    else:
-        # TODO: Above a temporary fallback when nix/flavours.json is not present (typically when nix is accessed w/ flake). Some discussions is need to set better approach (typically use output of nix flake show --json)
-        description_flavours = json.loads(
-            '{"docker":{"description":"Docker-Compose based","image":{},"name":"docker"},"g5k-image":{"description":"Flavour for Grid 5000 platform","image":{"distribution":"all-in-one","type":"tarball"},"name":"g5k-image"},"g5k-ramdisk":{"description":"Flavour for Grid 5000 platform","image":{"distribution":"all-in-one","type":"ramdisk"},"name":"g5k-ramdisk"},"nixos-test":{"description":"Nixos Test from provided Nixpkgs","name":"nixos-test"},"nixos-test-driver":{"description":"Nixos Test Driver from provided Nixpkgs","name":"nixos-test-driver"},"nixos-test-ssh":{"description":"Nixos Test Driver from provided Nixpkgs but managed differently (forwared ssh ports)","name":"nixos-test-ssh"},"vm-ramdisk":{"description":"Plain vm ramdisk (all-in-memory), need lot of ram !","image":{"distribution":"all-in-one","type":"ramdisk"},"name":"vm-ramdisk"}}'
-        )
+    description_flavours = get_flavours()
 
-    flavours = [k for k in description_flavours.keys()]
+    flavours = list(description_flavours.keys())
 
     if list_flavours:
         ctx.log("Flavours List:")
         for k in flavours:
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
-
-    # Do we are in flake context
-    if not op.exists(op.join(ctx.envdir, "flake.nix")):
-        ctx.elog("Not Found flake.nix file")
-        sys.exit(1)
 
     # if not flavour and not flake:
     #     if ctx.platform:
@@ -152,9 +144,10 @@ def cli(
     if list_compositions_flavours:
         cmd = ["nix", "flake", "show", "--json"]
         raw_compositions_flavours = json.loads(subprocess.check_output(cmd).decode())
-        for compo_flavour in raw_compositions_flavours["packages"][
-            "x86_64-linux"
-        ].keys():
+        for compo_flavour in filter(lambda x: x not in ["flavoursJson", "showFlavours"],
+                                    raw_compositions_flavours["packages"][
+                                        "x86_64-linux"
+                                    ].keys()):
             print(compo_flavour)
         print(
             click.style("Default", fg="green")
@@ -240,3 +233,18 @@ def cli(
         ctx.log(f"   working directory:          {ctx.envdir}")
         ctx.log(f"   composition flavour prefix: {ctx.composition_flavour_prefix}")
         ctx.log(f"   build command:              {build_cmd}")
+
+
+def get_flavours():
+    """
+    Returns the json representation of the available flavours
+    """
+    flake_location = "."
+    output_json = "/tmp/.flavours.json"
+    subprocess.call(
+        f"nix build {flake_location}#flavoursJson -o {output_json}",
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        shell=True,
+    )
+    return json.load(open(output_json, "r"))
