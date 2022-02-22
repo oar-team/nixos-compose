@@ -93,7 +93,7 @@ class G5kRamdiskFlavour(Flavour):
         time.sleep(10)
         wait_ssh_ports(self.ctx)
 
-    def ext_connect(self, user, node, execute):
+    def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)
 
 
@@ -139,5 +139,5 @@ class G5KImageFlavour(Flavour):
         else:
             print(f"You can kadeploy image with: {cmd_kadeploy}")
 
-    def ext_connect(self, user, node, execute):
+    def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)

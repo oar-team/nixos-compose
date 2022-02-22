@@ -404,7 +404,7 @@ def cli(
     #     ctx.log(f"Launch httpd: port: {httpd.port}")
     #     httpd.start()
 
-    test_script = read_test_script(ctx.compose_info)
+    test_script = read_test_script(ctx, ctx.compose_info)
 
     if forward_ssh_port:
         # ctx.mode = DRIVER_MODES["vm-ssh"]

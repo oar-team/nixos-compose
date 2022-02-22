@@ -76,14 +76,14 @@ def read_deployment_info_str(ctx, deployment_file=None):
     return deployment_info_str
 
 
-def read_test_script(compose_info_or_str):
+def read_test_script(ctx, compose_info_or_str):
     if isinstance(compose_info_or_str, str):
         filename = compose_info_or_str
     elif "test_script" in compose_info_or_str:
         filename = compose_info_or_str["test_script"]
     else:
         return None
-    with open(filename, "r") as f:
+    with open(realpath_from_store(ctx, filename), "r") as f:
         test_script = f.read()
         return test_script
 
