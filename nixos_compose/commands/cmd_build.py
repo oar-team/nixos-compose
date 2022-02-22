@@ -7,7 +7,7 @@ import json
 
 from ..context import pass_context, on_started, on_finished
 
-# FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
+#FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
 # FLAVOURS = os.listdir(FLAVOURS_PATH)
 
 
@@ -239,12 +239,16 @@ def get_flavours():
     """
     Returns the json representation of the available flavours
     """
+    FLAVOURS_JSON = op.abspath(op.join(op.dirname(__file__), "../../nix", "flavours.json"))
+    #import pdb; pdb.set_trace()
     flake_location = "."
     output_json = "/tmp/.flavours.json"
-    subprocess.call(
+    retcode = subprocess.call(
         f"nix build {flake_location}#flavoursJson -o {output_json}",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         shell=True,
     )
+    if retcode:
+        output_json = FLAVOURS_JSON
     return json.load(open(output_json, "r"))
