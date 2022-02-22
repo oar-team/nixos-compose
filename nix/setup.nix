@@ -1,5 +1,15 @@
 file:
 { nur ? null }:
+#
+# In flake.nix:
+#   setup = nxc.lib.setup ./setup.toml { inherit nur; };
+#   ...
+#   { nixpkgs.overlays = [ nur.overlay ] ++ setup.overrides; }
+#
+# In setup.toml:
+#   [overrides.nur.kapack]
+#   oar = { src = "/home/auguste/dev/oar3" }
+#
 let
   setup = builtins.fromTOML (builtins.readFile file);
 
