@@ -57,6 +57,7 @@ class Context(object):
         self.httpd = None
         self.forward_ssh_port = False
         self.alternative_stores = [f"{os.environ['HOME']}/.nix"]
+        self.roles_quantities = {}
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:

@@ -7,6 +7,8 @@ import os.path as op
 import subprocess
 import sys
 
+import json
+
 import glob
 
 import pyinotify
@@ -111,6 +113,7 @@ class EventHandler(pyinotify.ProcessEvent):
     is_flag=True,
     help="wait any signal to exit after a start only action (not testscript execution or interactive use)",
 )
+@click.argument("roles_quantities_file", required=False, default=None, type=click.Path(exists=True))
 # @click.option(
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
@@ -133,6 +136,7 @@ def cli(
     test_script,
     file_test_script,
     sigwait,
+    roles_quantities_file
     # dry_run,
 ):
     """Start Nixos Composition."""
@@ -362,6 +366,10 @@ def cli(
     if machines:
         translate_hosts2ip(ctx, machines)
         print(ctx.ip_addresses, ctx.host2ip_address)
+
+    if roles_quantities_file:
+        with open(roles_quantities_file, "r") as roles_f:
+            ctx.roles_quantities = json.load(roles_f)
 
     ctx.flavour.generate_deployment_info()
 
