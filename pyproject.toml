@@ -24,6 +24,7 @@ psutil = "^5.9.0"
 PyYAML = "^6.0"
 execo = "^2.6.8"
 requests = "^2.27.1"
+tomlkit = "^0.10.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

@@ -11,8 +11,14 @@ file:
 #   oar = { src = "/home/auguste/dev/oar3" }
 #
 let
-  setup = builtins.fromTOML (builtins.readFile file);
+  setupRaw = builtins.fromTOML (builtins.readFile file);
 
+  setupSel = if (builtins.hasAttr "project" setupRaw) && (builtins.hasAttr "selected" setupRaw.project) then
+    assert builtins.hasAttr setupRaw.project.selected setupRaw;
+    setupRaw // setupRaw.${setupRaw.project.selected} 
+  else
+    setupRaw;           
+               
   helpers = import ./helpers.nix;
 
   adaptAttr = attrName: value: {
@@ -21,9 +27,9 @@ let
     else
       value);
   };
-in {
-  overrides = if builtins.hasAttr "overrides" setup then
-    if (builtins.hasAttr "nur" setup.overrides) && (nur != null) then
+
+  overrides = if builtins.hasAttr "overrides" setupSel then
+    if (builtins.hasAttr "nur" setupSel.overrides) && (nur != null) then
       [
         (self: super:
           let
@@ -31,13 +37,13 @@ in {
               builtins.mapAttrs (name: value:
                 super.nur.repos.${repo}.${name}.overrideAttrs
                 (old: helpers.mapAttrsToAttrs adaptAttr value))
-              setup.overrides.nur.${repo};
+              setupSel.overrides.nur.${repo};
           in helpers.mapAttrNamesToAttrs (repo: {
             nur.repos.${repo} = super.nur.repos.${repo} // (overrides repo);
-          }) setup.overrides.nur)
+          }) setupSel.overrides.nur)
       ]
     else
       [ ]
   else
     [ ];
-}
+in setupSel // {overrides = overrides;} 
