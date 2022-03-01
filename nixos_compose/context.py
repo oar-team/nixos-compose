@@ -151,7 +151,6 @@ class Context(object):
     def set_roles_quantities(self, roles_quantities):
         self.roles_quantities = roles_quantities
 
-
 def make_pass_decorator(ensure=False):
     def decorator(f):
         @click.pass_context
