@@ -62,6 +62,12 @@ def generate_deployment_info_docker(ctx):
     if not ctx.compose_info:
         read_compose_info(ctx)
 
+    deploy_dir = op.join(ctx.envdir, "deploy")
+    if not op.exists(deploy_dir):
+        create = click.style("   create", fg="green")
+        ctx.log("   " + create + "  " + deploy_dir)
+        os.mkdir(deploy_dir)
+
     docker_compose_path = generate_docker_compose_file(ctx)
     deployment = {
         "nodes": ctx.compose_info["nodes"],
@@ -73,12 +79,6 @@ def generate_deployment_info_docker(ctx):
         deployment["all"] = ctx.compose_info["all"]
 
     json_deployment = json.dumps(deployment, indent=2)
-
-    deploy_dir = op.join(ctx.envdir, "deploy")
-    if not op.exists(deploy_dir):
-        create = click.style("   create", fg="green")
-        ctx.log("   " + create + "  " + deploy_dir)
-        os.mkdir(deploy_dir)
 
     with open(
         op.join(deploy_dir, f"{ctx.composition_flavour_prefix}.json"), "w"
