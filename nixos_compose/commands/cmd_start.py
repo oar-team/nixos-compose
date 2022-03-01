@@ -368,8 +368,7 @@ def cli(
         print(ctx.ip_addresses, ctx.host2ip_address)
 
     if roles_quantities_file:
-        with open(roles_quantities_file, "r") as roles_f:
-            ctx.roles_quantities = json.load(roles_f)
+        ctx.load_role_quantities_file(roles_quantities_file)
 
     ctx.flavour.generate_deployment_info()
 
