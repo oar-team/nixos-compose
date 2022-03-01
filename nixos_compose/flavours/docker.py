@@ -3,6 +3,7 @@ import os.path as op
 import json
 import subprocess
 import click
+import copy
 
 from ..flavour import Flavour
 from ..actions import read_compose_info
@@ -11,15 +12,61 @@ from ..driver.machine import Machine
 
 from typing import List, Tuple, Optional
 
+def generate_docker_compose_file(ctx):
+    base_docker_compose = ctx.compose_info["docker-compose-file"]
+    docker_compose_content = {"services": {}}
+    with open(base_docker_compose) as dc_file:
+        dc_json = json.load(dc_file)
+        if ctx.roles_quantities == {}:
+            roles_quantities = {role: 1 for role in ctx.compose_info["nodes"]}
+        else:
+            roles_quantities = dict(filter(lambda x: x[0] in ctx.compose_info["nodes"], ctx.roles_quantities.items()))
+        for role, quantities in roles_quantities.items():
+            if type(quantities) is int:
+                if quantities == 1:
+                    hostname = f"{role}"
+                    config = copy.copy(dc_json["services"][role])
+                    config["hostname"] = hostname
+                    docker_compose_content["services"][hostname] = config
+                else:
+                    for i in range(1, quantities + 1):
+                        hostname = f"{role}{i}"
+                        config = copy.copy(dc_json["services"][role])
+                        config["hostname"] = hostname
+                        docker_compose_content["services"][hostname] = config
+            elif type(quantities) is list:
+                for hostname in quantities:
+                    config = copy.copy(dc_json["services"][role])
+                    config["hostname"] = hostname
+                    docker_compose_content["services"][hostname] = config
+            else:
+                raise Exception("Unvalid type for specifying the roles of the nodes")
+        docker_compose_content["version"] = dc_json["version"]
+        docker_compose_content["x-nxc"] = dc_json["x-nxc"]
+
+    deploy_dir = op.join(ctx.envdir, "deploy", "docker_compose")
+    if not op.exists(deploy_dir):
+        create = click.style("   create", fg="green")
+        ctx.log("   " + create + "  " + deploy_dir)
+        os.mkdir(deploy_dir)
+    docker_compose_path = op.join(deploy_dir, "docker-compose.json")
+
+    with open(
+        docker_compose_path, "w"
+    ) as outfile:
+        outfile.write(json.dumps(docker_compose_content))
+    return docker_compose_path
+
 
 def generate_deployment_info_docker(ctx):
     if not ctx.compose_info:
         read_compose_info(ctx)
 
+    docker_compose_path = generate_docker_compose_file(ctx)
     deployment = {
         "nodes": ctx.compose_info["nodes"],
         "deployment": {n: {"role": n} for n in ctx.compose_info["nodes"]},
-        "docker-compose-file": ctx.compose_info["docker-compose-file"],
+        "docker-compose-file": docker_compose_path
     }
 
     if "all" in ctx.compose_info:
@@ -39,7 +86,7 @@ def generate_deployment_info_docker(ctx):
         outfile.write(json_deployment)
 
     ctx.deployment_info = deployment
-    return
+    return docker_compose_path
 
 
 class DockerFlavour(Flavour):
@@ -57,8 +104,7 @@ class DockerFlavour(Flavour):
         self.docker_processes = {}
 
     def generate_deployment_info(self):
-        generate_deployment_info_docker(self.ctx)
-        self.docker_compose_file = self.ctx.compose_info["docker-compose-file"]
+        self.docker_compose_file = generate_deployment_info_docker(self.ctx)
 
     def driver_initialize(self, tmp_dir):
         nodes_names = self.ctx.compose_info["nodes"]

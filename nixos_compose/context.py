@@ -3,6 +3,7 @@ import sys
 import time
 
 import json
+import yaml
 
 from io import open
 from functools import update_wrapper
@@ -57,6 +58,7 @@ class Context(object):
         self.httpd = None
         self.forward_ssh_port = False
         self.alternative_stores = [f"{os.environ['HOME']}/.nix"]
+        self.roles_quantities = {}
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
@@ -128,6 +130,26 @@ class Context(object):
         self.nxc = json.load(f)
         if "platform" in self.nxc and self.nxc["platform"] == "Grid5000":
             self.platform = Grid5000Platform(self)
+
+    def load_role_quantities_file(self, filename):
+        # (basename, extension)
+        filename_tuple = os.path.splitext(filename)
+        extension = filename_tuple[1]
+        if extension in [".yaml", ".yml"]:
+            self._load_role_quantities_file_yaml(filename)
+        else:
+            self._load_role_quantities_file_json(filename)
+
+    def _load_role_quantities_file_json(self, filename):
+        with open(filename, "r") as roles_f:
+            self.set_roles_quantities(json.load(roles_f))
+
+    def _load_role_quantities_file_yaml(self, filename):
+        with open(filename, "r") as roles_f:
+            self.set_roles_quantities(yaml.safe_load(roles_f))
+
+    def set_roles_quantities(self, roles_quantities):
+        self.roles_quantities = roles_quantities
 
 
 def make_pass_decorator(ensure=False):
