@@ -1,20 +1,25 @@
 {
   description = "nixos-compose - simple mutiple compositions";
 
-  inputs = { nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable"; };
+  inputs = { 
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable"; 
+    nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
+  };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, nxc }:
     let
       system = "x86_64-linux";
-      compositions = import ./compositions.nix;
-      flavours = import ./nix/flavours.nix;
+      pkgs = nixpkgs.legacyPackages.${system};
     in {
-
-      packages.${system} = (import ./nix/compose.nix) {
-        inherit nixpkgs system compositions flavours;
+      packages.${system} = nxc.lib.compose {
+        inherit nixpkgs system;
+        compositions = ./compositions.nix;
       };
 
-      defaultPackage.x86_64-linux =
+      defaultPackage.${system} =
         self.packages.${system}."linux_5_4::nixos-test";
+
+      devShell.${system} =
+        pkgs.mkShell { buildInputs = [ nxc.defaultPackage.${system} ]; };
     };
 }
