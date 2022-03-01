@@ -190,7 +190,6 @@ def populate_deployment_ips(nodes_info, ips, roles_quantities):
             ip = ips[i]
             deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
             i = i + 1
-    print(deployment)
     return deployment
 
 def populate_deployment_forward_ssh_port(nodes):
