@@ -190,6 +190,7 @@ def populate_deployment_ips(nodes_info, ips, roles_quantities):
             ip = ips[i]
             deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
             i = i + 1
+    print(deployment)
     return deployment
 
 def populate_deployment_forward_ssh_port(nodes):
@@ -540,9 +541,11 @@ def ssh_connect(ctx, user, node, execute=True):
         read_deployment_info(ctx)
 
     role = node
+    host = node
     ssh_port = None
     for ip, v in ctx.deployment_info["deployment"].items():
-        if v["role"] == role:
+        # if v["role"] == role:
+        if v["host"] == role:
             host = ip
             if "ssh-port" in v:
                 ssh_port = v["ssh-port"]
@@ -569,7 +572,8 @@ NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
 
 def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if not nodes:
-        nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
+        # nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
+        nodes = [v["host"] for v in ctx.deployment_info["deployment"].values()]
 
     ssh_cmds = [ctx.flavour.ext_connect(user, node, execute=False) for node in nodes]
 
