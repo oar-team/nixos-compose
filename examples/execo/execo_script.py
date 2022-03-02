@@ -1,8 +1,10 @@
+from nixos_compose.nxc_execo import get_oar_job_nodes_nxc, build_nxc_execo
+
 from execo import Process, SshProcess, Remote
 from execo_g5k import oardel, oarsub, OarSubmission, get_oar_job_nodes
 from execo_engine import Engine, logger, ParamSweeper, sweep
 
-from nixos_compose.nxc_execo import get_oar_job_nodes_nxc, build_nxc_execo
+# from nixos_compose.nxc_execo import *
 import sys
 import os
 
