@@ -4,16 +4,16 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     NUR.url = "github:nix-community/NUR";
+    nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
     #inputs.alice.url = "path:/home/some_path/nur-alice";
   };
 
-  outputs = { self, nixpkgs, NUR }:
+  outputs = { self, nixpkgs, NUR, nxc }:
     let
       system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
 
-      flavours = import ./nix/flavours.nix;
-
-      nur = import ./nix/nur.nix {
+      nur = nxc.lib.nur {
         inherit nixpkgs system NUR;
         # for repo override if needed
         #repoOverrides = { inherit alice; };
@@ -27,10 +27,15 @@
       ];
 
     in {
-      packages.${system} =
-        (import ./nix/compose.nix) { inherit nixpkgs system flavours; };
+      packages.${system} = nxc.lib.compose {
+        inherit nixpkgs system extraConfigurations;
+        composition = ./composition.nix;
+      };
 
       defaultPackage.${system} =
         self.packages.${system}."composition::nixos-test";
+
+      devShell.${system} =
+        pkgs.mkShell { buildInputs = [ nxc.defaultPackage.${system} ]; };
     };
 }
