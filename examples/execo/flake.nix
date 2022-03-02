@@ -13,7 +13,7 @@
       nixos-compose = nxc.defaultPackage.${system};
       nxcEnv = nixos-compose.dependencyEnv;
 
-      execo_expe = pkgs.writeShellScript "execo_expe" ''
+      execo_expe = pkgs.writeScriptBin "execo_expe" ''
         ${nxcEnv}/bin/python3 ${./execo_script.py} $@
       '';
     in {
@@ -25,7 +25,7 @@
       apps.${system} = {
         expe = {
           type = "app";
-          program = "${execo_expe}";
+          program = "${execo_expe}/bin/execo_expe";
         };
       };
 
