@@ -22,12 +22,12 @@ from .kataract import generate_scp_tasks, exec_kataract_tasks
 
 def realpath_from_store(ctx, path):
     p = op.realpath(path)
-    if op.exists(p):
-        return p
     for store_path in ctx.alternative_stores:
         new_p = f"{store_path}{p[4:]}"
         if op.exists(new_p):
             return new_p
+    if op.exists(p):
+        return p
     ctx.elog(f"{path} does not exist in standard store or alternate")
     sys.exit(1)
 

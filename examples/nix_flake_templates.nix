@@ -11,6 +11,10 @@
     path = ./basic-flake-only;
     description = "Basic example with nix dir via flake";
   };
+  execo = {
+    path = ./execo;
+    description = "Template with execo";
+  };
   kernel = {
     path = ./kernel;
     description = "Example with different Linux Kernels";
