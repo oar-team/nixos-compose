@@ -10,6 +10,7 @@ import base64
 import click
 import signal
 import psutil
+import itertools
 from halo import Halo
 from .kataract import generate_scp_tasks, exec_kataract_tasks
 
@@ -161,18 +162,35 @@ def populate_deployment_vm_by_ip(nodes_info):
 
     return deployment, ips
 
+def health_check_roles_quantities(nodes_info, roles_quantities):
+    if len(roles_quantities) == 0:
+        # If no info we take one node per role
+        roles_quantities = {role: [role] for role in nodes_info.keys()}
+    else:
+        # Step 1: if the user only gave the number of nodes of the roles
+        for role in roles_quantities:
+            if type(roles_quantities[role]) == int:
+                nb_nodes = roles_quantities[role]
+                roles_quantities[role] = [f"{role}{i}" for i in range(1, nb_nodes + 1)]
 
-def populate_deployment_ips(nodes_info, ips):
+        # Step 2: check that we do not have any conflict on the hostnames
+
+        all_hostnames = list(itertools.chain.from_iterable(roles_quantities.values()))
+        set_hostnames = set(all_hostnames)
+        if len(all_hostnames) != len(set_hostnames):
+            raise Exception("Conflict in the naming of the node")
+    return roles_quantities
+
+def populate_deployment_ips(nodes_info, ips, roles_quantities):
+    roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities)
     i = 0
     deployment = {}
     for role, v in nodes_info.items():
-        ip = ips[i]
-        # deployment[ip] = {"role": role}
-        deployment[ip] = {"role": role, "init": v["init"]}
-        i = i + 1
-
+        for hostname in roles_quantities[role]:
+            ip = ips[i]
+            deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
+            i = i + 1
     return deployment
-
 
 def populate_deployment_forward_ssh_port(nodes):
     i = 0
@@ -211,7 +229,7 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
 
     if ctx.ip_addresses:
         deployment = populate_deployment_ips(
-            ctx.compose_info["nodes"], ctx.ip_addresses
+            ctx.compose_info["nodes"], ctx.ip_addresses, ctx.roles_quantities
         )
     elif ctx.forward_ssh_port:
         deployment = populate_deployment_forward_ssh_port(ctx.compose_info["nodes"])
@@ -315,8 +333,10 @@ def generate_deploy_info_b64(ctx):
     }
 
     deployment = {
-        k: {"role": v["role"]} for k, v in ctx.deployment_info["deployment"].items()
+        k: {"role": v["role"], "host": v["host"] if "host" in v else v["role"]} for k, v in ctx.deployment_info["deployment"].items()
     }
+
+
     # TODO: function to add multiple hostnames with same role
     # deployment = { k: {"role": v["role"], "host": "yopXXX"} for k,v in ctx.deployment_info["deployment"].items()}
 
@@ -520,9 +540,11 @@ def ssh_connect(ctx, user, node, execute=True):
         read_deployment_info(ctx)
 
     role = node
+    host = node
     ssh_port = None
     for ip, v in ctx.deployment_info["deployment"].items():
-        if v["role"] == role:
+        # if v["role"] == role:
+        if v["host"] == role:
             host = ip
             if "ssh-port" in v:
                 ssh_port = v["ssh-port"]
@@ -549,7 +571,8 @@ NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
 
 def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if not nodes:
-        nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
+        # nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
+        nodes = [v["host"] for v in ctx.deployment_info["deployment"].values()]
 
     ssh_cmds = [ctx.flavour.ext_connect(user, node, execute=False) for node in nodes]
 
