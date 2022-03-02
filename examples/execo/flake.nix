@@ -27,7 +27,6 @@
           type = "app";
           program = "${execo_expe}";
         };
-
       };
 
       defaultPackage.${system} =

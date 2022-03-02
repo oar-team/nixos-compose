@@ -4,7 +4,6 @@ from execo import Process, SshProcess, Remote
 from execo_g5k import oardel, oarsub, OarSubmission, get_oar_job_nodes
 from execo_engine import Engine, logger, ParamSweeper, sweep
 
-# from nixos_compose.nxc_execo import *
 import sys
 import os
 
@@ -26,12 +25,12 @@ class MyEngine(Engine):
 
         nxc_build_file = None
         if self.args.build:
-            (nxc_build_file, _time, _size) = build_nxc_execo(self.args.nxc_folder, site, cluster, walltime=3600/4, extra_job_type=["night"])
+            (nxc_build_file, _time, _size) = build_nxc_execo(self.args.nxc_folder, site, cluster, walltime=3600/4, extra_job_type=["day"])
         elif self.args.nxc_build_file is not None:
             nxc_build_file = self.args.nxc_build_file
         else:
             raise Exception("No compose info file ...")
-	
+
         print(nxc_build_file)
         oar_job = reserve_nodes(nb_nodes, site, cluster, walltime=3600/4)
         self.oar_job_id, site = oar_job[0]
@@ -51,7 +50,7 @@ class MyEngine(Engine):
             print(process.stdout)
 
 def reserve_nodes(nb_nodes, site, cluster, walltime=3600):
-    jobs = oarsub([(OarSubmission("{{cluster='{}'}}/nodes={}".format(cluster, nb_nodes), walltime, job_type=["night"]), site)])
+    jobs = oarsub([(OarSubmission("{{cluster='{}'}}/nodes={}".format(cluster, nb_nodes), walltime, job_type=["day"]), site)])
     return jobs
 
 if __name__ == "__main__":
@@ -60,4 +59,5 @@ if __name__ == "__main__":
         ENGINE.start()
     except Exception as ex:
         print(ex)
+        oardel([(ENGINE.oar_job_id, None)])
     print("Giving back the resources")
