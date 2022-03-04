@@ -106,6 +106,7 @@ def get_oar_job_nodes_nxc(oar_job_id,
                           site,
                           compose_info_file=None,
                           flavour_name="g5k-ramdisk",
+                          composition_name="composition",
                           roles_quantities={}):
     """
     Brother of the "get_oar_job_nodes" function from execo
@@ -113,7 +114,7 @@ def get_oar_job_nodes_nxc(oar_job_id,
     """
     ctx = Context()
     # TODO: kaberk
-    ctx.composition_name = "composition"
+    ctx.composition_name = composition_name
     ctx.flavour_name = flavour_name
     ctx.set_roles_quantities(roles_quantities)
 
