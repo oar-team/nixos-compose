@@ -65,7 +65,7 @@ def build_nxc_execo(nxc_path, site, cluster, walltime=3600, flavour="g5k-ramdisk
     git_nix_chroot_remote.run()
     # Step 2: execute nxc build --------------------------------------------------------------------
     result_path = f"{op.realpath(nxc_path)}/execo_build"
-    nxc_build_command = f"/bin/bash /tmp/nix-user-chroot-companion/nix-user-chroot.sh {nxc_path} {composition_name}::{flavour} {result_path}"
+    nxc_build_command = f"/bin/bash /tmp/nix-user-chroot-companion/nix-user-chroot.sh {nxc_path} {composition_name} {flavour} {result_path}"
     nxc_build_remote = SshProcess(nxc_build_command, build_node, shell=True)
     start_build_time = time.time()
     nxc_build_remote.run()
