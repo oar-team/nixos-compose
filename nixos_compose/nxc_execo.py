@@ -48,7 +48,7 @@ def print_total_size(store_path: str, build_node, location_nix_store) -> int:
 
     return total_size
 
-def build_nxc_execo(nxc_path, site, cluster, walltime=3600, flavour="g5k-ramdisk", extra_job_type=[]):
+def build_nxc_execo(nxc_path, site, cluster, walltime=3600, flavour="g5k-ramdisk", composition_name="composition", extra_job_type=[]):
     """
     Reserves the g5k nodes and build the composition
     returns the path to the compose_info_file
@@ -65,7 +65,7 @@ def build_nxc_execo(nxc_path, site, cluster, walltime=3600, flavour="g5k-ramdisk
     git_nix_chroot_remote.run()
     # Step 2: execute nxc build --------------------------------------------------------------------
     result_path = f"{op.realpath(nxc_path)}/execo_build"
-    nxc_build_command = f"/bin/bash /tmp/nix-user-chroot-companion/nix-user-chroot.sh {nxc_path} {flavour} {result_path}"
+    nxc_build_command = f"/bin/bash /tmp/nix-user-chroot-companion/nix-user-chroot.sh {nxc_path} {composition_name}::{flavour} {result_path}"
     nxc_build_remote = SshProcess(nxc_build_command, build_node, shell=True)
     start_build_time = time.time()
     nxc_build_remote.run()
