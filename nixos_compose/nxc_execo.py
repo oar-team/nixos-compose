@@ -68,7 +68,8 @@ def build_nxc_execo(nxc_path,
                     flavour="g5k-ramdisk",
                     composition_name="composition",
                     extra_job_type=[],
-                    nix_chroot_script=None):
+                    nix_chroot_script=None,
+                    clean_store=False):
     """
     Reserves the g5k nodes and build the composition
     returns the path to the compose_info_file
@@ -87,6 +88,9 @@ def build_nxc_execo(nxc_path,
         nix_chroot_script = "/tmp/nix-user-chroot-companion/nix-user-chroot.sh"
 
     nix_chroot_script = realpath_from_store(Context(), nix_chroot_script)
+
+    if clean_store:
+        clean_store(build_node, nix_chroot_script)
 
     # Step 2: execute nxc build --------------------------------------------------------------------
     result_path = f"{op.realpath(nxc_path)}/execo_build"
