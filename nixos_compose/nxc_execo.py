@@ -48,6 +48,19 @@ def print_total_size(store_path: str, build_node, location_nix_store, nix_chroot
 
     return total_size
 
+def clean_store(build_node, nix_chroot_script):
+    # 1) get and remove all the `execo builds`
+    path_gcroots = f"{os.environ['HOME']}/.nix/var/nix/gcroots/auto"
+    for link in os.listdir(path_gcroots):
+        full_link = op.join(path_gcroots, link)
+        actual_result = os.readlink(full_link)
+        if op.basename(actual_result) == "execo_build":
+            os.remove(actual_result)
+
+    # 2) running nix garbage collect
+    clean_store_remote = SshProcess(f"/bin/bash {nix_chroot_script} clean", build_node)
+    clean_store_remote.run()
+
 def build_nxc_execo(nxc_path,
                     site,
                     cluster,
