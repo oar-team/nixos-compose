@@ -30,12 +30,11 @@ class Context(object):
         self.t0 = time.time()
         self.nxc_file = None
         self.nxc = None
-        self.current_dir = os.getcwd()
+        self.current_dir = os.getcwd() #TOREMOVE ?
         self.verbose = False
-        self.workdir = self.current_dir
+        self.workdir = self.current_dir #TOREMOVE ?
         self.debug = False
         self.prefix = "nxc"
-
         self.flavour = None
         self.composition_name = None
         self.composition_flavour_prefix = None  # REMOVE _prefix ???
@@ -59,7 +58,9 @@ class Context(object):
         self.forward_ssh_port = False
         self.alternative_stores = [f"{os.environ['HOME']}/.nix"]
         self.roles_quantities = {}
+        self.setup = None
 
+        
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
             fd.write(env_name + "\n")
