@@ -26,12 +26,12 @@ def get_size(start_path: str):
     return total_size
 
 # Stolen from Adrien Faure: github.com:adfaure/vinix.git
-def print_total_size(store_path: str, build_node, location_nix_store) -> int:
+def print_total_size(store_path: str, build_node, location_nix_store, nix_chroot_script="/tmp/nix-user-chroot-companion/nix-user-chroot.sh") -> int:
     """
     Get the store reference of the store provided store path
     """
     dump_path = "/tmp/nix_store.dump"
-    nix_store_cmd = f"/bin/bash /tmp/nix-user-chroot-companion/nix-user-chroot.sh store {store_path} {dump_path}"
+    nix_store_cmd = f"/bin/bash {nix_chroot_script} store {store_path} {dump_path}"
     nix_store_remote = SshProcess(nix_store_cmd, build_node, shell=True)
     nix_store_remote.run()
 
