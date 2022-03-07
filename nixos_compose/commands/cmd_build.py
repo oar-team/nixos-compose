@@ -6,15 +6,20 @@ import click
 import json
 
 from ..context import pass_context, on_started, on_finished
-from ..setup import apply_setup
 
-#FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
+# FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
 # FLAVOURS = os.listdir(FLAVOURS_PATH)
 
 
 @click.command("build")
 @click.argument(
     "composition_file", required=False, type=click.Path(exists=True, resolve_path=True)
+)
+@click.option(
+    "--nix-path",
+    "-I",
+    multiple=True,
+    help="add a path to the list of locations used to look up <...> file names",
 )
 @click.option(
     "--nix-flags",
@@ -61,18 +66,13 @@ from ..setup import apply_setup
     is_flag=True,
     help="List available combinaisons of compositions and flavours",
 )
-@click.option(
-    "-v",
-    "--setup",
-    type=click.STRING,
-    help="Select setup variant",
-)
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
     ctx,
     composition_file,
+    nix_path,
     nix_flags,
     out_link,
     nixpkgs,
@@ -83,16 +83,12 @@ def cli(
     dry_build,
     composition_flavour,
     list_compositions_flavours,
-    setup,    
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
 
-    
-    nix_flags, composition_file = apply_setup(ctx, setup, nix_flags, composition_file)  
-    
     build_cmd = ""
 
     # Do we are in flake context
@@ -243,16 +239,12 @@ def get_flavours():
     """
     Returns the json representation of the available flavours
     """
-    FLAVOURS_JSON = op.abspath(op.join(op.dirname(__file__), "../../nix", "flavours.json"))
-    #import pdb; pdb.set_trace()
     flake_location = "."
     output_json = "/tmp/.flavours.json"
-    retcode = subprocess.call(
+    subprocess.call(
         f"nix build {flake_location}#flavoursJson -o {output_json}",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         shell=True,
     )
-    if retcode:
-        output_json = FLAVOURS_JSON
     return json.load(open(output_json, "r"))
