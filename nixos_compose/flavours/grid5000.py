@@ -58,9 +58,14 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
     )
     os.makedirs(base_path, mode=0o700, exist_ok=True)
     kaenv_path = op.join(base_path, "nixos.yaml")
+
     if not deploy:
-        generate_deploy_info_b64(ctx)
-        deploy = ctx.deployment_info_b64
+        if ctx.use_httpd:
+            base_url = f"http://{ctx.httpd.ip}:{ctx.httpd.port}"
+            deploy = f"{base_url}/deploy/{ctx.composition_flavour_prefix}.json"
+        else:
+            generate_deploy_info_b64(ctx)
+            deploy = ctx.deployment_info_b64
 
     user = os.environ["USER"]
     system = ctx.compositions_info["system"]
