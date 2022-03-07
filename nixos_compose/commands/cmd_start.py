@@ -71,7 +71,7 @@ class EventHandler(pyinotify.ProcessEvent):
     type=click.Path(resolve_path=True),
     help="file that contains remote machines names to (duplicates are considered as one).",
 )
-@click.option("-w", "--wait", is_flag=True, help="wait machnes-files creation")
+@click.option("-W", "--wait-machine-file", is_flag=True, help="wait machnes-file creation")
 @click.option(
     "-s", "--ssh", type=click.STRING, help="specify particular ssh command",
 )
@@ -124,7 +124,7 @@ def cli(
     ctx,
     interactive,
     machines_file,
-    wait,
+    wait_machine_file,
     ssh,
     sudo,
     push_path,
@@ -140,7 +140,6 @@ def cli(
     # dry_run,
 ):
     """Start Nixos Composition."""
-
     flavour_name = flavour
     if test_script:
         execute_test_script = True
@@ -174,13 +173,13 @@ def cli(
 
     # Handle cases where machines list must be provided
     machines = []
-    if machines_file and not op.isfile(machines_file):
+    if machines_file and not op.isfile(machines_file) and not wait_machine_file:
         raise click.ClickException(f"{machines_file} file does not exist")
 
     if push_path and not machines_file:
         raise click.ClickException("machines_file must be provide to use push_path")
 
-    if wait:
+    if wait_machine_file:
         if not machines_file:
             raise click.ClickException(
                 "You need to provide --machines-file option with --wait"
