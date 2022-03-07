@@ -49,7 +49,12 @@ class HTTPDaemon:
         HTTPDaemon.ctx = ctx
         self.httpd = socketserver.ThreadingTCPServer(("", port), HTTPRequestHandler)
         self.port = self.httpd.server_address[1]
-        self.ip = socket.gethostbyname(socket.gethostname())
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # doesn't have to be reachable
+        s.connect(('10.255.255.255', 1))
+        self.ip = s.getsockname()[0]
+
         self.httpd_thread = threading.Thread(
             target=self.httpd.serve_forever, daemon=True
         )
