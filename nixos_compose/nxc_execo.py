@@ -73,6 +73,8 @@ def build_nxc_execo(nxc_path,
         git_nix_chroot_remote.run()
         nix_chroot_script = "/tmp/nix-user-chroot-companion/nix-user-chroot.sh"
 
+    nix_chroot_script = op.realpath(nix_chroot_script)
+
     # Step 2: execute nxc build --------------------------------------------------------------------
     result_path = f"{op.realpath(nxc_path)}/execo_build"
     nxc_build_command = f"/bin/bash {nix_chroot_script} {nxc_path} {composition_name} {flavour} {result_path}"
