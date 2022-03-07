@@ -1,6 +1,7 @@
 # { nixpkgs, system, compositions, flavours, extraConfigurations ? [ ] }:
 { nixpkgs, system ? builtins.currentSystem, flavour ? null, composition ? null
-, compositions ? null, flavours ? null, extraConfigurations ? [ ] }:
+, single_composition_name ? "composition", compositions ? null, flavours ? null
+, extraConfigurations ? [ ] }:
 
 let
   builtin_flavours = import ./flavours.nix;
@@ -20,7 +21,7 @@ let
       else
         compositions
     else {
-      "composition" = _composition;
+      "${single_composition_name}" = _composition;
     };
 
   _flavours = if builtins.typeOf flavours == "path" then
