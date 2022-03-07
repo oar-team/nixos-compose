@@ -90,7 +90,7 @@ def build_nxc_execo(nxc_path,
 
     execo_engine.log.logger.info("Now checking the size of the output")
     # total_output_size = print_total_size(compose_info_path, build_node, location_nix_store)
-    total_output_size = print_total_size(sym_link_path, build_node, location_nix_store)
+    total_output_size = print_total_size(sym_link_path, build_node, location_nix_store, nix_chroot_script=nix_chroot_script)
     execo_engine.log.logger.info(f"The total size of the output is {total_output_size} bytes")
 
     execo_engine.log.logger.info("Now giving back the build node")
