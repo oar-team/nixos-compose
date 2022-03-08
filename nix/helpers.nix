@@ -24,7 +24,7 @@ rec {
   in input-pkgs.lib.callPackageWith
   input-pkgs.outputs.legacyPackages.${builtins.currentSystem};
 
-  # mapListToAttrs (o: {${o}=o+"-2";}) [ "a" "b"] 
+  # mapListToAttrs (o: {${o}=o+"-2";}) [ "a" "b"]
   # { a = "a-2"; b = "b-2"; }
   mapListToAttrs = op: list:
     let

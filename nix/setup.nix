@@ -15,10 +15,10 @@ let
 
   setupSel = if (builtins.hasAttr "project" setupRaw) && (builtins.hasAttr "selected" setupRaw.project) then
     assert builtins.hasAttr setupRaw.project.selected setupRaw;
-    setupRaw // setupRaw.${setupRaw.project.selected} 
+    setupRaw // setupRaw.${setupRaw.project.selected}
   else
-    setupRaw;           
-               
+    setupRaw;
+
   helpers = import ./helpers.nix;
 
   adaptAttr = attrName: value: {
@@ -46,4 +46,4 @@ let
       [ ]
   else
     [ ];
-in setupSel // {overrides = overrides;} 
+in setupSel // {overrides = overrides;}
