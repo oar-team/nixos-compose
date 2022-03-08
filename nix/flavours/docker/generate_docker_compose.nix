@@ -64,6 +64,7 @@ let
         "/sys/fs/cgroup:/sys/fs/cgroup:rw" # UGLY need with systemd > 247 and docker 20.10 and systemd.unifiedCgroupHierarchy=0 (use cgroup v1)
         "/nix/store:/nix/store:ro"
         "${baseEnv}:/run/system:ro"
+        "/tmp/shared:/tmp/shared:rw"
       ] ++ extraVolumes;
       ports = if dockerPorts ? "${nodeName}" then dockerPorts."${nodeName}" else [ ];
     }) nodes;
