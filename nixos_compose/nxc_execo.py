@@ -48,38 +48,33 @@ def print_total_size(store_path: str, build_node, location_nix_store, nix_chroot
 
     return total_size
 
-def clean_store(build_node, nix_chroot_script):
+def clean_nix_store(build_node, nix_chroot_script):
     # 1) get and remove all the `execo builds`
     path_gcroots = f"{os.environ['HOME']}/.nix/var/nix/gcroots/auto"
-    for link in os.listdir(path_gcroots):
-        full_link = op.join(path_gcroots, link)
-        actual_result = os.readlink(full_link)
-        if op.basename(actual_result) == "execo_build":
-            os.remove(actual_result)
+    print(f"gcroots: {path_gcroots}")
+    # for link in os.listdir(path_gcroots):
+    #     full_link = op.join(path_gcroots, link)
+    #     actual_result = os.readlink(full_link)
+    #     print(f"Found: {actual_result}")
+    #     # if op.basename(actual_result) == "execo_build" and op.exists(actual_result):
+    #     if op.exists(actual_result):
+    #         print(f"Removing: {actual_result}")
+    #         os.remove(actual_result)
+
 
     # 2) running nix garbage collect
     clean_store_remote = SshProcess(f"/bin/bash {nix_chroot_script} clean", build_node)
     clean_store_remote.run()
+    print(clean_store_remote.stdout)
 
-def build_nxc_execo(nxc_path,
-                    site,
-                    cluster,
-                    walltime=3600,
-                    flavour="g5k-ramdisk",
-                    composition_name="composition",
-                    extra_job_type=[],
-                    nix_chroot_script=None,
-                    clean_store=False):
-    """
-    Reserves the g5k nodes and build the composition
-    returns the path to the compose_info_file
-    """
+def get_build_node(site, cluster, extra_job_type, walltime=3600):
     oar_job = oarsub([(OarSubmission(f"{{cluster='{cluster}'}}/nodes=1", walltime, job_type=["allow_classic_ssh"] + extra_job_type), site)])
     job_id, site = oar_job[0]
     wait_oar_job_start(job_id, site)
     build_node = get_oar_job_nodes(job_id, site)[0] # there is only one node
-    execo_engine.log.logger.info(f"Building on node {build_node.address}")
+    return (job_id, build_node)
 
+def build_derivation(build_node, nxc_path, flavour, composition_name, nix_chroot_script, clean_store):
     if nix_chroot_script is None:
         # Step 1: git clone the nix-user-chroot-companion ----------------------------------------------
         git_nix_chroot_command = "cd /tmp; /usr/bin/git clone git@github.com:GuilloteauQ/nix-user-chroot-companion.git"
@@ -89,11 +84,19 @@ def build_nxc_execo(nxc_path,
 
     nix_chroot_script = realpath_from_store(Context(), nix_chroot_script)
 
-    if clean_store:
-        clean_store(build_node, nix_chroot_script)
-
     # Step 2: execute nxc build --------------------------------------------------------------------
     result_path = f"{op.realpath(nxc_path)}/execo_build"
+
+    if clean_store:
+        if op.exists(result_path):
+            clean_store_remote = SshProcess(f"/bin/bash {nix_chroot_script} delete {result_path}", build_node)
+            clean_store_remote.run()
+        
+        execo_engine.log.logger.info("Starting Garbage Collecting")
+        clean_nix_store(build_node, nix_chroot_script)
+        execo_engine.log.logger.info("Done Garbage Collecting")
+
+    execo_engine.log.logger.info("Starting Building")
     nxc_build_command = f"/bin/bash {nix_chroot_script} {nxc_path} {composition_name} {flavour} {result_path}"
     nxc_build_remote = SshProcess(nxc_build_command, build_node, shell=True)
     start_build_time = time.time()
@@ -111,12 +114,32 @@ def build_nxc_execo(nxc_path,
     # total_output_size = print_total_size(compose_info_path, build_node, location_nix_store)
     total_output_size = print_total_size(sym_link_path, build_node, location_nix_store, nix_chroot_script=nix_chroot_script)
     execo_engine.log.logger.info(f"The total size of the output is {total_output_size} bytes")
+    return (compose_info_path, end_build_time - start_build_time, total_output_size)
+
+
+def build_nxc_execo(nxc_path,
+                    site,
+                    cluster,
+                    walltime=3600,
+                    flavour="g5k-ramdisk",
+                    composition_name="composition",
+                    extra_job_type=[],
+                    nix_chroot_script=None,
+                    clean_store=False):
+    """
+    Reserves the g5k nodes and build the composition
+    returns the path to the compose_info_file
+    """
+    (job_id, build_node) = get_build_node(site, cluster, extra_job_type, walltime)
+    execo_engine.log.logger.info(f"Building on node {build_node.address}")
+
+    infos_build = build_derivation(build_node, nxc_path, flavour, composition_name, nix_chroot_script, clean_store)
 
     execo_engine.log.logger.info("Now giving back the build node")
     oardel([(job_id, site)])
 
     execo_engine.log.logger.info(f"The compose info file is stored at {compose_info_path}")
-    return (compose_info_path, end_build_time - start_build_time, total_output_size)
+    return infos_build
 
 def get_envdir(ctx):
     if os.path.isfile("nxc.json"):
