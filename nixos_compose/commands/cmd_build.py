@@ -8,7 +8,7 @@ import json
 from ..context import pass_context, on_started, on_finished
 from ..setup import apply_setup
 
-#FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
+# FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
 # FLAVOURS = os.listdir(FLAVOURS_PATH)
 
 
@@ -62,10 +62,7 @@ from ..setup import apply_setup
     help="List available combinaisons of compositions and flavours",
 )
 @click.option(
-    "-v",
-    "--setup",
-    type=click.STRING,
-    help="Select setup variant",
+    "-v", "--setup", type=click.STRING, help="Select setup variant",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -83,16 +80,17 @@ def cli(
     dry_build,
     composition_flavour,
     list_compositions_flavours,
-    setup,    
+    setup,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
 
-    
-    nix_flags, composition_file = apply_setup(ctx, setup, nix_flags, composition_file)  
-    
+    nix_flags, composition_file, composition_flavour, flavour = apply_setup(
+        ctx, setup, nix_flags, composition_file, composition_flavour, flavour
+    )
+
     build_cmd = ""
 
     # Do we are in flake context
@@ -148,10 +146,10 @@ def cli(
     if list_compositions_flavours:
         cmd = ["nix", "flake", "show", "--json"]
         raw_compositions_flavours = json.loads(subprocess.check_output(cmd).decode())
-        for compo_flavour in filter(lambda x: x not in ["flavoursJson", "showFlavours"],
-                                    raw_compositions_flavours["packages"][
-                                        "x86_64-linux"
-                                    ].keys()):
+        for compo_flavour in filter(
+            lambda x: x not in ["flavoursJson", "showFlavours"],
+            raw_compositions_flavours["packages"]["x86_64-linux"].keys(),
+        ):
             print(compo_flavour)
         print(
             click.style("Default", fg="green")
@@ -243,8 +241,10 @@ def get_flavours():
     """
     Returns the json representation of the available flavours
     """
-    FLAVOURS_JSON = op.abspath(op.join(op.dirname(__file__), "../../nix", "flavours.json"))
-    #import pdb; pdb.set_trace()
+    FLAVOURS_JSON = op.abspath(
+        op.join(op.dirname(__file__), "../../nix", "flavours.json")
+    )
+    # import pdb; pdb.set_trace()
     flake_location = "."
     output_json = "/tmp/.flavours.json"
     retcode = subprocess.call(
