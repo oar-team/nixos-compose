@@ -1,8 +1,9 @@
-{ nixpkgs, system, flavour ? "docker", extraConfigurations ? [ ], ... }:
+{ nixpkgs, system, flavour ? "docker", overlays ? [ ], extraConfigurations ? [ ]
+, ... }:
 composition:
 
 let
-  pkgs = (import nixpkgs) { inherit system; };
+  pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
   modulesPath = "${toString nixpkgs}/nixos";
   compositionSet = composition { inherit pkgs lib modulesPath; };
@@ -40,16 +41,14 @@ let
   dockerPorts =
     if compositionSet ? dockerPorts then compositionSet.dockerPorts else { };
 
-
   dockerComposeConfig.services = builtins.mapAttrs (nodeName: nodeConfig:
     let
-      nodeConfigWithoutVirutalisation = configNode: args@{ pkgs, ... }:
+      nodeConfigWithoutVirutalisation = configNode:
+        args@{ pkgs, ... }:
         builtins.removeAttrs (configNode args) [ "virtualisation" ];
       config = {
-        imports = [
-          ./systemd.nix
-          (nodeConfigWithoutVirutalisation nodeConfig)
-        ] ++ extraConfigurations;
+        imports = [ ./systemd.nix (nodeConfigWithoutVirutalisation nodeConfig) ]
+          ++ extraConfigurations;
       };
       builtConfig = pkgs.nixos config;
     in {
@@ -71,7 +70,8 @@ let
         "${baseEnv}:/run/system:ro"
         "/tmp/shared:/tmp/shared:rw"
       ] ++ extraVolumes;
-      ports = if dockerPorts ? "${nodeName}" then dockerPorts."${nodeName}" else [ ];
+      ports =
+        if dockerPorts ? "${nodeName}" then dockerPorts."${nodeName}" else [ ];
     }) nodes;
 
   dockerComposeConfigJSON = pkgs.writeTextFile {

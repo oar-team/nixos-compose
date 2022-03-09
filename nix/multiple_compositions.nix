@@ -1,6 +1,6 @@
-{ nixpkgs, system, compositions, flavour, extraConfigurations }:
+{ nixpkgs, system, compositions, flavour, overlays ? [ ], extraConfigurations }:
 let
-  pkgs = (import nixpkgs) { inherit system; };
+  pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
   modulesPath = "${toString nixpkgs}/nixos";
   flavours = import ./flavours.nix;

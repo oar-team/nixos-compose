@@ -1,7 +1,7 @@
 # { nixpkgs, system, compositions, flavours, extraConfigurations ? [ ] }:
 { nixpkgs, system ? builtins.currentSystem, flavour ? null, composition ? null
 , single_composition_name ? "composition", compositions ? null, flavours ? null
-, extraConfigurations ? [ ] }:
+, overlays ? [ ], extraConfigurations ? [ ] }:
 
 let
   builtin_flavours = import ./flavours.nix;
@@ -52,18 +52,27 @@ let
   nb_compositions = builtins.length compositions_names;
   flavours_names = builtins.attrNames _flavours;
 
+  # overlays must be injected via (extra)config and pkgs' overlays parametrer (see nixos-test.nix)
+  # Two pkgs exploitations in composition, same pkgs but used differently
+  # {pkgs, ... }: {
+  #    nodes = {
+  #       foo = {pkgs, ... }:
+  _extraConfigurations = extraConfigurations
+    ++ [{ nixpkgs.overlays = overlays; }];
+
   f = composition_name: flavour_name: composition: flavour: {
     name = (composition_name + "::" + flavour_name);
     value = ((import ./one_composition.nix) {
-      inherit nixpkgs system extraConfigurations flavour composition_name
-        composition;
+      inherit nixpkgs system overlays flavour composition_name composition;
+      extraConfigurations = _extraConfigurations;
     });
   };
 
   f_multiple_compositions = flavour: {
     name = "::${flavour.name}";
     value = ((import ./multiple_compositions.nix) {
-      inherit nixpkgs system extraConfigurations flavour compositions;
+      inherit nixpkgs system overlays flavour compositions;
+      extraConfigurations = _extraConfigurations;
     });
   };
 

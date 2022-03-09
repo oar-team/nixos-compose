@@ -1,5 +1,5 @@
 { nixpkgs, system, flavour, composition, composition_name ? "composition"
-, extraConfigurations }:
+, overlays, extraConfigurations }:
 let
 
   nixos_test = import ./nixos-test.nix;
@@ -8,18 +8,20 @@ let
     import ./flavours/docker/generate_docker_compose.nix;
 
 in if flavour.name == "nixos-test" then
-  nixos_test { inherit nixpkgs system extraConfigurations; } composition
+  nixos_test { inherit nixpkgs system overlays extraConfigurations; }
+  composition
 else if flavour.name == "nixos-test-driver" then
-  (nixos_test { inherit nixpkgs system extraConfigurations; }
+  (nixos_test { inherit nixpkgs system overlays extraConfigurations; }
     composition).driver
 else if flavour.name == "nixos-test-ssh" then
   (nixos_test {
-    inherit nixpkgs system;
+    inherit nixpkgs system overlays;
     extraConfigurations = extraConfigurations ++ [ flavour.module ];
   } composition).driver
 else if flavour.name == "docker" then
-  generate_docker_compose { inherit nixpkgs system extraConfigurations; }
-  composition
+  generate_docker_compose {
+    inherit nixpkgs system overlays extraConfigurations;
+  } composition
 else
   multiple_compositions {
     inherit nixpkgs system flavour extraConfigurations;
