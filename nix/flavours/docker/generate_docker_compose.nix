@@ -43,8 +43,13 @@ let
 
   dockerComposeConfig.services = builtins.mapAttrs (nodeName: nodeConfig:
     let
+      nodeConfigWithoutVirutalisation = configNode: args@{ pkgs, ... }:
+        builtins.removeAttrs (configNode args) [ "virtualisation" ];
       config = {
-        imports = [ ./systemd.nix nodeConfig ] ++ extraConfigurations;
+        imports = [
+          ./systemd.nix
+          (nodeConfigWithoutVirutalisation nodeConfig)
+        ] ++ extraConfigurations;
       };
       builtConfig = pkgs.nixos config;
     in {
