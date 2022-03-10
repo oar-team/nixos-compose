@@ -24,6 +24,6 @@ else if flavour.name == "docker" then
   } composition
 else
   multiple_compositions {
-    inherit nixpkgs system flavour extraConfigurations;
+    inherit nixpkgs system flavour overlays extraConfigurations;
     compositions = { ${composition_name} = composition; };
   }
