@@ -87,9 +87,10 @@ def cli(
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
 
-    nix_flags, composition_file, composition_flavour, flavour = apply_setup(
-        ctx, setup, nix_flags, composition_file, composition_flavour, flavour
-    )
+    if setup :
+        nix_flags, composition_file, composition_flavour, flavour = apply_setup(
+            ctx, setup, nix_flags, composition_file, composition_flavour, flavour
+        )
 
     build_cmd = ""
 
