@@ -11,7 +11,8 @@ let
   argumentsModule = commonArguments // {
     extraConfigurations = extraConfigurations ++ [ flavour.module ];
   };
-  argumentsFlavourMulti = commonArguments // { inherit flavour;
+  argumentsFlavourMulti = commonArguments // {
+    inherit flavour;
     compositions = { ${composition_name} = composition; };
   };
 in if flavour.name == "nixos-test" then

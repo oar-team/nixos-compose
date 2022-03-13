@@ -1,4 +1,5 @@
-{ nixpkgs, system, compositions, flavour, setup ? { }, overlays ? [ ], extraConfigurations, nur ? { } }:
+{ nixpkgs, system, compositions, flavour, setup ? { }, overlays ? [ ]
+, extraConfigurations, nur ? { } }:
 let
   pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
@@ -7,9 +8,9 @@ let
   generate = import ./generate_one_composition_info.nix;
 
   allCompositionsInfo = lib.mapAttrs (compositionName: composition:
-    generate { inherit pkgs modulesPath system setup extraConfigurations nur flavour; } {
-      inherit compositionName composition;
-    }) compositions;
+    generate {
+      inherit pkgs modulesPath system setup extraConfigurations nur flavour;
+    } { inherit compositionName composition; }) compositions;
 
   allCompositionsInfoFile = pkgs.writeText "compositions-info.json"
     (builtins.toJSON allCompositionsInfo);

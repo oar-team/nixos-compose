@@ -1,5 +1,5 @@
-{ pkgs, flavour, modulesPath, system, setup, extraConfigurations, nur, baseConfig ? false
-, ... }:
+{ pkgs, flavour, modulesPath, system, setup, extraConfigurations, nur
+, baseConfig ? false, ... }:
 { compositionName ? "", composition ? { } }:
 
 let

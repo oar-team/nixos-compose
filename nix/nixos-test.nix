@@ -1,4 +1,5 @@
-{ nixpkgs, system, setup, nur ? { }, overlays ? [ ], extraConfigurations ? [ ], ... }:
+{ nixpkgs, system, setup, nur ? { }, overlays ? [ ], extraConfigurations ? [ ]
+, ... }:
 composition:
 let
   pkgs = import nixpkgs { inherit system overlays; };
@@ -7,4 +8,5 @@ let
   testingPython = import "${toString modulesPath}/lib/testing-python.nix" {
     inherit pkgs system extraConfigurations;
   };
-in testingPython.makeTest (composition { inherit pkgs lib modulesPath setup nur; })
+in testingPython.makeTest
+(composition { inherit pkgs lib modulesPath setup nur; })
