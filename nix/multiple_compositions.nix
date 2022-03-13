@@ -1,4 +1,4 @@
-{ nixpkgs, system, compositions, flavour, setup ? { }, overlays ? [ ], extraConfigurations }:
+{ nixpkgs, system, compositions, flavour, setup ? { }, overlays ? [ ], extraConfigurations, nur ? { } }:
 let
   pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
@@ -7,7 +7,7 @@ let
   generate = import ./generate_one_composition_info.nix;
 
   allCompositionsInfo = lib.mapAttrs (compositionName: composition:
-    generate { inherit pkgs modulesPath system setup extraConfigurations flavour; } {
+    generate { inherit pkgs modulesPath system setup extraConfigurations nur flavour; } {
       inherit compositionName composition;
     }) compositions;
 
@@ -116,7 +116,7 @@ let
   };
 
   baseConfig = (generate {
-    inherit pkgs modulesPath system setup extraConfigurations flavour;
+    inherit pkgs modulesPath system setup extraConfigurations nur flavour;
     baseConfig = true;
   } { }).config;
 

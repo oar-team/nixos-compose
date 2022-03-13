@@ -1,4 +1,4 @@
-{ nixpkgs, system, flavour ? "docker", overlays ? [ ], setup ? { }, extraConfigurations ? [ ]
+{ nixpkgs, system, flavour ? "docker", overlays ? [ ], setup ? { }, nur ? { }, extraConfigurations ? [ ]
 , ... }:
 composition:
 
@@ -6,7 +6,7 @@ let
   pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
   modulesPath = "${toString nixpkgs}/nixos";
-  compositionSet = composition { inherit pkgs lib modulesPath setup; };
+  compositionSet = composition { inherit pkgs lib modulesPath setup nur; };
   nodes = compositionSet.nodes;
   testScriptRaw =
     if compositionSet ? testScript then compositionSet.testScript else "";
