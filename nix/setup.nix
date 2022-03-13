@@ -1,19 +1,21 @@
 file:
-{ nur ? null }:
+{ NUR ? { }, nur ? { }, }:
 #
 # In flake.nix:
 #   setup = nxc.lib.setup ./setup.toml { inherit nur; };
 #   ...
-#   { nixpkgs.overlays = [ nur.overlay ] ++ setup.overrides; }
+#   overlays = setup.overlays;
 #
 # In setup.toml:
+#   # overrides are added to overlays
 #   [overrides.nur.kapack]
 #   oar = { src = "/home/auguste/dev/oar3" }
 #
 let
   setupRaw = builtins.fromTOML (builtins.readFile file);
 
-  setupSel = if (builtins.hasAttr "project" setupRaw) && (builtins.hasAttr "selected" setupRaw.project) then
+  setupSel = if (builtins.hasAttr "project" setupRaw)
+  && (builtins.hasAttr "selected" setupRaw.project) then
     assert builtins.hasAttr setupRaw.project.selected setupRaw;
     setupRaw // setupRaw.${setupRaw.project.selected}
   else
@@ -46,4 +48,10 @@ let
       [ ]
   else
     [ ];
-in setupSel // {overrides = overrides;}
+  overlays = if builtins.hasAttr "overlay" nur then
+    overrides ++ [ nur.overlay ]
+  else if builtins.hasAttr "overlay" NUR then
+    overrides ++ [ NUR.overlay ]
+  else
+    overrides;
+in setupSel // { inherit overrides overlays; }
