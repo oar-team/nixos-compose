@@ -50,8 +50,8 @@ let
   nb_compositions = builtins.length compositions_names;
   flavours_names = builtins.attrNames _flavours;
 
-  _overlays = if builtins.hasAttr "overlays" setup then
-    overlays ++ setup.overlays
+  _overlays = if builtins.hasAttr "overlays" _setup then
+    overlays ++ _setup.overlays
   else
     overlays;
 
@@ -63,21 +63,25 @@ let
   _extraConfigurations = extraConfigurations
     ++ [{ nixpkgs.overlays = _overlays; }];
 
+  _setup = import ./setup.nix setup { inherit nur; };
+
   f = composition_name: flavour_name: composition: flavour: {
     name = (composition_name + "::" + flavour_name);
     value = ((import ./one_composition.nix) {
-      inherit nixpkgs system overlays setup nur flavour composition_name
+      inherit nixpkgs system overlays nur flavour composition_name
         composition;
       extraConfigurations = _extraConfigurations;
+      setup = _setup;
     });
   };
 
   f_multiple_compositions = flavour: {
     name = "::${flavour.name}";
     value = ((import ./multiple_compositions.nix) {
-      inherit nixpkgs system flavour setup nur compositions;
+      inherit nixpkgs system flavour nur compositions;
       overlays = _overlays;
       extraConfigurations = _extraConfigurations;
+      setup = _setup;
     });
   };
 
