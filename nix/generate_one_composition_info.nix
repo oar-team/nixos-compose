@@ -1,10 +1,10 @@
-{ pkgs, flavour, modulesPath, system, extraConfigurations, baseConfig ? false
+{ pkgs, flavour, modulesPath, system, setup, extraConfigurations, baseConfig ? false
 , ... }:
 { compositionName ? "", composition ? { } }:
 
 let
   lib = pkgs.lib;
-  compositionSet = composition { inherit pkgs lib modulesPath; };
+  compositionSet = composition { inherit pkgs lib modulesPath setup; };
   nodes = compositionSet.nodes;
   testScriptRaw =
     if compositionSet ? testScript then compositionSet.testScript else "";

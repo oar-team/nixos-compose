@@ -68,7 +68,7 @@ let
   f = composition_name: flavour_name: composition: flavour: {
     name = (composition_name + "::" + flavour_name);
     value = ((import ./one_composition.nix) {
-      inherit nixpkgs system overlays flavour composition_name composition;
+      inherit nixpkgs system overlays setup flavour composition_name composition;
       extraConfigurations = _extraConfigurations;
     });
   };
@@ -76,7 +76,7 @@ let
   f_multiple_compositions = flavour: {
     name = "::${flavour.name}";
     value = ((import ./multiple_compositions.nix) {
-      inherit nixpkgs system flavour compositions;
+      inherit nixpkgs system flavour setup compositions;
       overlays = _overlays;
       extraConfigurations = _extraConfigurations;
     });
