@@ -10,8 +10,11 @@ def apply_setup(
     composition_file,
     composition_flavour,
     flavour,
+    setup_param,
     filename="setup.toml",
 ):
+
+    update_setup_file = False
 
     setup_file = op.join(ctx.envdir, filename)
     if not op.exists(setup_file):
@@ -28,7 +31,26 @@ def apply_setup(
             "Detecting selected setup variant without asking it, removing it from setup file "
         )
         del setup_toml["project"]["selected"]
+        update_setup_file = True
 
+    # Handle setup parameters
+    # First remove if any
+    if "override-params" in setup_toml:
+        del setup_toml["override-params"]
+    # Second set override parmetes is needed
+    if setup_param:
+        override_params = tomlkit.table()
+        setup_toml["override-params"] = override_params
+        for param in setup_param:
+            n, v = param.split("=")
+            try:
+                v = int(v)
+            except ValueError:
+                pass
+            override_params.add(n, v)
+        update_setup_file = True
+
+    if update_setup_file:
         with open(setup_file, "w") as f:
             f.write(tomlkit.dumps(setup_toml))
             f.flush()
@@ -59,7 +81,7 @@ def apply_setup(
                     ]
 
             if "project" not in setup_toml:
-                project = table()
+                project = tomlkit.table()
                 setup_toml.add("selected", selected_setup)
             else:
                 setup_toml["project"]["selected"] = selected_setup

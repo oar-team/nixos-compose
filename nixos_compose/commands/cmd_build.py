@@ -62,7 +62,14 @@ from ..setup import apply_setup
     help="List available combinaisons of compositions and flavours",
 )
 @click.option(
-    "-v", "--setup", type=click.STRING, help="Select setup variant",
+    "-s", "--setup", type=click.STRING, help="Select setup variant",
+)
+@click.option(
+    "-p",
+    "--setup-param",
+    type=click.STRING,
+    multiple=True,
+    help="Override setup parameter",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -81,6 +88,7 @@ def cli(
     composition_flavour,
     list_compositions_flavours,
     setup,
+    setup_param,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -89,7 +97,13 @@ def cli(
 
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
         nix_flags, composition_file, composition_flavour, flavour = apply_setup(
-            ctx, setup, nix_flags, composition_file, composition_flavour, flavour
+            ctx,
+            setup,
+            nix_flags,
+            composition_file,
+            composition_flavour,
+            flavour,
+            setup_param,
         )
 
     build_cmd = ""

@@ -54,4 +54,10 @@ let
     overrides ++ [ NUR.overlay ]
   else
     overrides;
-in setupSel // { inherit overrides overlays; }
+
+  params = if (builtins.hasAttr "params" setupSel)
+  && (builtins.hasAttr "override-params" setupSel) then {
+    params = setupSel.params // setupSel."override-params";
+  } else
+    { };
+in setupSel // { inherit overrides overlays; } // params
