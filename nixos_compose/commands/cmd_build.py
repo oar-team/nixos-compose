@@ -87,7 +87,7 @@ def cli(
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
 
-    if setup :
+    if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
         nix_flags, composition_file, composition_flavour, flavour = apply_setup(
             ctx, setup, nix_flags, composition_file, composition_flavour, flavour
         )
