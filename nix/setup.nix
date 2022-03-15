@@ -2,18 +2,27 @@ file:
 { NUR ? { }, nur ? { }, }:
 #
 # In flake.nix:
-#   setup = nxc.lib.setup ./setup.toml { inherit nur; };
-#   ...
-#   overlays = setup.overlays;
+#   packages.${system} = nxc.lib.compose {
+#     inherit nixpkgs system;
+#     setup = ./setup.toml;
+#     composition = ./composition.nix;
+#   };
 #
 # In setup.toml:
+#   [project]
+#   [params]
+#   # a="hello world"
+#   # b=10
 #   # overrides are added to overlays
 #   [overrides.nur.kapack]
 #   oar = { src = "/home/auguste/dev/oar3" }
 #
+# Complete example in nix/examples/setup directory
+#
 let
   setupRaw = builtins.fromTOML (builtins.readFile file);
-
+  # TODO: add assert to avoid use of reserved keywords as setup variant
+  # (i.e. project, options, params, overrides, override-params)
   setupSel = if (builtins.hasAttr "project" setupRaw)
   && (builtins.hasAttr "selected" setupRaw.project) then
     assert builtins.hasAttr setupRaw.project.selected setupRaw;

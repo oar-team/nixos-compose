@@ -1,0 +1,32 @@
+[project]
+
+[params]
+a="hello world"
+b=10
+
+# build arguments can be setted w/ options, cli arguments will overrides them if any
+# [options]
+# nix-flags = "--impure --override-input kapack path:/home/orichard/nur-kapack/ear"
+
+# below test and dev are called setup variants, any string can by use (except for project,
+# options, params, overrides, override-params). Variant is selected with option --setup
+# of nxc build command
+
+[test.params]
+# to select this varitant use:
+# nxc build --setup test
+a="hello world"
+b=10
+
+[dev.params]
+# to select this varitant use:
+# nxc build --setup dev
+# previous command raises error during testScript execution, the next below does not which
+# uses parameter overridiing
+# nxc build --setup dev --setup-param "a=hello worlde --setup-param b=10
+a="hello"
+b=20
+
+# build arguments can be setted w/ options, cli arguments will overrides them if any
+# [dev.options]
+# nix-flags = "--impure --override-input nxc path:/home/user/nixos-compose/setup"
