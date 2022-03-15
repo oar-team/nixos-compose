@@ -1,6 +1,7 @@
-{ nixpkgs, system ? builtins.currentSystem, flavour ? null, composition ? null
-, single_composition_name ? "composition", compositions ? null, flavours ? null
-, overlays ? [ ], setup ? { }, extraConfigurations ? [ ], nur ? { } }:
+{ nixpkgs, pkgs ? null, system ? builtins.currentSystem, flavour ? null
+, composition ? null, single_composition_name ? "composition"
+, compositions ? null, flavours ? null, overlays ? [ ], setup ? { }
+, extraConfigurations ? [ ], nur ? { } }:
 let
   builtin_flavours = import ./flavours.nix;
   _composition = if builtins.typeOf composition == "path" then
@@ -63,13 +64,14 @@ let
   _extraConfigurations = extraConfigurations
     ++ [{ nixpkgs.overlays = _overlays; }];
 
-  _setup = import ./setup.nix setup { inherit nur; };
+  _setup =
+    let lib = if pkgs != null then pkgs.lib else (import nixpkgs { }).lib;
+    in import ./setup.nix setup { inherit lib nur; };
 
   f = composition_name: flavour_name: composition: flavour: {
     name = (composition_name + "::" + flavour_name);
     value = ((import ./one_composition.nix) {
-      inherit nixpkgs system overlays nur flavour composition_name
-        composition;
+      inherit nixpkgs system overlays nur flavour composition_name composition;
       extraConfigurations = _extraConfigurations;
       setup = _setup;
     });

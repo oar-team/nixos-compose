@@ -1,5 +1,5 @@
 file:
-{ NUR ? { }, nur ? { }, }:
+{ lib, NUR ? { }, nur ? { }, }:
 #
 # In flake.nix:
 #   packages.${system} = nxc.lib.compose {
@@ -26,7 +26,7 @@ let
   setupSel = if (builtins.hasAttr "project" setupRaw)
   && (builtins.hasAttr "selected" setupRaw.project) then
     assert builtins.hasAttr setupRaw.project.selected setupRaw;
-    setupRaw // setupRaw.${setupRaw.project.selected}
+    lib.recursiveUpdate setupRaw setupRaw.${setupRaw.project.selected}
   else
     setupRaw;
 
