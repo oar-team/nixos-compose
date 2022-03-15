@@ -64,14 +64,18 @@ let
   _extraConfigurations = extraConfigurations
     ++ [{ nixpkgs.overlays = _overlays; }];
 
-  _setup =
-    let lib = if pkgs != null then pkgs.lib else (import nixpkgs { }).lib;
-    in import ./setup.nix setup { inherit lib nur; };
+  _setup = let
+    lib =
+      if pkgs != null then pkgs.lib else nixpkgs.legacyPackages.${system}.lib;
+  in import ./setup.nix setup { inherit lib nur; };
+
+  helpers = import ./helpers.nix;
 
   f = composition_name: flavour_name: composition: flavour: {
     name = (composition_name + "::" + flavour_name);
     value = ((import ./one_composition.nix) {
-      inherit nixpkgs system overlays nur flavour composition_name composition;
+      inherit nixpkgs system overlays nur helpers flavour composition_name
+        composition;
       extraConfigurations = _extraConfigurations;
       setup = _setup;
     });
@@ -80,7 +84,7 @@ let
   f_multiple_compositions = flavour: {
     name = "::${flavour.name}";
     value = ((import ./multiple_compositions.nix) {
-      inherit nixpkgs system flavour nur compositions;
+      inherit nixpkgs system flavour nur helpers compositions;
       overlays = _overlays;
       extraConfigurations = _extraConfigurations;
       setup = _setup;

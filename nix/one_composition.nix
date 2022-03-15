@@ -1,4 +1,4 @@
-{ nixpkgs, system, setup, nur, flavour, composition
+{ nixpkgs, system, setup, nur, flavour, helpers, composition
 , composition_name ? "composition", overlays, extraConfigurations }:
 let
   nixos_test = import ./nixos-test.nix;
@@ -6,7 +6,8 @@ let
   generate_docker_compose =
     import ./flavours/docker/generate_docker_compose.nix;
   commonArguments = {
-    inherit nixpkgs system overlays setup nur extraConfigurations;
+    inherit nixpkgs system overlays setup nur helpers extraConfigurations;
+    flavour = flavour.name;
   };
   argumentsModule = commonArguments // {
     extraConfigurations = extraConfigurations ++ [ flavour.module ];
