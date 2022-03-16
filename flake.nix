@@ -33,6 +33,10 @@
 
         defaultPackage = self.packages.${system}.${packageName};
 
+        devShells.nxcShell = pkgs.mkShell {
+          buildInputs = [ self.defaultPackage.${system} ];
+        };
+
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [ poetry ];
           inputsFrom = builtins.attrValues self.packages.${system};

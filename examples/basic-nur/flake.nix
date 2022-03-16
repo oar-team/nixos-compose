@@ -11,7 +11,6 @@
   outputs = { self, nixpkgs, NUR, nxc }:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
 
       nur = nxc.lib.nur {
         inherit nixpkgs system NUR;
@@ -35,7 +34,6 @@
       defaultPackage.${system} =
         self.packages.${system}."composition::nixos-test";
 
-      devShell.${system} =
-        pkgs.mkShell { buildInputs = [ nxc.defaultPackage.${system} ]; };
+      devShell.${system} = nxc.devShells.${system}.nxcShell;
     };
 }
