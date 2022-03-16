@@ -118,7 +118,8 @@ let
   };
 
   baseConfig = (generate {
-    inherit pkgs modulesPath system setup extraConfigurations nur flavour;
+    inherit pkgs modulesPath system setup extraConfigurations nur helpers
+      flavour;
     baseConfig = true;
   } { }).config;
 
