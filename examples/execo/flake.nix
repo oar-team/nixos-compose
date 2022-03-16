@@ -32,7 +32,6 @@
       defaultPackage.${system} =
         self.packages.${system}."composition::nixos-test";
 
-      devShell.${system} =
-        pkgs.mkShell { buildInputs = [ nixos-compose ]; };
+      devShell.${system} = nxc.devShells.${system}.nxcShell;
     };
 }
