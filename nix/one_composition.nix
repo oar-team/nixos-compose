@@ -7,7 +7,7 @@ let
     import ./flavours/docker/generate_docker_compose.nix;
   commonArguments = {
     inherit nixpkgs system overlays setup nur helpers extraConfigurations;
-    flavour = flavour.name;
+    flavour = flavour;
   };
   argumentsModule = commonArguments // {
     extraConfigurations = extraConfigurations ++ [ flavour.module ];
