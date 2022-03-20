@@ -18,7 +18,7 @@
 #    nur.repos.kapack.modules.oar
 #  ];
 #
-{ nixpkgs, system, NUR, repoOverrides ? { }, ... }:
+{ nixpkgs, system, NUR, repoOverrides ? { } }:
 let nurpkgs = import nixpkgs { inherit system; };
 in {
   overlay = (final: prev: {
