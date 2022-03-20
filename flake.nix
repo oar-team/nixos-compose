@@ -27,10 +27,10 @@
         packages = {
           ${packageName} = app;
           "${packageName}-full" = app.overrideAttrs(attr: rec {
-            name = "${attr.name}";
             propagatedBuildInputs = attr.propagatedBuildInputs ++ [
               # pkgs.docker-compose
               pkgs.qemu_kvm
+              pkgs.vde2
             ];
           });
           showTemplates = pkgs.writeText "templates.json" (
