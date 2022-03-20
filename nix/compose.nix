@@ -1,6 +1,6 @@
 { nixpkgs, pkgs ? null, system ? builtins.currentSystem, flavour ? null
 , composition ? null, single_composition_name ? "composition"
-, compositions ? null, flavours ? null, overlays ? [ ], setup ? { }
+, compositions ? null, flavours ? null, overlays ? [ ], setup ? null
 , extraConfigurations ? [ ], nur ? { } }:
 let
   builtin_flavours = import ./flavours.nix;
@@ -51,10 +51,13 @@ let
   nb_compositions = builtins.length compositions_names;
   flavours_names = builtins.attrNames _flavours;
 
-  _overlays = if builtins.hasAttr "overlays" _setup then
-    overlays ++ _setup.overlays
-  else
-    overlays;
+  _overlays =
+    if _setup ? "overlays" then # if builtins.hasAttr "overlays" _setup then
+      overlays ++ _setup.overlays
+    else if nur ? "overlay" then
+      overlays ++ [ nur.overlay ]
+    else
+      overlays;
 
   # overlays must be injected via (extra)config and pkgs' overlays parametrer (see nixos-test.nix)
   # Two pkgs exploitations in composition, same pkgs but used differently
@@ -67,15 +70,18 @@ let
   _setup = let
     lib =
       if pkgs != null then pkgs.lib else nixpkgs.legacyPackages.${system}.lib;
-  in import ./setup.nix setup { inherit lib nur; };
+  in if setup != null then
+    import ./setup.nix setup { inherit lib nur; }
+  else
+    { };
 
   helpers = import ./helpers.nix;
 
   f = composition_name: flavour_name: composition: flavour: {
     name = (composition_name + "::" + flavour_name);
     value = ((import ./one_composition.nix) {
-      inherit nixpkgs system overlays nur helpers flavour composition_name
-        composition;
+      inherit nixpkgs system nur helpers flavour composition_name composition;
+      overlays = _overlays;
       extraConfigurations = _extraConfigurations;
       setup = _setup;
     });

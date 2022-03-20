@@ -1,4 +1,4 @@
-{ nixpkgs, system, flavour ? "docker", overlays ? [ ], setup ? { }, nur ? { }, extraConfigurations ? [ ]
+{ nixpkgs, system, flavour, overlays ? [ ], setup ? { }, nur ? { }, extraConfigurations ? [ ]
 ,helpers, ... }:
 composition:
 
@@ -86,6 +86,6 @@ in pkgs.writeTextFile {
     nodes = builtins.attrNames nodes;
     docker-compose-file = dockerComposeConfigJSON;
     test_script = testScriptFile;
-    flavour = "docker";
+    flavour = flavour.name;
   });
 }

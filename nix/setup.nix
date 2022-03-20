@@ -23,8 +23,7 @@ let
   setupRaw = builtins.fromTOML (builtins.readFile file);
   # TODO: add assert to avoid use of reserved keywords as setup variant
   # (i.e. project, options, params, overrides, override-params)
-  setupSel = if (builtins.hasAttr "project" setupRaw)
-  && (builtins.hasAttr "selected" setupRaw.project) then
+  setupSel = if (setupRaw ? "project") && (setupRaw.project ? "selected") then
     assert builtins.hasAttr setupRaw.project.selected setupRaw;
     lib.recursiveUpdate setupRaw setupRaw.${setupRaw.project.selected}
   else
@@ -39,8 +38,8 @@ let
       value);
   };
 
-  overrides = if builtins.hasAttr "overrides" setupSel then
-    if (builtins.hasAttr "nur" setupSel.overrides) && (nur != null) then
+  overrides = if setupSel ? "overrides" then
+    if (setupSel.overrides ? "nur") && (nur != null) then
       [
         (self: super:
           let
@@ -57,16 +56,16 @@ let
       [ ]
   else
     [ ];
-  overlays = if builtins.hasAttr "overlay" nur then
+  overlays = if nur ? "overlay" then
     overrides ++ [ nur.overlay ]
-  else if builtins.hasAttr "overlay" NUR then
+  else if NUR ? "overlay" then
     overrides ++ [ NUR.overlay ]
   else
     overrides;
 
-  params = if (builtins.hasAttr "params" setupSel)
-  && (builtins.hasAttr "override-params" setupSel) then {
-    params = setupSel.params // setupSel."override-params";
-  } else
-    { };
+  params =
+    if (setupSel ? "params") && (setupSel ? "override-params") then {
+      params = setupSel.params // setupSel."override-params";
+    } else
+      { };
 in setupSel // { inherit overrides overlays; } // params
