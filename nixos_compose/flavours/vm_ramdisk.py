@@ -93,7 +93,7 @@ class VmRamdiskFlavour(Flavour):
                 sys.exit(1)
             v = deployment["deployment"][ip]
 
-            name = v["role"]
+            name = v["host"]
 
             if base_qemu_script:
                 qemu_script = base_qemu_script

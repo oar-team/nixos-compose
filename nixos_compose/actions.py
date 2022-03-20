@@ -147,18 +147,20 @@ def translate_hosts2ip(ctx, hosts):
     return
 
 
-def populate_deployment_vm_by_ip(nodes_info):
+def populate_deployment_vm_by_ip(nodes_info, roles_quantities):
+    roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities)
     i = 0
     deployment = {}
     ips = []
     for role, v in nodes_info.items():
-        ip = "10.0.2.{}".format(15 + i)
-        ips.append(ip)
-        # deployment[ip] = {"role": role, "vm_id": i}
-        deployment[ip] = {"role": role, "init": v["init"], "vm_id": i}
-        if "qemu_script" in v:
-            deployment[ip]["qemu_script"] = v["qemu_script"]
-        i = i + 1
+        for hostname in roles_quantities[role]:
+            ip = "10.0.2.{}".format(15 + i)
+            ips.append(ip)
+            # deployment[ip] = {"role": role, "vm_id": i}
+            deployment[ip] = {"role": role, "init": v["init"], "vm_id": i, "host": hostname}
+            if "qemu_script" in v:
+                deployment[ip]["qemu_script"] = v["qemu_script"]
+            i = i + 1
 
     return deployment, ips
 
@@ -235,8 +237,11 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
         deployment = populate_deployment_forward_ssh_port(ctx.compose_info["nodes"])
     else:
         deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
-            ctx.compose_info["nodes"]
+            ctx.compose_info["nodes"], ctx.roles_quantities
         )
+        deployment = {
+                k: {"role": v["role"], "host": v["host"], "vm_id": v["vm_id"], "init": v["init"] if "host" in v else v["role"]} for k, v in deployment.items()
+        }
     deployment = {
         "ssh_key.pub": sshkey_pub,
         "deployment": deployment,
