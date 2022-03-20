@@ -149,7 +149,6 @@ def translate_hosts2ip(ctx, hosts):
 
 def populate_deployment_vm_by_ip(nodes_info, roles_quantities):
     roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities)
-    print(roles_quantities)
     i = 0
     deployment = {}
     ips = []
@@ -243,7 +242,6 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
         deployment = {
                 k: {"role": v["role"], "host": v["host"], "vm_id": v["vm_id"], "init": v["init"] if "host" in v else v["role"]} for k, v in deployment.items()
         }
-        print(deployment)
     deployment = {
         "ssh_key.pub": sshkey_pub,
         "deployment": deployment,
