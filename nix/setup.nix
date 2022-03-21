@@ -1,5 +1,5 @@
 file:
-{ lib, NUR ? { }, nur ? { }, }:
+{ lib, nur ? { }, }:
 #
 # In flake.nix:
 #   packages.${system} = nxc.lib.compose {
@@ -60,8 +60,6 @@ let
     # TODO: failed if overrides comes first:  overrides ++ [ nur.overlay ], why ?
     # nur is null before to apply overrides (???), more investigations required
     [ nur.overlay ] ++ overrides
-  else if NUR ? "overlay" then
-    [ NUR.overlay ] ++ overrides
   else
     overrides;
 

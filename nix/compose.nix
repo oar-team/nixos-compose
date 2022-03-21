@@ -1,7 +1,7 @@
 { nixpkgs, pkgs ? null, system ? builtins.currentSystem, flavour ? null
 , composition ? null, single_composition_name ? "composition"
 , compositions ? null, flavours ? null, overlays ? [ ], setup ? null
-, extraConfigurations ? [ ], nur ? { } }:
+, extraConfigurations ? [ ], nur ? { }, NUR ? { }, repoOverrides ? { } }:
 let
   builtin_flavours = import ./flavours.nix;
   _composition = if builtins.typeOf composition == "path" then
@@ -54,8 +54,8 @@ let
   _overlays =
     if _setup ? "overlays" then # if builtins.hasAttr "overlays" _setup then
       overlays ++ _setup.overlays
-    else if nur ? "overlay" then
-      overlays ++ [ nur.overlay ]
+    else if _nur ? "overlay" then
+      overlays ++ [ _nur.overlay ]
     else
       overlays;
 
@@ -67,11 +67,17 @@ let
   _extraConfigurations = extraConfigurations
     ++ [{ nixpkgs.overlays = _overlays; }];
 
+  _nur = if NUR == null then
+    nur
+  else import ./nur.nix {
+    inherit nixpkgs system NUR repoOverrides;
+  };
+
   _setup = let
     lib =
       if pkgs != null then pkgs.lib else nixpkgs.legacyPackages.${system}.lib;
   in if setup != null then
-    import ./setup.nix setup { inherit lib nur; }
+    import ./setup.nix setup { inherit lib; nur = _nur; }
   else
     { };
 
@@ -80,7 +86,8 @@ let
   f = composition_name: flavour_name: composition: flavour: {
     name = (composition_name + "::" + flavour_name);
     value = ((import ./one_composition.nix) {
-      inherit nixpkgs system nur helpers flavour composition_name composition;
+      inherit nixpkgs system helpers flavour composition_name composition;
+      nur = _nur;
       overlays = _overlays;
       extraConfigurations = _extraConfigurations;
       setup = _setup;
@@ -90,7 +97,8 @@ let
   f_multiple_compositions = flavour: {
     name = "::${flavour.name}";
     value = ((import ./multiple_compositions.nix) {
-      inherit nixpkgs system flavour nur helpers compositions;
+      inherit nixpkgs system flavour helpers compositions;
+      nur = _nur;
       overlays = _overlays;
       extraConfigurations = _extraConfigurations;
       setup = _setup;
