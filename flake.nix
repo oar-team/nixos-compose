@@ -28,7 +28,7 @@
           ${packageName} = app;
           "${packageName}-full" = app.overrideAttrs(attr: rec {
             propagatedBuildInputs = attr.propagatedBuildInputs ++ [
-              # pkgs.docker-compose
+              pkgs.docker-compose_2
               pkgs.qemu_kvm
               pkgs.vde2
             ];
