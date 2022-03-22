@@ -23,6 +23,10 @@
     path = ./multi-compositions;
     description = "A multi-compositions example";
   };
+  setup = {
+    path = ./setup;
+    description = "Setup example";
+  };
   spark = {
     path = ./spark;
     description = "Spark example";
