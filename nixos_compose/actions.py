@@ -12,7 +12,7 @@ import signal
 import psutil
 import itertools
 from halo import Halo
-from .kataract import generate_scp_tasks, exec_kataract_tasks
+from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
 
 
 ##
@@ -157,12 +157,18 @@ def populate_deployment_vm_by_ip(nodes_info, roles_quantities):
             ip = "10.0.2.{}".format(15 + i)
             ips.append(ip)
             # deployment[ip] = {"role": role, "vm_id": i}
-            deployment[ip] = {"role": role, "init": v["init"], "vm_id": i, "host": hostname}
+            deployment[ip] = {
+                "role": role,
+                "init": v["init"],
+                "vm_id": i,
+                "host": hostname,
+            }
             if "qemu_script" in v:
                 deployment[ip]["qemu_script"] = v["qemu_script"]
             i = i + 1
 
     return deployment, ips
+
 
 def health_check_roles_quantities(nodes_info, roles_quantities):
     if len(roles_quantities) == 0:
@@ -183,6 +189,7 @@ def health_check_roles_quantities(nodes_info, roles_quantities):
             raise Exception("Conflict in the naming of the node")
     return roles_quantities
 
+
 def populate_deployment_ips(nodes_info, ips, roles_quantities):
     roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities)
     i = 0
@@ -193,6 +200,7 @@ def populate_deployment_ips(nodes_info, ips, roles_quantities):
             deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
             i = i + 1
     return deployment
+
 
 def populate_deployment_forward_ssh_port(nodes):
     i = 0
@@ -240,7 +248,13 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
             ctx.compose_info["nodes"], ctx.roles_quantities
         )
         deployment = {
-                k: {"role": v["role"], "host": v["host"], "vm_id": v["vm_id"], "init": v["init"] if "host" in v else v["role"]} for k, v in deployment.items()
+            k: {
+                "role": v["role"],
+                "host": v["host"],
+                "vm_id": v["vm_id"],
+                "init": v["init"] if "host" in v else v["role"],
+            }
+            for k, v in deployment.items()
         }
     deployment = {
         "ssh_key.pub": sshkey_pub,
@@ -338,9 +352,9 @@ def generate_deploy_info_b64(ctx):
     }
 
     deployment = {
-        k: {"role": v["role"], "host": v["host"] if "host" in v else v["role"]} for k, v in ctx.deployment_info["deployment"].items()
+        k: {"role": v["role"], "host": v["host"] if "host" in v else v["role"]}
+        for k, v in ctx.deployment_info["deployment"].items()
     }
-
 
     # TODO: function to add multiple hostnames with same role
     # deployment = { k: {"role": v["role"], "host": "yopXXX"} for k,v in ctx.deployment_info["deployment"].items()}
