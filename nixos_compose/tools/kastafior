@@ -1,0 +1,486 @@
+#!/usr/bin/env -S perl -w
+
+# Originally developped by Olivier Richard - IMAG ( - 2008)
+# Modified by Emmanuel Jeanvoine - INRIA (2009 - 2012)
+
+use strict;
+use IO::Socket;
+use Sys::Hostname;
+use Getopt::Long;
+use File::Basename;
+use File::Spec;
+use Fcntl;
+use POSIX qw(:errno_h);
+
+my $src_cmd;
+my $cat_cmd;
+my $buffer;
+my $input_tar;
+my $directory;
+my $verbose;
+my $debug;
+my $flush;
+my $sos;
+my $dirname;
+my $directory_src_tar = "";
+
+my $built_options = "";
+
+my $taktuk_args = "";
+my @kasta_args;
+
+my $double_minus = 0;
+
+my $server_socket;
+my $accepted_socket;
+my $forward_socket;
+my $forwarder = 0;
+my $src_node = 0;
+my $remote_host = "";
+my $remote_port = 0;
+my $buffer_size = 64 * 1024;
+my $nodefile;
+my $kasta_port = 34567;
+my $nested = 0;
+my $non_blocking;
+
+
+my (undef, $tools_dirname, undef) = fileparse(File::Spec->rel2abs( __FILE__));
+
+# Print help message
+sub usage()
+{
+    print <<EOU;
+Usage: kastafior [taktuk_arguments] -- -h | [[-s source_command] [-c cat_command]] | [[-i input_tar][-d directory]] [-f] [-v] [-D] [-o] -n nodefile
+Contact: Olivier Richard <olvier.richard at imag.fr>
+taktuk_arguments see the taktuk documentation or examples below.
+-h display this help message
+-s command at the source of pipeline (executed on localhost)
+-c command executed on each nodes, its stdin is the output of command source (see option -s)
+-i file or directory to copy in default mode
+-d destination directory
+-f flush file system buffers (execute sync command)
+-D debug information mode
+-v verbose mode
+-n nodefile
+-w use non blocking IO
+-p port
+This command builds a pipeline between nodes by using Taktuk parallel launcher. By defaut, this comamnd copies file or directory from first node provides in taktuk arguments to other nodes.
+
+Examples:
+
+kastafior -- -i input_file -d /tmp/ -n filenode
+kastafior -c oarsh -- -v -s "echo hello" -c "cat >/tmp/yop" -n filenode
+EOU
+
+}
+
+
+#Create TCP server socket
+sub create_TCP_server_socket($)
+{
+    my $port = shift;
+    my $server = IO::Socket::INET->new(
+	Type      => SOCK_STREAM,
+	ReuseAddr => 1,
+	Listen    => 10,
+	LocalPort => $port,
+	Reuse     => 1)
+
+	or die "Creating a tcp server failed : $@\n";
+    return $server;
+}
+
+#Create TCP forward socket
+sub create_TCP_forward_socket($$)
+{
+    my $remote_host = shift;
+    my $remote_port = shift;
+
+    my $socket;
+    my $flag = 0;
+    my $sleep_time = 1;
+    my $retry = 0;
+    my $max_retry = 60;
+
+    while (($flag == 0) && ($retry < $max_retry))
+    {
+	if ($socket = IO::Socket::INET->new(PeerAddr => $remote_host,
+					    PeerPort => $remote_port,
+					    Proto    => "tcp",
+					    Type     => SOCK_STREAM,
+					    Reuse     => 1))
+	{
+	    $flag = 1;
+	}
+	elsif ($retry >= $max_retry)
+	{
+	    die "Couldn't connect to $remote_host:$remote_port $retry:$max_retry";
+	}
+	else
+	{
+	    #print "Couldn't connect to $remote_host:$remote_port : $@\n";
+	    sleep($sleep_time);
+	    $retry = $retry + 1;
+	}
+    }
+    return $socket;
+}
+
+##############
+#### MAIN ####
+##############
+
+foreach my $argument (@ARGV)
+{
+    if (($argument =~ /^--$/) && (not $double_minus))
+    {
+	$double_minus = 1;
+    }
+    elsif ($double_minus)
+    {
+	push (@kasta_args,$argument);
+    }
+    else
+    {
+	$taktuk_args .= $argument." ";
+    }
+}
+
+if (not	$double_minus)
+{
+    print "\nWARNNING you need -- separator !!!\n\n";
+    usage();
+    exit 1;
+}
+
+#print "taktuk_arg: $taktuk_args\n" if ($verbose);
+#print "kasta_arg: $str_kasta_args\n";
+
+@ARGV = @kasta_args;
+
+# Get command line informations
+Getopt::Long::Configure ("gnu_getopt");
+GetOptions ("source_command|s=s" => \$src_cmd,
+            "cat_command|c=s" => \$cat_cmd,
+	    "input|i=s" => \$input_tar,
+	    "directory|d=s" => \$directory,
+	    "directory_src_tar|C=s"  => \$directory_src_tar,
+	    "flush|f" => \$flush,
+	    "nodefile|n=s" => \$nodefile,
+	    "port|p=i" => \$kasta_port,
+            "verbose|v" => \$verbose,
+	    "debug|D" => \$debug,
+	    "nested|z=i" => \$nested,
+	    "nonblocking|w" => \$non_blocking,
+            "help|h" => \$sos
+    );
+
+# Treate -h or --help option
+if (defined($sos))
+{
+    usage();
+    exit(0);
+}
+
+if (not defined($nodefile))
+{
+    print "\nWARNING you must provide a nodefile !!!\n\n";
+    usage();
+    exit 1;
+}
+
+
+if (defined($input_tar) && ($nested == 0) && ($directory_src_tar eq "") )
+{
+    $directory_src_tar = dirname($input_tar);
+    $directory_src_tar = $ENV{PWD} if ($directory_src_tar eq ".");
+
+    $built_options .= " -C $directory_src_tar";
+}
+
+if (not defined($src_cmd))
+{
+    my $basename = basename($input_tar);
+    $directory_src_tar = "." if ($directory_src_tar eq "");
+    $src_cmd = "cat $input_tar";
+}
+
+if (not defined($cat_cmd))
+{
+    my $basename = basename($input_tar);
+    $cat_cmd = "cat > $directory/$basename";
+}
+
+if ($nested == 0)
+{
+    my $str_kasta_args = "";
+    foreach my $argument (@kasta_args)
+    {
+	$str_kasta_args.= "'".$argument."' ";
+    }
+    $str_kasta_args =  "\"$str_kasta_args\"";
+
+    my $cmd = $tools_dirname.'/taktuk -n -o status -o output '.$taktuk_args.' -f '.$nodefile.' b e [ "sed -n \"/\$([ -r /tmp/kastafior_hostname ] && cat /tmp/kastafior_hostname || hostname)/{n;p}\" >/tmp/next" ]\\; b input file [ '.$nodefile.' ]';
+    exit(1) if (system($cmd) != 0);
+
+    my $taktuk_cmd = $tools_dirname."/taktuk -o status -o output='\$rank.\":\".\$line.\"\\n\"' $taktuk_args -f $nodefile";
+    $taktuk_cmd .= " broadcast taktuk_perl [ -w -- - -- -z 1 $str_kasta_args $built_options ]\\;";
+    $taktuk_cmd .= " broadcast input file [ $0 ]";
+    print "[VERBOSE] taktuk command: $taktuk_cmd\n" if ($verbose);
+    exit(1) if (system ($taktuk_cmd) != 0);
+}
+else
+{
+    print "[DEBUG] Solo mode, commands $src_cmd, $cat_cmd\n" if ($debug);
+
+    $src_node=0;
+    $forwarder=1;
+
+    print "[DEBUG] Rank $ENV{TAKTUK_RANK} among $ENV{TAKTUK_COUNT}\n" if ($debug);
+
+    open(FD, "/tmp/next");
+    my $next_host = <FD>;
+    close(FD);
+    chomp($next_host) if defined($next_host);
+
+    if ($ENV{TAKTUK_RANK} == 1)
+    {
+	$src_node = 1;
+    }
+    elsif ( !defined($next_host) )
+    {
+	$forwarder = 0;
+    }
+
+    my $flags = '';
+    if ($src_node)
+    {
+	open(CMD_IN, "$src_cmd |") or die "can't run $src_cmd: $!";
+	if (defined($non_blocking))
+	{
+	    $flags = fcntl(CMD_IN, F_GETFL, 0) or die "Can't get flags for the fd: $!\n";
+	    $flags = fcntl(CMD_IN, F_SETFL, $flags | O_NONBLOCK) or die "Can't set flags for the fd: $!\n";
+	}
+    }
+    else
+    {
+	$server_socket = create_TCP_server_socket($kasta_port);
+	# Command to execute in local
+	open(CMD_OUT, "| $cat_cmd") or die "can't fork $cat_cmd: $!";
+	if (defined($non_blocking))
+	{
+	    $flags = fcntl(CMD_OUT, F_GETFL, 0) or die "Can't get flags for the fd: $!\n";
+	    $flags = fcntl(CMD_OUT, F_SETFL, $flags | O_NONBLOCK) or die "Can't set flags for the fd: $!\n";
+	}
+    }
+
+    if ($forwarder || $src_node)
+    {
+	$forward_socket = create_TCP_forward_socket($next_host,$kasta_port);
+	if (defined($non_blocking))
+	{
+	    $flags = fcntl($forward_socket, F_GETFL, 0) or die "Can't get flags for the fd: $!\n";
+	    $flags = fcntl($forward_socket, F_SETFL, $flags | O_NONBLOCK) or die "Can't set flags for the fd: $!\n";
+	}
+	print "[DEBUG] Connected for forwarding\n" if ($debug);
+    }
+
+
+    my $buffer :shared;
+    my $buffer_read :shared = 0;
+    my $buffer_forward_used = 0;
+    my $buffer_local_used :shared = 0;
+
+    my $finished = 0;
+    my $buffer_processed :shared = 0;
+    my $forward_written = 0;
+    my $local_written :shared = 0;
+    my $total_read = 0;
+    my $total_received = 0;
+    my $total_written = 0;
+
+
+    if ($src_node)
+    {
+	# Source node sending
+	print "[DEBUG] Scr node : Sending\n" if ($debug);
+
+	while(!$finished)
+	{
+	    $buffer_read = sysread(CMD_IN, $buffer, $buffer_size);
+	    if (!defined($buffer_read))
+	    {
+		if ($! != EAGAIN)
+		{
+		    die "Sysread error: $! \n";
+		    exit(1);
+		}
+		else
+		{
+		    #would block
+		}
+	    }
+	    else
+	    {
+		if ($buffer_read == 0)
+		{
+		    $finished = 1;
+		}
+		else
+		{
+		    $total_read += $buffer_read;
+		    $buffer_processed = 0;
+		    $buffer_forward_used = 0;
+		    while (!$buffer_processed)
+		    {
+			$buffer_processed = 1;
+			$forward_written = syswrite($forward_socket, $buffer, $buffer_read - $buffer_forward_used, $buffer_forward_used);
+
+			if (!defined($forward_written))
+			{
+			    if ($! != EAGAIN)
+			    {
+				die "Forward syswrite error: $!\n";
+				exit(1);
+			    }
+			    else
+			    {
+				#would block
+				$buffer_processed = 0;
+			    }
+			}
+			else
+			{
+			    $buffer_forward_used += $forward_written;
+			    if ($buffer_forward_used != $buffer_read)
+			    {
+				$buffer_processed = 0;
+			    }
+			}
+		    }
+		}
+	    }
+	}
+
+	close(CMD_IN) or die "Couldn't close: $!\n";
+	close($forward_socket) or die "Couldn't close: $!\n";
+	print "[DEBUG] Scr node : ending, $total_read bytes read\n" if ($debug);
+    }
+    else
+    {
+	# Accept Connection
+	$accepted_socket = $server_socket->accept();
+	if (defined($non_blocking))
+	{
+	    $flags = fcntl($accepted_socket, F_GETFL, 0) or die "Can't get flags for the fd: $!\n";
+	    $flags = fcntl($accepted_socket, F_SETFL, $flags | O_NONBLOCK) or die "Can't set flags for the fd: $!\n";
+	}
+
+	# Receiving from previous node and forwarding if needed
+	while (!$finished) {
+	    $buffer_read = sysread($accepted_socket, $buffer, $buffer_size);
+	    if (!defined($buffer_read))
+	    {
+		if ($! != EAGAIN)
+		{
+		    die "Sysread error: $! \n";
+		    exit(1);
+		}
+		else
+		{
+		    #would block
+		}
+	    } else {
+		if ($buffer_read == 0)
+		{
+		    $finished = 1;
+		} else {
+		    $total_received += $buffer_read;
+		    $buffer_forward_used = 0;
+		    $buffer_local_used = 0;
+		    $buffer_processed = 0;
+		    while (!$buffer_processed)
+		    {
+			$buffer_processed = 1;
+                        if ($forwarder)
+			{
+			    if ($buffer_forward_used != $buffer_read)
+			    {
+				$forward_written = syswrite($forward_socket, $buffer, $buffer_read - $buffer_forward_used, $buffer_forward_used);
+				if (!defined($forward_written))
+				{
+				    if ($! != EAGAIN)
+				    {
+					die "Forward syswrite error: $!\n";
+					exit(1);
+				    }
+				    else
+				    {
+					#would block
+					$buffer_processed = 0;
+				    }
+				}
+				else
+				{
+				    $buffer_forward_used += $forward_written;
+				    if ($buffer_forward_used != $buffer_read)
+				    {
+					$buffer_processed = 0;
+				    }
+				}
+			    }
+			}
+
+			if ($buffer_local_used != $buffer_read)
+			{
+			    $local_written = syswrite(\*CMD_OUT, $buffer, $buffer_read - $buffer_local_used, $buffer_local_used);
+			    if (!defined($local_written))
+			    {
+				if ($! != EAGAIN)
+				{
+				    die "Local syswrite error: $!\n";
+				    exit(1);
+				}
+				else
+				{
+				    #would block
+				    $buffer_processed = 0;
+				}
+			    }
+			    else
+			    {
+				$total_written += $local_written;
+				$buffer_local_used += $local_written;
+				if ($buffer_local_used != $buffer_read)
+				{
+				    $buffer_processed = 0;
+				}
+			    }
+			}
+		    }
+		}
+	    }
+	}
+
+
+	close($accepted_socket) or die "Couldn't close: $!\n";
+	close(CMD_OUT) or die "Couldn't close: $!\n";
+	if ($forwarder)
+	{
+	    close($forward_socket) or die "Couldn't close: $!\n";
+	}
+	if (!$src_node)
+	{
+	    print "Total received: $total_received bytes\n" if $debug;
+	    print "Total written: $total_written bytes\n" if $debug;
+	}
+    }
+
+    if (defined($flush) && !$src_node)
+    {
+      	print "sync\n" if $debug;
+        system("sync");
+    }
+
+}
