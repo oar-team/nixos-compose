@@ -590,8 +590,7 @@ NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
 
 def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if not nodes:
-        # nodes = [v["role"] for v in ctx.deployment_info["deployment"].values()]
-        nodes = [v["host"] for v in ctx.deployment_info["deployment"].values()]
+        nodes = list(ctx.deployment_info["deployment"].keys())
 
     ssh_cmds = [ctx.flavour.ext_connect(user, node, execute=False) for node in nodes]
 
