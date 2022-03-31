@@ -24,8 +24,8 @@ class Grid5000Platform(Platform):
         super().__init__(ctx, "Grid5000")
         self.default_flavour = "g5k-ramdisk"
         self.copy_from_store = True
-        self.first_start_values = ("oarsh", "sudo-g5k", None)
-        self.subsequent_start_values = ("ssh", "sudo", "/")
+        self.first_start_values = ("ssh -l root", "sudo", None)
+        self.subsequent_start_values = ("ssh -l root", "sudo", "/")
         self.oar_job_id = None
         self.oar_job = None
 

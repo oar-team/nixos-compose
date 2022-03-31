@@ -7,8 +7,6 @@ import os.path as op
 import subprocess
 import sys
 
-import json
-
 import glob
 
 import pyinotify
@@ -71,11 +69,23 @@ class EventHandler(pyinotify.ProcessEvent):
     type=click.Path(resolve_path=True),
     help="file that contains remote machines names to (duplicates are considered as one).",
 )
-@click.option("-W", "--wait-machine-file", is_flag=True, help="wait machnes-file creation")
 @click.option(
-    "-s", "--ssh", type=click.STRING, help="specify particular ssh command",
+    "-W", "--wait-machine-file", is_flag=True, help="wait machnes-file creation"
 )
-@click.option("-S", "--sudo", type=click.STRING, help="specify particular sudo command")
+@click.option(
+    "-s",
+    "--ssh",
+    type=click.STRING,
+    default="ssh -l root ",
+    help="specify particular ssh command",
+)
+@click.option(
+    "-S",
+    "--sudo",
+    type=click.STRING,
+    default="sudo",
+    help="specify particular sudo command",
+)
 @click.option(
     "-p",
     "--push-path",
@@ -113,7 +123,9 @@ class EventHandler(pyinotify.ProcessEvent):
     is_flag=True,
     help="wait any signal to exit after a start only action (not testscript execution or interactive use)",
 )
-@click.argument("roles_quantities_file", required=False, default=None, type=click.Path(exists=True))
+@click.argument(
+    "roles_quantities_file", required=False, default=None, type=click.Path(exists=True)
+)
 # @click.option(
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
@@ -346,20 +358,19 @@ def cli(
                 subprocess.call(cmd, shell=True)
         sys.exit(0)
 
-    if not machines_file and ctx.platform:
-        machines = ctx.platform.retrieve_machines(ctx)
+    # if not machines_file and ctx.platform:
+    # TODO
+    # machines = ctx.platform.retrieve_machines(ctx)
+    # import pdb; pdb.set_trace()
+    if ctx.platform:
         if reuse:
             (ssh, sudo, push_path) = ctx.platform.subsequent_start_values
         else:
             (ssh, sudo, push_path) = ctx.platform.first_start_values
-        if ctx.ssh is None:
-            ctx.ssh = ssh
-        if ctx.sudo is None:
-            ctx.sudo = sudo
         if ctx.push_path is None:
             ctx.push_path = push_path
 
-    elif machines_file:
+    if machines_file:
         machines = read_hosts(machines_file)
 
     if machines:
