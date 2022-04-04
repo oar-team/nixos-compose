@@ -55,5 +55,5 @@
         };
 
     }) //
-  {lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix;};
+  {lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix; overlay = import ./overlay.nix { inherit self; };};
 }
