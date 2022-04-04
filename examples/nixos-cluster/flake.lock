@@ -1,0 +1,78 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1642700792,
+        "narHash": "sha256-XqHrk7hFb+zBvRg6Ghl+AZDq03ov6OshJLiSWOoX5es=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "846b2ae0fc4cc943637d3d1def4454213e203cba",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1645296114,
+        "narHash": "sha256-y53N7TyIkXsjMpOG7RhvqJFGDacLs9HlyHeSTBioqYU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "530a53dcbc9437363471167a5e4762c5fcfa34a1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-21.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1643277816,
+        "narHash": "sha256-bxtrfO4YmrAzgBesPYOnU+07mqPa3vn0MPSPJAZ69nU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "26d8898eaa55e1bbac650eff5f9dca738de90dea",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nxc": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1647960749,
+        "narHash": "sha256-0f/SCeZwwvu77XnXZsYIU/nq4TLsqcK5t4szAfqhnfo=",
+        "ref": "master",
+        "rev": "b9a730ada6fe6e5f31069837f68e7fc580f8633a",
+        "revCount": 310,
+        "type": "git",
+        "url": "https://gitlab.inria.fr/nixos-compose/nixos-compose.git"
+      },
+      "original": {
+        "rev": "b9a730ada6fe6e5f31069837f68e7fc580f8633a",
+        "type": "git",
+        "url": "https://gitlab.inria.fr/nixos-compose/nixos-compose.git"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "nxc": "nxc"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
