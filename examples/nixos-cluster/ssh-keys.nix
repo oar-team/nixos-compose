@@ -54,4 +54,11 @@ gEdFBEEZH2OZBus/WXrrSbEepPHfWfCXqfvoY9yFBvx3Jd1ufp/AfD7n+Cr91lRg5rNWS5
   snakeOilPublicKey = pkgs.writeText "pubkey.snakeoil" ''
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDkH0kLdiP5ZOysAuBwQ/C2sYcB4KsnTS6w1ygA/o3aQcuTPI1WzIH1YkHzHzSpJt0i3q3LjLI68qz6zodkzP+/Je1bhVmo41CofGuLl7FqI8Z3poc2JZAfHXyYTPVH0zJXn3rf+pYsqZxJLs71SrFDNrrDBoQDXJJSSROOjz49HPtSQHJCeHQZ2qN7lZruodlOtmwvmiPT8+Cp/nBZpcpiLQSLF9x/X4Rb6XrI96rIyDuzVCyMH3BEFWIYya4opHgIf1q+VhIcwBIsrOCENVA46pPgpAMPu0ZgmcfLWE5ZsqVnHA1iQvVBrQa5N5MrWr14fmLkQHkBEiPgMgEQbVpQ9tBsfUeg80W+p7+h4fVU9yYBL4T9M3t7w5x0pFhwtsaStECiRzkn19X/4MIScfwOyBCIhSSgUTqs+rba09jHXyRUAkeRcdONNVsMG2IdXTwCdR6Rpiw7LKW1sL4r9BpGozPHk/Vf36oD7KEn5AgML6UjekDbifQZ8RbMzEQzFCwpWO4DKBeRk5yb6V3kjKc5m9bSRGlBD701eAdw7QPZXa3io/m2koXWLYukGyGTsAQNpmiZUQFbS7vrpFTybFMXW7AzJZ/hhHC7Zf9ZEVIshl2C6jY+apyyclVxje9PAqPCIgXztvJaypYHVTseWhbBhNI+q3mfjXxv10XgxiPI2Q== auguste@akira
   '';
+  cachePub = ''
+builder:snBDi/dGJICacgRUw4nauQ8KkSksAAAhCvPVr9OGTwk=
+  '';
+  cachePriv = ''
+builder:YSNxQqqX7RHEyLncdc3AJgciGAkLnAu0vCQyJO6eXOyycEOL90YkgJpyBFTDidq5DwqRKSwAACEK89Wv04ZPCQ==
+  '';
+
 }
