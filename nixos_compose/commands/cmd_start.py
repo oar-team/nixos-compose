@@ -6,30 +6,24 @@ import os
 import os.path as op
 import subprocess
 import sys
-
 import glob
-
 import pyinotify
 import asyncio
 import re
 import tempfile
-
 import ptpython.repl
+from halo import Halo
 
 from ..context import pass_context, on_finished, on_started
 from ..flavours import get_flavour_by_name
 
 from ..actions import (
     read_test_script,
-    # generate_deployment_info,
     read_hosts,
     translate_hosts2ip,
     push_on_machines,
-    # launch_ssh_kexec,
-    # wait_ssh_ports,
     realpath_from_store,
-    # generate_kadeploy_envfile,
-    # launch_kadeploy,
+    get_fs_type,
 )
 
 from ..driver.driver import Driver
@@ -198,24 +192,33 @@ def cli(
             )
 
         if not op.isfile(machines_file):
-            ctx.log(f"Waiting {machines_file} file creation")
+            # ctx.log(f"Waiting {machines_file} file creation")
+            # TODO: add quiet option
+            spinner = Halo(text=f"Waiting for {machines_file} creation", spinner="dots")
+            spinner.start()
 
-            wm = pyinotify.WatchManager()  # Watch Manager
-            loop = asyncio.get_event_loop()
+            if "nfs" == get_fs_type(machines_file):
+                while not op.isfile(machines_file):
+                    time.sleep(0.1)
+            else:
+                wm = pyinotify.WatchManager()  # Watch Manager
+                loop = asyncio.get_event_loop()
 
-            global notifier
-            notifier = pyinotify.AsyncioNotifier(
-                wm, loop, default_proc_fun=EventHandler()
-            )
+                global notifier
+                notifier = pyinotify.AsyncioNotifier(
+                    wm, loop, default_proc_fun=EventHandler()
+                )
 
-            global machines_file_towait
-            machines_file_towait = machines_file
+                global machines_file_towait
+                machines_file_towait = machines_file
 
-            # TODO race condition remains possible ....
-            wm.add_watch(op.dirname(machines_file), pyinotify.IN_CREATE)
-            loop.run_forever()
-            notifier.stop()
-            ctx.log(f"{machines_file} file created")
+                # TODO race condition remains possible ....
+                wm.add_watch(op.dirname(machines_file), pyinotify.CREATE)
+                loop.run_forever()
+                notifier.stop()
+
+            # ctx.log(f"{machines_file} file created")
+            spinner.succeed(f"{machines_file} file created")
 
     # Determine composition and flavour name
     # First case composition is given not flavour name

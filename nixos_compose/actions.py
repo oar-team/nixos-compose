@@ -16,6 +16,20 @@ from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
 
 
 ##
+# Helper function to determine fstype
+#
+def get_fs_type(path):
+    root_type = ""
+    for part in psutil.disk_partitions(True):
+        if part.mountpoint == "/":
+            root_type = part.fstype
+            continue
+        if path.startswith(part.mountpoint):
+            return part.fstype
+    return root_type
+
+
+##
 # Retrieve from path from different store location if needed
 #
 
@@ -500,9 +514,9 @@ def wait_ssh_ports(ctx, ips=None, halo=True):
             )
         time.sleep(0.25)
     if halo:
-        spinner.succeed("All ssh ports are opened")
+        spinner.succeed("Deployment taken {:.1f} sec".format(ctx.elapsed_time()))
     else:
-        ctx.vlog("All ssh ports are opened")
+        ctx.vlog("Deployment took {:.1f}s".format(ctx.elapsed_time()))
 
 
 def push_on_machines(ctx):
