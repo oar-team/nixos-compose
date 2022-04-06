@@ -20,6 +20,7 @@
           #overrides =
           #  [ pkgs.poetry2nix.defaultPoetryOverrides customOverrides ];
           propagatedBuildInputs = [ pkgs.openssh ];
+          dontPatchShebangs = 1;
         };
 
         packageName = "nixos-compose";
