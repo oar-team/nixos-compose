@@ -148,10 +148,9 @@ in let
   && flavour.image.type == "ramdisk" then {
     compositions_squashfs_store = allCompositionsSquashfsStore;
     all = {
-      qemu_script = "${baseConfig.system.build.qemu_script}";
       initrd = "${allRamdisk}/initrd";
+      qemu_script = "${baseConfig.system.build.qemu_script}";
     };
-
   } else {
     all = {
       image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";

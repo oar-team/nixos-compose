@@ -47,9 +47,10 @@ with lib; {
       squashfs_img = "${config.system.build.squashfsStore}";
       qemu_script = "${qemu_script}";
       #sshkey_priv = "${snakeOilPrivateKeyFile}";
-    } // initClosureInfo;
-
-    qemu_script = pkgs.writeTextFile {
+    }  // initClosureInfo;
+    # TODO remove or add as option
+    # also used by multipl_compositions
+    qemu_script = if config.nxc.qemu-script.enable then pkgs.writeTextFile {
       executable = true;
       name = "qemu_script";
       text = ''
@@ -107,7 +108,7 @@ with lib; {
         $NOGRAPHIC \
         $QEMU_OPTS
       '';
-    };
+    } else "Disable_for_space_saving";
   };
 
   # misc

@@ -4,6 +4,9 @@ with lib; {
 
   options = {
     nxc = {
+      qemu-script = {
+        enable = mkEnableOption "Build qemu and qemu_script (take space)";
+      };
       wait-online = {
         enable = mkEnableOption "Wait to network is operational";
       };
