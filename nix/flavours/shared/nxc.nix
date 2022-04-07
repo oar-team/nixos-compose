@@ -7,6 +7,21 @@ with lib; {
       qemu-script = {
         enable = mkEnableOption "Build qemu and qemu_script (take space)";
       };
+      root-sshKeys = {
+        enable = mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Set root's ssh keys (add pub key to authorized_keys)";
+        };
+      };
+      postBootCommands = mkOption {
+        default = "";
+        example = "touch /etc/foo";
+        type = types.lines;
+        description = ''
+          Shell commands to be executed just before systemd is started.
+        '';
+      };
       wait-online = {
         enable = mkEnableOption "Wait to network is operational";
       };

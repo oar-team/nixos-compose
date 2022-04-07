@@ -1,6 +1,16 @@
 { config, pkgs, ... }:
 let
   unsafeSshKeys = import ./ssh-keys.nix;
+  set_root_ssh_keys = if config.nxc.root-sshKeys.enable then ''
+    # set unsafe root keys
+    echo "${unsafeSshKeys.snakeOilPrivateKey}" > /root/.ssh/id_rsa
+    chmod 600 /root/.ssh/id_rsa
+    echo "${unsafeSshKeys.snakeOilPublicKey}" > /root/.ssh/id_rsa.pub
+    echo "${unsafeSshKeys.snakeOilPublicKey}" >> /root/.ssh/authorized_keys
+    echo "Host *" > /root/.ssh/config
+    echo "   StrictHostKeyChecking no" >> /root/.ssh/config
+    echo "   HashKnownHosts no" >> /root/.ssh/config
+  '' else "";
 in
 {
   boot.postBootCommands = ''
@@ -35,16 +45,9 @@ in
       cat /etc/nxc/deployment-hosts >> /etc/hosts
     fi
 
-    # set unsafe root keys
     mkdir -p /root/.ssh/
     chmod 700 /root/.ssh/
-    echo "${unsafeSshKeys.snakeOilPrivateKey}" > /root/.ssh/id_rsa
-    chmod 600 /root/.ssh/id_rsa
-    echo "${unsafeSshKeys.snakeOilPublicKey}" > /root/.ssh/id_rsa.pub
-    echo "${unsafeSshKeys.snakeOilPublicKey}" >> /root/.ssh/authorized_keys
-    echo "Host *" > /root/.ssh/config
-    echo "   StrictHostKeyChecking no" >> /root/.ssh/config
-    echo "   HashKnownHosts no" >> /root/.ssh/config
+    ${set_root_ssh_keys}
 
     # Execute post boot scripts optionally provided through flavour/extraModules or composition
     for post_boot_script in $(ls -d /etc/post-boot-script* 2> /dev/null);
@@ -66,5 +69,7 @@ in
     # /etc/NIXOS tag.
     touch /etc/NIXOS
     ${config.nix.package}/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system
+
+    ${config.nxc.postBootCommands}
   '';
 }
