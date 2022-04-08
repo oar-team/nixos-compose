@@ -4,11 +4,9 @@
   imports = [
     ./base.nix
     ./stage-1-cmds.nix
-    ./stage-2-cmds.nix
     ./common.nix
     ./nxc.nix
     ./g5k-ssh-host-keys.nix
-
   ];
 
   boot.initrd.availableKernelModules =
