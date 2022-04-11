@@ -11,6 +11,7 @@ import click
 import signal
 import psutil
 import itertools
+import ipaddress
 from halo import Halo
 from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
 
@@ -222,7 +223,7 @@ def populate_deployment_forward_ssh_port(nodes):
     for role in nodes:
         ip0 = 1 + i
         ip = f"127.0.0.{ip0}"
-        deployment[ip] = {"role": role, "ssh-port": 22022 + i}
+        deployment[ip] = {"host": role, "role": role, "ssh-port": 22022 + i}
         i = i + 1
 
     return deployment
@@ -571,7 +572,6 @@ def push_on_machines(ctx):
 def ssh_connect(ctx, user, node, execute=True):
     if not ctx.deployment_info:
         read_deployment_info(ctx)
-
     role = node
     host = node
     ssh_port = None
@@ -604,7 +604,13 @@ NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
 
 def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if not nodes:
-        nodes = list(ctx.deployment_info["deployment"].keys())
+        deploy = ctx.deployment_info["deployment"]
+        node = (list(deploy.keys()))[0]
+        try:
+            ipaddress.ip_address(node)
+            nodes = [v["host"] for v in deploy.values()]
+        except ValueError:
+            nodes = list(deploy.keys())
 
     ssh_cmds = [ctx.flavour.ext_connect(user, node, execute=False) for node in nodes]
 
