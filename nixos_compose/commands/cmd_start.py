@@ -315,9 +315,10 @@ def cli(
         ctx.log("Nixos Driver detected")
 
         if not interactive:
-            test_script = read_test_script(op.join(build_path, "test-script"))
+            test_script = read_test_script(ctx, op.join(build_path, "test-script"))
 
         if forward_ssh_port:
+            ctx.forward_ssh_port = True
             test_script = "start_all(); [m.forward_port(22022+i, 22) for i, m in enumerate(machines)]; join_all();"
             nodes = [n.split("-")[1] for n in re.findall(r"run-\w+-vm", driver_script)]
 
@@ -325,10 +326,6 @@ def cli(
                 ctx.compose_info = {}
             ctx.compose_info["nodes"] = nodes
 
-            # TODO
-            print("TODO")
-            exit(0)
-            # generate_deployment_info(ctx, forward_ssh_port=True)
             ctx.flavour.generate_deployment_info()
 
         if "QEMU_OPTS" in os.environ:
