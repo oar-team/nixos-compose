@@ -23,6 +23,6 @@ else if flavour.name == "nixos-test-driver" then
 else if flavour.name == "nixos-test-ssh" then
   (nixos_test argumentsModule composition).driver
 else if flavour.name == "docker" then
-  generate_docker_compose commonArguments composition
+  generate_docker_compose argumentsModule composition
 else
   multiple_compositions argumentsFlavourMulti
