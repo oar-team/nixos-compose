@@ -27,6 +27,10 @@
     path = ./setup;
     description = "Setup example";
   };
+  scripts = {
+    path = ./scripts;
+    description = "Scripts example";
+  };
   spark = {
     path = ./spark;
     description = "Spark example";
