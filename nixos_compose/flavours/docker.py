@@ -12,6 +12,7 @@ from ..driver.machine import Machine
 
 from typing import List, Tuple, Optional
 
+
 def generate_docker_compose_file(ctx):
     base_docker_compose = ctx.compose_info["docker-compose-file"]
     docker_compose_content = {"services": {}}
@@ -20,7 +21,12 @@ def generate_docker_compose_file(ctx):
         if ctx.roles_quantities == {}:
             roles_quantities = {role: 1 for role in ctx.compose_info["nodes"]}
         else:
-            roles_quantities = dict(filter(lambda x: x[0] in ctx.compose_info["nodes"], ctx.roles_quantities.items()))
+            roles_quantities = dict(
+                filter(
+                    lambda x: x[0] in ctx.compose_info["nodes"],
+                    ctx.roles_quantities.items(),
+                )
+            )
         for role, quantities in roles_quantities.items():
             if type(quantities) is int:
                 if quantities == 1:
@@ -44,6 +50,19 @@ def generate_docker_compose_file(ctx):
         docker_compose_content["version"] = dc_json["version"]
         docker_compose_content["x-nxc"] = dc_json["x-nxc"]
 
+    # Add bind  deployment file inside containers
+    deployment_file = op.join(
+        ctx.envdir, f"deploy/{ctx.composition_flavour_prefix}.json"
+    )
+    for service in docker_compose_content["services"].values():
+        (service["volumes"]).append(
+            {
+                "type": "bind",
+                "source": deployment_file,
+                "target": "/etc/nxc/deployment.json",
+            }
+        )
+
     deploy_dir = op.join(ctx.envdir, "deploy", "docker_compose")
     if not op.exists(deploy_dir):
         create = click.style("   create", fg="green")
@@ -51,9 +70,7 @@ def generate_docker_compose_file(ctx):
         os.mkdir(deploy_dir)
     docker_compose_path = op.join(deploy_dir, "docker-compose.json")
 
-    with open(
-        docker_compose_path, "w"
-    ) as outfile:
+    with open(docker_compose_path, "w") as outfile:
         outfile.write(json.dumps(docker_compose_content))
     return docker_compose_path
 
@@ -72,7 +89,7 @@ def generate_deployment_info_docker(ctx):
     deployment = {
         "nodes": ctx.compose_info["nodes"],
         "deployment": {n: {"role": n} for n in ctx.compose_info["nodes"]},
-        "docker-compose-file": docker_compose_path
+        "docker-compose-file": docker_compose_path,
     }
 
     if "all" in ctx.compose_info:
