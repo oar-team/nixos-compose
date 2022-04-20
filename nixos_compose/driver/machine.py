@@ -171,8 +171,6 @@ class VmStartCommand(StartCommand):
         monitor_socket_path: Path,
         shell_socket_path: Path,
     ) -> subprocess.Popen:
-        # print(self.cmd(monitor_socket_path, shell_socket_path))
-        # print(self.build_environment(state_dir, shared_dir))
         return subprocess.Popen(
             self.cmd(monitor_socket_path, shell_socket_path),
             stdin=subprocess.DEVNULL,
@@ -232,6 +230,7 @@ class Machine:
     monitor: Optional[socket.socket]
     shell: Optional[socket.socket]
     serial_thread: Optional[threading.Thread]
+    process_shell: Optional[subprocess.Popen]
 
     booted: bool
     connected: bool
@@ -417,6 +416,9 @@ class Machine:
     def execute(
         self, command: str, check_return: bool = True, timeout: Optional[int] = 900
     ) -> Tuple[int, str]:
+
+        if self.ctx.external_connect:
+            return self.execute_process_shell(command, check_return, timeout)
 
         self.connect()
 
@@ -667,33 +669,6 @@ class Machine:
         """Debugging: Dump the contents of the TTY<n>"""
         self.execute("fold -w 80 /dev/vcs{} | systemd-cat".format(tty))
 
-    # def _get_screen_text_variants(self, model_ids: Iterable[int]) -> List[str]:
-    #     with tempfile.TemporaryDirectory() as tmpdir:
-    #         screenshot_path = os.path.join(tmpdir, "ppm")
-    #         self.send_monitor_command(f"screendump {screenshot_path}")
-    #         return _perform_ocr_on_screenshot(screenshot_path, model_ids)
-
-    # def get_screen_text_variants(self) -> List[str]:
-    #     return self._get_screen_text_variants([0, 1, 2])
-
-    # def get_screen_text(self) -> str:
-    #     return self._get_screen_text_variants([2])[0]
-
-    # def wait_for_text(self, regex: str) -> None:
-    #     def screen_matches(last: bool) -> bool:
-    #         variants = self.get_screen_text_variants()
-    #         for text in variants:
-    #             if re.search(regex, text) is not None:
-    #                 return True
-
-    #         if last:
-    #             self.log("Last OCR attempt failed. Text was: {}".format(variants))
-
-    #         return False
-
-    #     with self.nested("waiting for {} to appear on screen".format(regex)):
-    #         retry(screen_matches)
-
     def wait_for_console_text(self, regex: str) -> None:
         with self.nested("waiting for {} to appear on console".format(regex)):
             # Buffer the console output, this is needed
@@ -869,3 +844,39 @@ class Machine:
         self.shell.close()
         self.monitor.close()
         self.serial_thread.join()
+
+    def start_process_shell(self, args):
+        # command examples:
+        # ['docker-compose', '-f', '/home/auguste/work/tests/21-22/nxc-test/nxc/deploy/docker_compose/docker-compose.json', 'exec', '-T', ']
+
+        # ['ssh', '-t', '-o', 'StrictHostKeyChecking=no', '-l', 'root', '10.0.2.16']
+        self.process_shell = subprocess.Popen(
+            args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+
+    def execute_process_shell(
+        self, command: str, check_return: bool = True, timeout: Optional[int] = 900,
+    ) -> Tuple[int, str]:
+
+        self.connect()
+
+        process_shell = self.process_shell
+
+        try:
+            (stdout, _stderr) = process_shell.communicate(
+                command.encode(), timeout=timeout
+            )
+        except subprocess.TimeoutExpired:
+            process_shell.kill()
+            return (-1, "")
+
+        status_code = process_shell.returncode
+        self.restart_process_shell()
+
+        if not check_return:
+            return (-1, stdout.decode())
+
+        return (status_code, stdout.decode())
+
+    def restart_process_shell(self):
+        self.start()

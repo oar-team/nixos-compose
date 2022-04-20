@@ -44,7 +44,7 @@ class Driver:
         else:
             rootlog.warning("No machine defined during driver init")
 
-        if hasattr(ctx.flavour, "vlan"):
+        if hasattr(ctx.flavour, "vlan") and not ctx.no_start:
             self.vlans = [ctx.flavour.vlan()]
 
         # def cmd(scripts: List[str]) -> Iterator[NixStartScript]:

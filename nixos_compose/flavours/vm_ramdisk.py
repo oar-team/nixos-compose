@@ -11,8 +11,6 @@ from ..driver.vlan import VLan
 from ..driver.logger import rootlog
 from ..driver.machine import Machine, StartScript
 
-from typing import List
-
 
 class VmRamdiskFlavour(Flavour):
     """
@@ -22,7 +20,6 @@ class VmRamdiskFlavour(Flavour):
     vm = True
     tmp_dir = None
     vlan = None
-    machines: List[Machine] = []
 
     def __init__(self, ctx):
         super().__init__(ctx)
@@ -39,6 +36,26 @@ class VmRamdiskFlavour(Flavour):
 
         ctx = self.ctx
         deployment = ctx.deployment_info
+
+        if ctx.no_start:  #
+            deployment_nodes = self.ctx.deployment_info["deployment"]
+            for ip, node in deployment_nodes.items():
+                self.machines.append(
+                    Machine(
+                        self.ctx,
+                        ip=ip,
+                        tmp_dir=tmp_dir,
+                        start_command="",
+                        keep_vm_state=False,
+                        name=node["host"],
+                    )
+                )
+
+            for machine in self.machines:
+                if not machine.connected:
+                    self.start(machine)
+                machine.connected = True
+            return
 
         os.environ["KERNEL"] = deployment["all"]["kernel"]
         os.environ["INITRD"] = deployment["all"]["initrd"]
@@ -136,7 +153,20 @@ class VmRamdiskFlavour(Flavour):
         return self.vlan
 
     def start(self, machine):
-        machine._start_vm()
+        if not self.ctx.no_start:
+            machine._start_vm()
+        else:
+            machine.start_process_shell(
+                [
+                    "ssh",
+                    "-t",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-l",
+                    "root",
+                    machine.ip,
+                ]
+            )
 
     def release(self, machine):
         if machine.pid is None:

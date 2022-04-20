@@ -30,9 +30,9 @@ class Context(object):
         self.t0 = time.time()
         self.nxc_file = None
         self.nxc = None
-        self.current_dir = os.getcwd() #TOREMOVE ?
+        self.current_dir = os.getcwd()  # TOREMOVE ?
         self.verbose = False
-        self.workdir = self.current_dir #TOREMOVE ?
+        self.workdir = self.current_dir  # TOREMOVE ?
         self.debug = False
         self.prefix = "nxc"
         self.flavour = None
@@ -59,8 +59,11 @@ class Context(object):
         self.alternative_stores = [f"{os.environ['HOME']}/.nix"]
         self.roles_quantities = {}
         self.setup = None
+        self.sigwait = None
+        self.all_started: bool = False
+        self.no_start: bool = False
+        self.external_connect: bool = False
 
-        
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
             fd.write(env_name + "\n")
@@ -151,6 +154,7 @@ class Context(object):
 
     def set_roles_quantities(self, roles_quantities):
         self.roles_quantities = roles_quantities
+
 
 def make_pass_decorator(ensure=False):
     def decorator(f):

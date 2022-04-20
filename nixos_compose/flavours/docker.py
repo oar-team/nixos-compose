@@ -10,7 +10,7 @@ from ..actions import read_compose_info
 from ..driver.logger import rootlog
 from ..driver.machine import Machine
 
-from typing import List, Tuple, Optional
+from typing import Tuple, Optional
 
 
 def generate_docker_compose_file(ctx):
@@ -109,22 +109,24 @@ def generate_deployment_info_docker(ctx):
 class DockerFlavour(Flavour):
 
     docker_compose_file = None
-    machines: List[Machine] = []
-
-    started_all = False
 
     def __init__(self, ctx):
         super().__init__(ctx)
 
         self.name = "docker"
         self.description = ""
-        self.docker_processes = {}
+        # TOR self.docker_processes = {}
 
     def generate_deployment_info(self):
         self.docker_compose_file = generate_deployment_info_docker(self.ctx)
 
     def driver_initialize(self, tmp_dir):
-        nodes_names = self.ctx.compose_info["nodes"]
+
+        assert self.ctx.deployment_info
+        if not self.docker_compose_file:
+            self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
+
+        nodes_names = self.ctx.deployment_info["nodes"]
         for name in nodes_names:
             self.machines.append(
                 Machine(self.ctx, tmp_dir=tmp_dir, start_command="", name=name,)
@@ -150,22 +152,24 @@ class DockerFlavour(Flavour):
         self.start_all()
 
     def start_all(self):
-        with rootlog.nested("starting docker-compose"):
-            subprocess.Popen(
-                ["docker-compose", "-f", self.docker_compose_file, "up", "-d"]
-            )
+        if not self.external_connect:
+            with rootlog.nested("starting docker-compose"):
+                subprocess.Popen(
+                    ["docker-compose", "-f", self.docker_compose_file, "up", "-d"]
+                )
 
-        self.wait_on_check()
+            self.wait_on_check()
 
         for machine in self.machines:
-            self.start(machine)
-            self.connected = True
+            if not machine.connected:
+                self.start(machine)
+                machine.connected = True
 
-    def start(self, machine):
+    def start(self, machine):  # TODO MOVE to Connect ???
         assert machine.name
         assert self.docker_compose_file
 
-        self.docker_processes[machine] = subprocess.Popen(
+        machine.start_process_shell(
             [
                 "docker-compose",
                 "-f",
@@ -174,10 +178,7 @@ class DockerFlavour(Flavour):
                 "-T",
                 machine.name,
                 "bash",
-            ],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            ]
         )
 
     def execute(
@@ -188,24 +189,10 @@ class DockerFlavour(Flavour):
         timeout: Optional[int] = 900,
     ) -> Tuple[int, str]:
 
-        self.connect(machine)
-
-        docker_process = self.docker_processes[machine]
-        try:
-            (stdout, _stderr) = docker_process.communicate(
-                command.encode(), timeout=timeout
-            )
-        except subprocess.TimeoutExpired:
-            docker_process.kill()
-            return (-1, "")
-        status_code = docker_process.returncode
-        self.restart(machine)
-        return (status_code, stdout.decode())
+        return machine.execute_process_shell(command, check_return, timeout)
 
     def restart(self, machine):
-        if machine in self.docker_processes and self.docker_processes[machine]:
-            self.docker_processes[machine]
-        self.start(machine)
+        machine.restart_process_shell()
 
     def cleanup(self):
         # TODO handle stdout/stderr
@@ -223,13 +210,13 @@ class DockerFlavour(Flavour):
 
     def shell_interact(self, machine) -> None:
         self.connect(machine)
-        print("not yet implemented")
+        self.ext_connect("root", machine.name)
 
     def ext_connect(self, user, node, execute=True):
         if not self.docker_compose_file:
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
 
-        cmd = f"docker-compose -f {self.docker_compose_file} exec -u {user} {node} /bin/sh -c bash"
+        cmd = f"docker-compose -f {self.docker_compose_file} exec -u {user} {node} bash"
 
         if execute:
             return_code = subprocess.run(cmd, shell=True).returncode

@@ -1,8 +1,12 @@
 import time
+from typing import List
+from .driver.machine import Machine
 
 
 class Flavour(object):
     name: str
+    external_connect: bool = False
+    machines: List[Machine] = []
 
     def __init__(self, ctx):
         self.ctx = ctx
