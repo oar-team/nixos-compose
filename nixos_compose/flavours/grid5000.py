@@ -16,6 +16,7 @@ from ..actions import (
     wait_ssh_ports,
     ssh_connect,
 )
+from ..driver.machine import Machine
 
 # from ..driver.logger import rootlog
 
@@ -98,6 +99,47 @@ class G5kRamdiskFlavour(Flavour):
         time.sleep(10)
         wait_ssh_ports(self.ctx)
 
+    def driver_initialize(self, tmp_dir):
+        self.tmp_dir = tmp_dir
+        ctx = self.ctx
+
+        if ctx.no_start:  #
+            deployment_nodes = self.ctx.deployment_info["deployment"]
+            for ip, node in deployment_nodes.items():
+                self.machines.append(
+                    Machine(
+                        self.ctx,
+                        ip=ip,
+                        tmp_dir=tmp_dir,
+                        start_command="",
+                        keep_vm_state=False,
+                        name=node["host"],
+                    )
+                )
+
+            for machine in self.machines:
+                if not machine.connected:
+                    self.start(machine)
+                machine.connected = True
+            return
+
+    def start(self, machine):
+        if not self.ctx.no_start:
+            print("Not Yet Implemented")
+            exit(1)
+        else:
+            machine.start_process_shell(
+                [
+                    "ssh",
+                    "-t",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-l",
+                    "root",
+                    machine.ip,
+                ]
+            )
+
     def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)
 
@@ -143,6 +185,23 @@ class G5KImageFlavour(Flavour):
                 raise click.ClickException(f"Failed to execute kadeploy command: {ex}")
         else:
             print(f"You can kadeploy image with: {cmd_kadeploy}")
+
+    def start(self, machine):
+        if not self.ctx.no_start:
+            print("Not Yet Implemented")
+            exit(1)
+        else:
+            machine.start_process_shell(
+                [
+                    "ssh",
+                    "-t",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-l",
+                    "root",
+                    machine.ip,
+                ]
+            )
 
     def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)

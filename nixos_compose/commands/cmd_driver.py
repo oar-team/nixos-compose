@@ -21,7 +21,7 @@ from ..driver.driver import Driver
     "--flavour",
     help="flavour, by default it's extracted from deployment file name",
 )
-@click.argument("test-script")
+@click.argument("test-script", required=False)
 @pass_context
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
