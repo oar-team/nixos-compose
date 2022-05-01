@@ -66,6 +66,8 @@ in
     })
     (mkIf cfg.baseBootCommands.enable {
       boot.postBootCommands = ''
+    ln -s /run/current-system/sw/bin/bash /bin/bash
+
     compositionName=""
     if [[ -f /etc/nxc-composition ]]; then
       compositionName=$(cat /etc/nxc-composition)
