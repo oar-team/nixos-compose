@@ -62,7 +62,7 @@
                     echo "$ssh_key_pub" >> /mnt-root/root/.ssh/authorized_keys
                 fi
                 echo "Generate/complete /etc/nxc/deployment-hosts  from deployment.json"
-                jq -r '.deployment | to_entries | map(.key + " " + (.value.role)) | .[]' \
+                jq -r '.deployment | to_entries | map(.key + " " + (.value.host)) | .[]' \
                 $deployment_json >> /mnt-root/etc/nxc/deployment-hosts
                 ;;
             role=*)
