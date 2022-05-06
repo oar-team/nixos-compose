@@ -138,7 +138,7 @@ def build_nxc_execo(nxc_path,
     execo_engine.log.logger.info("Now giving back the build node")
     oardel([(job_id, site)])
 
-    execo_engine.log.logger.info(f"The compose info file is stored at {compose_info_path}")
+    #execo_engine.log.logger.info(f"The compose info file is stored at {compose_info_path}")
     return infos_build
 
 def get_envdir(ctx):
