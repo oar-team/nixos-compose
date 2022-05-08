@@ -159,7 +159,7 @@ class G5KImageFlavour(Flavour):
             self.ctx, self.ctx.deployment_info["all"]["image"]
         )
         cmd_copy_image = f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz && chmod 644 ~{os.environ["USER"]}/public/nixos.tar.xz'
-        if click.confirm(
+        if not machine_file and click.confirm(
             f'Do you want to copy image to ~{os.environ["USER"]}/public/nixos.tar.xz ?'
         ):
             try:

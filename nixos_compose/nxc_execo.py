@@ -13,6 +13,7 @@ from .context import Context
 from .actions import realpath_from_store, translate_hosts2ip
 from .flavours.grid5000 import G5kRamdiskFlavour, G5KImageFlavour
 from .g5k import key_sleep_script
+from .httpd import HTTPDaemon
 
 # Stolen from Adrien Faure: github.com:adfaure/vinix.git
 def get_size(start_path: str):
@@ -187,6 +188,10 @@ def get_oar_job_nodes_nxc(oar_job_id,
     g5k_nodes = get_oar_job_nodes(oar_job_id, site)
     print(f"G5K nodes: {g5k_nodes}")
     machines = [node.address for node in g5k_nodes]
+    if len(machines) > 4:
+        ctx.use_http = True
+        ctx.httpd = HTTPDaemon(ctx=ctx)
+        ctx.httpd.start(directory=ctx.envdir)
     translate_hosts2ip(ctx, machines)
 
     if flavour_name == "g5k-ramdisk":
@@ -230,5 +235,7 @@ def get_oar_job_nodes_nxc(oar_job_id,
         else:
             roles[node_role] = [Host(ip_addr, user="root")]
 
+    if ctx.use_httpd:
+        ctx.httpd.stop()
     return roles
 
