@@ -153,13 +153,13 @@ class G5KImageFlavour(Flavour):
     def generate_deployment_info(self):
         generate_deployment_info(self.ctx)
 
-    def launch(self):
+    def launch(self, machine_file=None):
         generate_kadeploy_envfile(self.ctx)
         image_path = realpath_from_store(
             self.ctx, self.ctx.deployment_info["all"]["image"]
         )
         cmd_copy_image = f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz && chmod 644 ~{os.environ["USER"]}/public/nixos.tar.xz'
-        if click.confirm(
+        if not machine_file and click.confirm(
             f'Do you want to copy image to ~{os.environ["USER"]}/public/nixos.tar.xz ?'
         ):
             try:
@@ -172,11 +172,16 @@ class G5KImageFlavour(Flavour):
             self.ctx.envdir,
             f"artifact/{self.ctx.composition_name}/{self.ctx.flavour.name}",
         )
-        cmd_kadeploy = (
-            f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f $OAR_NODEFILE -k'
-        )
+        if machine_file:
+            cmd_kadeploy = (
+                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f {machine_file} -k'
+            )
+        else:
+            cmd_kadeploy = (
+                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f $OAR_NODEFILE -k'
+            )
 
-        if click.confirm(
+        if machine_file or click.confirm(
             "Do you want to kadeploy nixos.tar.xz image on nodes from $OAR_NODEFILE"
         ):
             try:
