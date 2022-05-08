@@ -10,7 +10,7 @@ import time
 import logging
 from .context import Context
 from .actions import realpath_from_store, translate_hosts2ip
-from .flavours.grid5000 import G5kRamdiskFlavour
+from .flavours.grid5000 import G5kRamdiskFlavour, G5KImageFlavour
 
 # Stolen from Adrien Faure: github.com:adfaure/vinix.git
 def get_size(start_path: str):
@@ -182,7 +182,12 @@ def get_oar_job_nodes_nxc(oar_job_id,
 
     print(f"compose info file: {ctx.compose_info_file}")
 
-    flavour = G5kRamdiskFlavour(ctx)
+    if flavour_name == "g5k-ramdisk":
+        flavour = G5kRamdiskFlavour(ctx)
+    elif flavour_name == "g5k-image":
+        flavour = G5KImageFlavour(ctx)
+    else:
+        raise Exception(f"'{flavour_name}' is not an available flavour")
     # ?!
     flavour.ctx.flavour = flavour
 
@@ -196,7 +201,9 @@ def get_oar_job_nodes_nxc(oar_job_id,
     # flavour.ctx.ssh = f"OAR_JOB_ID={oar_job_id} oarsh"
     flavour.ctx.ssh = "ssh"
     flavour.ctx.sudo = "sudo-g5k"
-    flavour.generate_kexec_scripts()
+
+    if hasattr(flavour, "generate_kexec_scripts"):
+        flavour.generate_kexec_scripts()
 
     flavour.ctx.log("Launch ssh(s) kexec")
     flavour.launch()
