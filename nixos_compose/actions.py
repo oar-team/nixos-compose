@@ -194,7 +194,10 @@ def health_check_roles_quantities(nodes_info, roles_quantities):
         for role in roles_quantities:
             if type(roles_quantities[role]) == int:
                 nb_nodes = roles_quantities[role]
-                roles_quantities[role] = [f"{role}{i}" for i in range(1, nb_nodes + 1)]
+                if nb_nodes == 1:
+                    roles_quantities[role] = [f"{role}"]
+                else:
+                    roles_quantities[role] = [f"{role}{i}" for i in range(1, nb_nodes + 1)]
 
         # Step 2: check that we do not have any conflict on the hostnames
 
