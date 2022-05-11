@@ -27,6 +27,18 @@ def generate_docker_compose_file(ctx):
                     ctx.roles_quantities.items(),
                 )
             )
+        # Add bind  deployment file inside containers
+        deployment_file = op.join(
+            ctx.envdir, f"deploy/{ctx.composition_flavour_prefix}.json"
+        )
+        for service in dc_json["services"].values():
+            (service["volumes"]).append(
+                {
+                    "type": "bind",
+                    "source": deployment_file,
+                    "target": "/etc/nxc/deployment.json",
+                }
+            )
         for role, quantities in roles_quantities.items():
             if type(quantities) is int:
                 if quantities == 1:
@@ -50,18 +62,6 @@ def generate_docker_compose_file(ctx):
         docker_compose_content["version"] = dc_json["version"]
         docker_compose_content["x-nxc"] = dc_json["x-nxc"]
 
-    # Add bind  deployment file inside containers
-    deployment_file = op.join(
-        ctx.envdir, f"deploy/{ctx.composition_flavour_prefix}.json"
-    )
-    for service in docker_compose_content["services"].values():
-        (service["volumes"]).append(
-            {
-                "type": "bind",
-                "source": deployment_file,
-                "target": "/etc/nxc/deployment.json",
-            }
-        )
 
     deploy_dir = op.join(ctx.envdir, "deploy", "docker_compose")
     if not op.exists(deploy_dir):
