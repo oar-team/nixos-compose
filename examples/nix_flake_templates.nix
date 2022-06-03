@@ -19,6 +19,10 @@
     path = ./kernel;
     description = "Example with different Linux Kernels";
   };
+  nixos-cluster = {
+    path = ./nixos-cluster;
+    description = "A remote store for nixos machines";
+  };
   multi-composistions = {
     path = ./multi-compositions;
     description = "A multi-compositions example";
