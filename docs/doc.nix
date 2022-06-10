@@ -14,7 +14,7 @@ let
 in rec {
   doc = pkgs.stdenv.mkDerivation {
     name = "nxcDoc";
-    src = ../doc;
+    src = ../docs;
     nativeBuildInputs = buildInputs;
     buildCommand = ''
       mkdir $out

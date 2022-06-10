@@ -10,8 +10,9 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
         app = pkgs.poetry2nix.mkPoetryApplication {
-          projectDir = ./.;
+          projectDir = ./nixos-compose;
           propagatedBuildInputs = [ pkgs.openssh ];
           dontPatchShebangs = 1;
         };
@@ -28,7 +29,7 @@
           showTemplates = pkgs.writeText "templates.json" (builtins.toJSON
             (builtins.mapAttrs (name: value: value.description)
               self.templates));
-        };
+        } // flake-utils.lib.flattenTree doc;
 
         devShells = {
           default = pkgs.mkShell {
@@ -36,14 +37,14 @@
             inputsFrom = builtins.attrValues self.packages.${system};
           };
           nxcShell = pkgs.mkShell {
-            buildInputs = [ self.packages.${system} ]; };
+            buildInputs = [ self.packages.${system}.default ]; };
           nxcShellFull = pkgs.mkShell {
             buildInputs = [ self.packages.${system}."${packageName}-full" ];
           };
         };
       }) // {
-        lib = import ./nix/lib.nix;
-        templates = import ./examples/nix_flake_templates.nix;
+        lib = import ./nixos-compose/nix/lib.nix;
+        templates = import ./nixos-compose/examples/nix_flake_templates.nix;
         overlays.default = import ./overlay.nix { inherit self; };
       };
 }
