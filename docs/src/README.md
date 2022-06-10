@@ -1,4 +1,8 @@
-# Introduction
+# WIP
+
+# Test of preprocessors
+
+## Mermaid
 
 ```mermaid
 graph TD;
@@ -8,11 +12,13 @@ graph TD;
     C-->D;
 ```
 
+## Admonish info
+
 ```admonish info
 A beautifully styled message.
-blalbalbalbalbalbl
 ```
 
+# Syntax highlighting
 ```nix
 {
     environnment = true;
