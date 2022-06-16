@@ -27,13 +27,13 @@
       in rec {
         packages = {
           ${packageName} = app;
-          "${packageName}-full" = app.overrideAttrs(attr: rec {
-            propagatedBuildInputs = attr.propagatedBuildInputs ++ [
-              pkgs.docker-compose
-              pkgs.qemu_kvm
-              pkgs.vde2
-            ];
-          });
+          # "${packageName}-full" = app.overrideAttrs(attr: rec {
+          #   propagatedBuildInputs = attr.propagatedBuildInputs ++ [
+          #     pkgs.docker-compose
+          #     pkgs.qemu_kvm
+          #     pkgs.vde2
+          #   ];
+          # });
           showTemplates = pkgs.writeText "templates.json" (
             builtins.toJSON (builtins.mapAttrs (name: value: value.description) self.templates)
           );
@@ -46,7 +46,12 @@
             buildInputs = [ self.defaultPackage.${system} ];
           };
           nxcShellFull = pkgs.mkShell {
-            buildInputs = [ self.packages.${system}."${packageName}-full" ];
+            buildInputs = [
+              self.packages.${system}.${packageName}
+              pkgs.docker-compose
+              pkgs.qemu_kvm
+              pkgs.vde2
+            ];
           };
         };
 
