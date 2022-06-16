@@ -51,6 +51,7 @@
               pkgs.docker-compose
               pkgs.qemu_kvm
               pkgs.vde2
+              pkgs.tmux
             ];
           };
         };
