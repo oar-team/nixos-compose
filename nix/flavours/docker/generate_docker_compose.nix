@@ -47,6 +47,7 @@ let
         args@{ pkgs, ... }:
         builtins.removeAttrs (configNode args) [ "virtualisation" ];
       config = {
+        system.stateVersion = lib.mkDefault lib.trivial.release;
         imports = [ ./systemd.nix (nodeConfigWithoutVirutalisation nodeConfig) ]
           ++ extraConfigurations;
       };
