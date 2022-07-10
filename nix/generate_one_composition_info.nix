@@ -45,6 +45,7 @@ let
             text = "${compositionName}";
           };
         }
+        {system.stateVersion = lib.mkDefault lib.trivial.release;} # perhaps a better place exist than here 
         configuration
         vmSharedDirMod
         flavourConfig
