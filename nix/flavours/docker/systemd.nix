@@ -1,6 +1,7 @@
 /* NixOS configuration to for running a mostly normal systemd-based
    NixOS in Docker.
 */
+hostname:
 { pkgs, lib, modulesPath, ... }: {
 
   # imports = [
@@ -13,7 +14,7 @@
 
   boot.isContainer = true;
   boot.specialFileSystems = lib.mkForce { };
-  networking.hostName = "";
+  networking.hostName = "${hostname}";
 
   services.journald.console = "/dev/console";
 

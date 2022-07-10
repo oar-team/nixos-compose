@@ -47,7 +47,7 @@ let
         args@{ pkgs, ... }:
         builtins.removeAttrs (configNode args) [ "virtualisation" ];
       config = {
-        imports = [ ./systemd.nix (nodeConfigWithoutVirutalisation nodeConfig) ]
+        imports = [ (import ./systemd.nix nodeName)  (nodeConfigWithoutVirutalisation nodeConfig) ]
           ++ extraConfigurations;
       };
       builtConfig = pkgs.nixos config;
