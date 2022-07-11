@@ -9,6 +9,8 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
+        mdbook-admonish =
+    nixpkgs.legacyPackages.${system}.callPackage ./docs/mdbook-admonish.nix { };
         pkgs = nixpkgs.legacyPackages.${system};
         doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
         app = pkgs.poetry2nix.mkPoetryApplication {
@@ -40,6 +42,9 @@
             buildInputs = [ self.packages.${system}.default ]; };
           nxcShellFull = pkgs.mkShell {
             buildInputs = [ self.packages.${system}."${packageName}-full" ];
+          };
+          devDoc = pkgs.mkShell {
+            buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ];
           };
         };
       }) // {
