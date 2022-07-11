@@ -1,5 +1,5 @@
 [book]
-title = "My First Book"
+title = "NixOS Compose Documentation"
 
 [preprocessor]
 
@@ -8,6 +8,7 @@ command = "mdbook-mermaid"
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
+assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 
 [output]
 

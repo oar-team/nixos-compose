@@ -2,7 +2,7 @@
 let
   mdbook-admonish =
     nixpkgs.legacyPackages.${system}.callPackage ./mdbook-admonish.nix { };
-  buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ];
+  buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ]; # mdbook-linkcheck pour checker la validiter des liens
   flakeImage = pkgs.dockerTools.pullImage {
     imageName = "nixpkgs/nix-flakes";
     imageDigest =
