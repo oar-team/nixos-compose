@@ -154,7 +154,7 @@ The three steps above plus the editing of the composition create a convenient "E
 
 # Physical deployment on Grid5000
 
-At first you need your project in your home folder on Grid5000  with your prefered method (rsync, git, ...).
+At first you need to import your project to your home folder on Grid5000 with your prefered method (rsync, git, ...).
 
 ## Building on Grid5000
 
@@ -180,29 +180,51 @@ Once the building is done you can release the ressource.
 
 The first step is to claim the ressources needed by the project, here only 1 node.
 enter virtual env that contains nxc
-```console
-. path/to/virtual/env
 
-# or with local poetry
+<!-- add the virtualenv version  -->
+
+```console
 cd path/to/nixos-compose
 poetry shell
 ```
+### Ressource reservation
 
-Reservation
+The reservation through the command line needs the command below, it requests one node for 30 minutes. At the same time it lists the machines in the `stdout` file associated to the reservation ( `OAR.<oar_job_id>.sdtout` ) and defines the `$OAR_JOB_ID` environment variable. This information are needed for the next step.
 ```
 cd path/to/project
-export $(oarsub -l nodes=4,walltime=1:00 "$(nxc helper g5k_script) 1h" | grep OAR_JOB_ID)
+export $(oarsub -l nodes=1,walltime=0:30 "$(nxc helper g5k_script) 30m" | grep OAR_JOB_ID)
 ```
+Once the ressoruces are available the `OAR.$OAR_JOB_ID.stdout` file is created.
+```console
+$ cat OAR.$OAR_JOB_ID.stdout
+dahu-7.grenoble.grid5000.fr
+
+```admonish warning tip abstract 
+The command above ask OAR some ressources then execute a script that send the user public key to the nodes 
+~~~console
+export $(oarsub -l nodes=<NODES>,walltime=<TIME1> "$(nxc helper g5k_script) <TIME2>" | grep OAR_JOB_ID)
+~~~
+- NODES : number of nodes needed for the experiment.
+- TIME1 : duration of the reservation with `h:minute:second` syntax (see [Grid5000 wiki]())
+- TIME2 : duration of the `sleep` command sended to the nodes, usualy same lenght as the reservation duration. Syntax available in [coreutils documentation](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html#sleep-invocation)
+```
+### Actual deployment
+
+At this step we have ressources available and the composition has been built in the desired flavour, `g5k-ramdisk`. We can now launch the deployment. The command is similar than for a local virtualized deployment exept for the option `-m` that requiered a file that list all remote machines covered by our deployment. If you used the command seen at the previous step the list of machine is in the `OAR.$OAR_JOB_ID.stdout` file.
+
+```console
 nxc start -f g5k-ramdisk -m OAR.$OAR_JOB_ID.stdout
 ```
+### Interact
 
+Similarly than with docker in local the command below will open a shell in the `foo` node.
 
+```console
 nxc connect foo
-interact
-then release
+```
+### Release of ressources
 
-
-
-
-
-so so so il faut etre en python virtual env sinon pas de déploiement.... en théorie si mais bon
+Once you finished with the node you can release the ressources.
+```console
+oardel $OAR_JOB_ID
+```
