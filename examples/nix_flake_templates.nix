@@ -23,7 +23,7 @@
     path = ./nixos-cluster;
     description = "A remote store for nixos machines";
   };
-  multi-composistions = {
+  multi-compositions = {
     path = ./multi-compositions;
     description = "A multi-compositions example";
   };
