@@ -44,6 +44,8 @@
           ] ++ [ pkgs.taktuk ];
         };
 
+        doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
+
         packageName = "nixos-compose";
       in rec {
         packages = {
@@ -58,7 +60,7 @@
           showTemplates = pkgs.writeText "templates.json" (
             builtins.toJSON (builtins.mapAttrs (name: value: value.description) self.templates)
           );
-        };
+        } // flake-utils.lib.flattenTree doc;
 
         defaultPackage = self.packages.${system}.${packageName};
 
