@@ -2,26 +2,49 @@
   description = "nixos-compose";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/22.05";
     flake-utils.url = "github:numtide/flake-utils";
+    kapack.url = "github:oar-team/nur-kapack";
+    kapack.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, kapack }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        python3pkgs = pkgs.python3Packages;
+        kapackpkgs = kapack.packages.${system};
 
         #customOverrides = self: super: {
         # Overrides go here
         #};
 
-        app = pkgs.poetry2nix.mkPoetryApplication {
-          projectDir = ./.;
-          #overrides =
-          #  [ pkgs.poetry2nix.defaultPoetryOverrides customOverrides ];
-          propagatedBuildInputs = [ pkgs.openssh ];
-          dontPatchShebangs = 1;
+        app = python3pkgs.buildPythonPackage rec {
+          pname = "nxc";
+          version = "locale";
+          name = "${pname}-${version}";
+
+          src = builtins.filterSource
+            (path: type: type != "directory" || baseNameOf path != ".git" || path != "result")
+            ./.;
+
+          format = "pyproject";
+          buildInputs = [ python3pkgs.poetry ];
+          propagatedBuildInputs = with python3pkgs; [
+            click
+            kapackpkgs.execo
+            halo
+            pexpect
+            psutil
+            ptpython
+            pyinotify
+            pyyaml
+            requests
+            tomlkit
+          ] ++ [ pkgs.taktuk ];
         };
+
+        doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
 
         packageName = "nixos-compose";
       in rec {
@@ -37,7 +60,7 @@
           showTemplates = pkgs.writeText "templates.json" (
             builtins.toJSON (builtins.mapAttrs (name: value: value.description) self.templates)
           );
-        };
+        } // flake-utils.lib.flattenTree doc;
 
         defaultPackage = self.packages.${system}.${packageName};
 
