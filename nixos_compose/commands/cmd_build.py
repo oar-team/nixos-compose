@@ -5,6 +5,7 @@ import subprocess
 import click
 import json
 
+from ..actions import get_nix_command
 from ..context import pass_context, on_started, on_finished
 from ..setup import apply_setup
 
@@ -22,7 +23,6 @@ from ..setup import apply_setup
     help='add nix flags (aka options) to nix build command, --nix-flags "--impure"',
 )
 @click.option("--out-link", "-o", help="path of the symlink to the build result")
-@click.option("--nixpkgs", "-n", help="set <nixpkgs> ex: channel:nixos-20.09")
 @click.option(
     "-f", "--flavour", type=click.STRING, help="Use particular flavour (name or path)",
 )
@@ -49,7 +49,7 @@ from ..setup import apply_setup
     "-C",
     "--composition-flavour",
     type=click.STRING,
-    help="Use to specify which composition and flavour combinaison to built when muliple compostions are describe at once (see -L options to list them).",
+    help="Use to specify which composition and flavour combinaison to build when muliple compostions are describe at once (see -L options to list them).",
 )
 # @click.option(
 #    "-c", "--composition", type=click.STRING,
@@ -79,7 +79,6 @@ def cli(
     composition_file,
     nix_flags,
     out_link,
-    nixpkgs,
     flavour,
     list_flavours,
     show_trace,
@@ -106,14 +105,16 @@ def cli(
             setup_param,
         )
 
-    build_cmd = ""
+    build_cmd = []
 
     # Do we are in flake context
     if not op.exists(op.join(ctx.envdir, "flake.nix")):
         ctx.elog("Not Found flake.nix file")
         sys.exit(1)
 
-    description_flavours = get_flavours()
+    nix_cmd_base = get_nix_command(ctx)
+
+    description_flavours = get_flavours(nix_cmd_base, ctx)
 
     flavours = list(description_flavours.keys())
 
@@ -123,18 +124,6 @@ def cli(
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
 
-    # if not flavour and not flake:
-    #     if ctx.platform:
-    #         flavour = ctx.platform.default_flavour
-    #         click.echo(
-    #             f"Platform's default flavour setting: {click.style(flavour, fg='green')}"
-    #         )
-    #     else:
-    #         flavour = "nixos-test
-    #        "
-
-    # import pdb; pdb.set_trace()
-
     if flavour:
         if flavour not in flavours and not op.isfile(flavour):
             ctx.elog(f'"{flavour}" is neither a supported flavour nor flavour_path')
@@ -143,24 +132,11 @@ def cli(
     if not composition_file:
         composition_file = ctx.nxc["composition"]
 
-    # TODO remove, we'll use default.nix
-    # compose_file = op.join(ctx.envdir, "nix/compose.nix")
-
-    # if out_link == "result":
-    #    out_link = op.join(ctx.envdir, out_link)
-
-    if subprocess.call(
-        "nix flake --help",
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        shell=True,
-    ):
-        ctx.elog("Nix flakes must be enabled")
-        sys.exit(1)
-
     if list_compositions_flavours:
-        cmd = ["nix", "flake", "show", "--json"]
-        raw_compositions_flavours = json.loads(subprocess.check_output(cmd).decode())
+        cmd = nix_cmd_base + ["flake", "show", "--json"]
+        raw_compositions_flavours = json.loads(
+            subprocess.check_output(cmd, cwd=ctx.envdir).decode()
+        )
         for compo_flavour in filter(
             lambda x: x not in ["flavoursJson", "showFlavours"],
             raw_compositions_flavours["packages"]["x86_64-linux"].keys(),
@@ -174,10 +150,7 @@ def cli(
         sys.exit(0)
 
     if show_trace:
-        build_cmd += " --show-trace"
-
-    if nixpkgs:
-        build_cmd += f" -I nixpkgs={nixpkgs}"
+        build_cmd += ["--show-trace"]
 
     if not out_link:
         build_path = op.join(ctx.envdir, "build")
@@ -204,30 +177,25 @@ def cli(
         out_link = op.join(build_path, ctx.composition_flavour_prefix)
 
     if dry_build:
-        build_cmd = f"nix eval {build_cmd} --raw"
+        build_cmd = nix_cmd_base + ["eval"] + build_cmd + ["--raw"]
     else:
-        build_cmd = f"nix build {build_cmd}"
+        build_cmd = nix_cmd_base + ["build"] + build_cmd
         if out_link:
-            build_cmd += f" -o {out_link}"
+            build_cmd += ["-o", out_link]
 
     if not composition_flavour and flavour:
         composition_flavour = f"composition::{flavour}"
     if flavour:
-        build_cmd = f'{build_cmd} ".#packages.x86_64-linux.{composition_flavour}"'
+        build_cmd += [f".#packages.x86_64-linux.{composition_flavour}"]
 
     # add additional nix flags if any
     if nix_flags:
-        build_cmd += " " + nix_flags
-    # else:
-    # TODO remove legacy_nix and use default.nix -> build_cmd += "-I composition={composition_file}"
-    #    if not legacy_nix:
-    # build_cmd += " -f"
-    # build_cmd += f" {compose_file} -I composition={composition_file}"
+        build_cmd += nix_flags
 
     if not dry_run:
         ctx.glog("Starting Build")
         ctx.vlog(build_cmd)
-        returncode = subprocess.call(build_cmd, cwd=ctx.envdir, shell=True)
+        returncode = subprocess.call(build_cmd, cwd=ctx.envdir)
         if returncode:
             ctx.elog(f"Build return code: {returncode}")
             sys.exit(returncode)
@@ -252,21 +220,22 @@ def cli(
         ctx.log(f"   build command:              {build_cmd}")
 
 
-def get_flavours():
+def get_flavours(nix_cmd_base, ctx):
     """
     Returns the json representation of the available flavours
     """
     FLAVOURS_JSON = op.abspath(
         op.join(op.dirname(__file__), "../../nix", "flavours.json")
     )
-    # import pdb; pdb.set_trace()
+
     flake_location = "."
     output_json = "/tmp/.flavours.json"
+
+    ctx.log("Build list of flavours")
     retcode = subprocess.call(
-        f"nix build {flake_location}#flavoursJson -o {output_json}",
+        nix_cmd_base + ["build", f"{flake_location}#flavoursJson", "-o", output_json],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        shell=True,
     )
     if retcode:
         output_json = FLAVOURS_JSON

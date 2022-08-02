@@ -4,6 +4,7 @@ import os.path as op
 import glob
 import socket
 import sys
+import shutil
 import subprocess
 import time
 import base64
@@ -12,6 +13,8 @@ import signal
 import psutil
 import itertools
 import ipaddress
+import urllib.request
+
 from halo import Halo
 from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
 
@@ -197,7 +200,9 @@ def health_check_roles_quantities(nodes_info, roles_quantities):
                 if nb_nodes == 1:
                     roles_quantities[role] = [f"{role}"]
                 else:
-                    roles_quantities[role] = [f"{role}{i}" for i in range(1, nb_nodes + 1)]
+                    roles_quantities[role] = [
+                        f"{role}{i}" for i in range(1, nb_nodes + 1)
+                    ]
 
         # Step 2: check that we do not have any conflict on the hostnames
 
@@ -752,3 +757,38 @@ def kill_proc_tree(
             pass
     gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
     return (gone, alive)
+
+
+# test nix available
+def get_nix_command(ctx):
+    nix_cmd = ["nix"]
+
+    if not shutil.which("nix"):
+        local_bin_nix = "{os.environ['HOME']}/.local/bin/nix"
+        if not op.exists(local_bin_nix):
+            ctx.elog(
+                "Nix not found, it can by installed in $HOME/.local/bin with command: nxc init --install-nix"
+            )
+            sys.exit(1)
+        else:
+            nix_cmd = [local_bin_nix]
+
+    nix_cmd += ["--extra-experimental-features", "nix-command flakes"]
+    return nix_cmd
+
+
+# get Nix-static
+def install_nix_static(
+    version="2.10.3", archi="x86_64", local_bin_path=f"{os.environ['HOME']}/.local/bin"
+):
+
+    if not op.exists(local_bin_path):
+        os.makedirs(local_bin_path)
+    nix_path = op.join(local_bin_path, "nix")
+
+    urllib.request.urlretrieve(
+        f"https://gitlab.inria.fr/nixos-compose/nix-static/-/raw/main/bin/nix-{version}-{archi}-unknown-linux-musl",
+        nix_path,
+    )
+
+    os.chmod(nix_path, 0o755)
