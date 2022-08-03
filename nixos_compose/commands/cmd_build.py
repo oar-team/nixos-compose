@@ -217,7 +217,7 @@ def cli(
         ctx.log("Dry-run:")
         ctx.log(f"   working directory:          {ctx.envdir}")
         ctx.log(f"   composition flavour prefix: {ctx.composition_flavour_prefix}")
-        ctx.log(f"   build command:              {build_cmd}")
+        ctx.log(f"   build command:              {' '.join(build_cmd)}")
 
 
 def get_flavours(nix_cmd_base, ctx):

@@ -31,9 +31,19 @@ let
 
   helpers = import ./helpers.nix;
 
-  adaptAttr = attrName: value: {
-    ${attrName} = (if (attrName == "src") && (builtins.isString value) then
-      /. + value
+  adaptAttr = super: attrName: value: {
+    ${attrName} = (if (attrName == "src") then
+      if (builtins.isString value) then
+        /. + value
+      else
+        if (builtins.isAttrs value) then
+          let
+            fetchFunction =  builtins.head (builtins.attrNames value);
+          in
+            super.${fetchFunction} value.${fetchFunction}
+        else
+          #TODO raise error
+          value
     else
       value);
   };
@@ -46,7 +56,7 @@ let
             overrides = repo:
               builtins.mapAttrs (name: value:
                 super.nur.repos.${repo}.${name}.overrideAttrs
-                (old: helpers.mapAttrsToAttrs adaptAttr value))
+                  (old: helpers.mapAttrsToAttrs (adaptAttr super) value))
               setupSel.overrides.nur.${repo};
           in helpers.mapAttrNamesToAttrs (repo: {
             nur.repos.${repo} = super.nur.repos.${repo} // (overrides repo);
