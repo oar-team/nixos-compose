@@ -23,10 +23,36 @@ b=10
 # nxc build --setup dev
 # previous command raises error during testScript execution, the next below does not which
 # uses parameter overridiing
-# nxc build --setup dev --setup-param "a=hello worlde --setup-param b=10
+# nxc build --setup dev --setup-param "a=hello world" --setup-param b=10
 a="hello"
 b=20
 
 # build arguments can be setted w/ options, cli arguments will overrides them if any
 # [dev.options]
 # nix-flags = "--impure --override-input nxc path:/home/user/nixos-compose/setup"
+
+
+#
+# Src Attribut Overriding
+#
+# Limited to src attribut, use overlay in flake.nix for other attributs
+# TODO: add compilation option
+
+[dev.overrides.hello.src.fetchurl]
+# to overdrive src attribut of nixpkgs src
+url = "mirror://gnu/hello/hello-2.8.tar.gz"
+sha256 = "sha256-5rd/gffPfa761Kn1tl3myunD8TuM+66oy1O7XqVGDXM="
+
+# to override hello's to local directoy
+# [dev.overrides.hello]
+# src = "/home/auguste/hello"
+# to override package's source for a nur repos
+#
+# [dev.overrides.nur.kapack.oar.src.fetchFromGitHub]
+# owner = "mpoquet"
+# repo = "oar3"
+# rev = "d26d660ad2d9cfbd2a8477019c8c5fd0f353431b"
+# sha256 = "sha256-Bl1J6ZZYoD8/zni8GU0fSKJPj9j/IRW7inZ8GQ7Di10="
+#
+#[dev.overrides.nur.kapack]
+#oar = { src = "/home/auguste/dev/oar3" }
