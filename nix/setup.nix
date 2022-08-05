@@ -68,17 +68,17 @@ let
       value);
   };
 
-  overridesNur = nurToOverride:
+  overridesNur = nurSet:
      (final: prev:
           let
             overrides = repo:
               builtins.mapAttrs (name: value:
                 prev.nur.repos.${repo}.${name}.overrideAttrs
                   (old: helpers.mapAttrsToAttrs (adaptAttr prev) value))
-              nurToOverride.${repo};
+              nurSet.${repo};
           in helpers.mapAttrNamesToAttrs (repo: {
             nur.repos.${repo} = prev.nur.repos.${repo} // (overrides repo);
-          }) nurToOverride); #setupSel.overrides.nur)
+          }) nurSet);
 
   overridePkg = pkgsToOverride: value:
     (final: prev:
@@ -86,6 +86,7 @@ let
         ${pkgsToOverride} = prev.${pkgsToOverride}.overrideAttrs (old:  helpers.mapAttrsToAttrs (adaptAttr prev) value);
       }
     );
+
   overrides = if setupSel ? "overrides" then
     let
       setOverrides = x:
@@ -98,15 +99,61 @@ let
   else
     [ ];
 
-  # TODO: add compilation option
+   /*
+     [build.options.hello]
+     stdenv = "pkgs.gcc8Stdenv" # to override sdtenv=gcc8Stdenv
+     stdenv = "pkgs.nur.repos.kapack.fancyStdenv" # to override sdtenv=nur.repos.kapack.fancyStdenv
+     option_bool = flase
+     option_str = "foo"
+   */
+  setBuildOptions = prev: options:
+    let
+      f = n: v:
+        let
+          path = lib.splitString "." v;
+        in
+          if (builtins.head path) == "pkgs" then
+            lib.getAttrFromPath (lib.drop 1 path) prev
+          else
+            v;
+      in
+        builtins.mapAttrs f options;
 
+  buildOptionsNur = nurSet:
+    (final: prev:
+      let
+        buildOptions = repo:
+          builtins.mapAttrs (pkg: options:
+            {${pkg} = prev.${pkg}.override (setBuildOptions prev options);}) nurSet.${repo};
+      in helpers.mapAttrNamesToAttrs (repo: {
+            nur.repos.${repo} = prev.nur.repos.${repo} // (buildOptions repo);
+          }) nurSet);
+
+  buildOptionsPkg = pkg: options:
+    (final: prev:
+      {
+        ${pkg} = prev.${pkg}.override (setBuildOptions prev options);
+      }
+    );
+
+  buildOptions = if setupSel ? build.options then
+    let
+      setBuildOptions = x:
+        if (x == "nur") && (nur != null) then
+          buildOptionsNur (setupSel.build.options.nur)
+        else
+          buildOptionsPkg x (setupSel.build.options.${x});
+    in
+      builtins.map setBuildOptions (builtins.attrNames setupSel.build.options)
+  else
+    [ ];
 
   overlays = if nur ? "overlay" then
     # TODO: failed if overrides comes first:  overrides ++ [ nur.overlay ], why ?
     # nur is null before to apply overrides (???), more investigations required
-    [ nur.overlay ] ++ overrides
+    [ nur.overlay ] ++ overrides ++ buildOptions
   else
-    overrides;
+    overrides ++ buildOptions;
 
   params =
     if (setupSel ? "params") && (setupSel ? "override-params") then {

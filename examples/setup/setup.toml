@@ -56,3 +56,10 @@ sha256 = "sha256-5rd/gffPfa761Kn1tl3myunD8TuM+66oy1O7XqVGDXM="
 #
 #[dev.overrides.nur.kapack]
 #oar = { src = "/home/auguste/dev/oar3" }
+
+# overriding build options
+#[build.options.hello]
+# stdenv = "pkgs.gcc8Stdenv" # to override sdtenv=gcc8Stdenv
+# stdenv = "pkgs.nur.repos.kapack.fancyStdenv" # to override sdtenv=nur.repos.kapack.fancyStdenv
+# option_bool = flase
+# option_str = "foo"
