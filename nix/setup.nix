@@ -58,7 +58,7 @@ let
     assert builtins.hasAttr setupRaw.project.selected setupRaw;
     lib.recursiveUpdate setupRaw setupRaw.${setupRaw.project.selected}
   else
-    setupRaw;
+    lib.recursiveUpdate setupRaw {project = { selected = "";};};
 
   helpers = import ./helpers.nix;
 

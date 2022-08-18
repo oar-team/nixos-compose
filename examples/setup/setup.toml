@@ -31,22 +31,55 @@ b=20
 # [dev.options]
 # nix-flags = "--impure --override-input nxc path:/home/user/nixos-compose/setup"
 
-
 #
-# Src Attribut Overriding
+# Change some build parameters per package
 #
-# Limited to src attribut, use overlay in flake.nix for other attributs
-# TODO: add compilation option
-
-[dev.overrides.hello.src.fetchurl]
-# to overdrive src attribut of nixpkgs src
+#
+[dev.build.hello.src.fetchurl]
 url = "mirror://gnu/hello/hello-2.8.tar.gz"
 sha256 = "sha256-5rd/gffPfa761Kn1tl3myunD8TuM+66oy1O7XqVGDXM="
 
+# [dev.build.hello]
+# src = "/local/dir/hello"
+# to override package's source for a nur repos
+
+#[dev.build.hello.deps]
+#stdenv = "gcc7Stdenv" # to override sdtenv=gcc8Stdenv
+
+#[dev.build.hello.attrs]
+#NIX_CFLAGS_COMPILE = "-march=native"
+
+#
+# NUR examples
+# Note: NUR must be set in flake.nix (see basuc-nur example)
+#
+#[dev.build.nur.repos.kapack.npb.args]
+#benchs = "ep cg"
+#classes = "A B C D"
+#buildOmp = false
+
+#[dev.build.nur.repos.kapack.npb.deps]
+#stdenv = "gcc7Stdenv" # to override sdtenv=gcc8Stdenv
+
+#[dev.build.nur.repos.kapack.npb.attrs]
+#NIX_CFLAGS_COMPILE = "-march=native"
+
+#[dev.build.nur.repos.kapack.npb.src.fetchurl]
+#url = "https://www.nas.nasa.gov/assets/npb/NPB3.3.1.tar.gz"
+#sha256 = "sha256-So6mebHfafWDxUTEcZizwmpQ7Cu2+Paa72bATJp0fS0="
+
+#
+# x.overrides.y use will be deprecated
+#
 # to override hello's to local directoy
 # [dev.overrides.hello]
 # src = "/home/auguste/hello"
 # to override package's source for a nur repos
+#
+#[dev.overrides.hello.src.fetchurl]
+# to overdrive src attribut of nixpkgs src
+#url = "mirror://gnu/hello/hello-2.8.tar.gz"
+#sha256 = "sha256-5rd/gffPfa761Kn1tl3myunD8TuM+66oy1O7XqVGDXM="
 #
 # [dev.overrides.nur.kapack.oar.src.fetchFromGitHub]
 # owner = "mpoquet"
