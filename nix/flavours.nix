@@ -8,4 +8,5 @@
   g5k-ramdisk = import ./flavours/g5k-ramdisk.nix;
   g5k-image = import ./flavours/g5k-image.nix;
   docker = import ./flavours/docker.nix;
+  g5k-nfs-store = import ./flavours/g5k-nfs-store.nix;
 }

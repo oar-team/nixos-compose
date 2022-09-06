@@ -19,6 +19,7 @@ let
   allMergedStorePaths =
     lib.mapAttrsToList (n: m: "${m.all_store_info}/merged-store-paths")
     allCompositionsInfo;
+
   allCompositionsInfoPaths =
     lib.mapAttrsToList (n: m: "${m.all_store_info}") allCompositionsInfo;
 
@@ -50,6 +51,7 @@ let
           }/init";
         target = "/boot/init";
       }
+      #TO REMOVE with the use of compositions_info_path
       {
         source = "${allCompositionsInfoFile}";
         target = "/nix/store/compositions-info.json";
@@ -133,6 +135,21 @@ let
       nuke-refs $out/kernel
     '';
 
+  baseSquashfsStore = pkgs.callPackage "${modulesPath}/lib/make-squashfs.nix" {
+    comp = "gzip -Xcompression-level 1";
+    storeContents = [ pkgs.bash ];
+  };
+
+  # TOREMOVE
+  # baseRamdisk = pkgs.makeInitrd {
+  #   inherit (baseConfig.boot.initrd) compressor;
+  #   prepend = [ "${baseConfig.system.build.initialRamdisk}/initrd" ];
+  #   contents = [{
+  #     object = baseSquashfsStore;
+  #     symlink = "/nix-store.squashfs";
+  #   }];
+  # };
+
   allRamdisk = pkgs.makeInitrd {
     inherit (baseConfig.boot.initrd) compressor;
     prepend = [ "${baseConfig.system.build.initialRamdisk}/initrd" ];
@@ -153,14 +170,17 @@ in let
     };
   } else {
     all = {
-      image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
       initrd = "${baseConfig.system.build.initialRamdisk}/initrd";
+      #initrd = "${baseRamdisk}/initrd";
       all_compositions_registration_store_path =
         "${allCompositionsRegistrationStorePath}";
       init = "${
           builtins.unsafeDiscardStringContext baseConfig.system.build.toplevel
         }/init";
-    };
+    } // (if flavour.image.type != "remote-store" then {
+      image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
+    } else
+      { });
   };
 
 in pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate {
@@ -168,6 +188,7 @@ in pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate {
     lib.filterAttrs (n: v: n == "name" || n == "description" || n == "image")
     flavour;
   system = system;
+  compositions_info_path = "${allCompositionsInfoFile}";
   compositions_info = allCompositionsInfo;
   all = {
     kernel = "${baseImage}/kernel";

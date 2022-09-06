@@ -112,12 +112,18 @@ in
 
     # After booting, register the contents of the Nix store
     # in the Nix database in the tmpfs.
-    nix_path_registration="/nix/store/nix-path-registration"
+    nix_path_registration="/etc/nxc/all_compositions_registration_store/nix-path-registration"
     if [[ -f "$nix_path_registration"-"$compositionName"-"$role" ]]; then
       nix_path_registration="$nix_path_registration"-"$compositionName"-"$role"
     fi
+
+    echo "151.101.122.217 cache.nixos.org" >> /etc/hosts
     echo "nix-store: load db $nix_path_registration"
     ${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
+
+    #echo "inetutils"
+    #echo ${pkgs.inetutils}/bin
+    #exec /bin/bash
 
     # nixos-rebuild also requires a "system" profile and an
     # /etc/NIXOS tag.
