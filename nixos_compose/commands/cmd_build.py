@@ -124,10 +124,10 @@ def cli(
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
 
-    if flavour:
-        if flavour not in flavours and not op.isfile(flavour):
-            ctx.elog(f'"{flavour}" is neither a supported flavour nor flavour_path')
-            sys.exit(1)
+    # if flavour:
+    #    if flavour not in flavours and not op.isfile(flavour):
+    #        ctx.elog(f'"{flavour}" is neither a supported flavour nor flavour_path')
+    # w        sys.exit(1)
 
     if not composition_file:
         composition_file = ctx.nxc["composition"]
@@ -190,7 +190,7 @@ def cli(
 
     # add additional nix flags if any
     if nix_flags:
-        build_cmd += nix_flags
+        build_cmd += nix_flags.split()
 
     if not dry_run:
         ctx.glog("Starting Build")

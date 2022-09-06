@@ -12,6 +12,7 @@ FLAVOUR_MAP = {
     "nixos-test": "nixos_test::NixosTestFlavour",
     "nixos-test-driver": "nixos_test::NixosTestDriverFlavour",
     "nixos-test-ssh": "nixos_test::NixosTestSshFlavour",
+    "g5k-nfs-store": "grid5000::G5kNfsStoreFlavour",
     "g5k-ramdisk": "grid5000::G5kRamdiskFlavour",
     "g5k-image": "grid5000::G5KImageFlavour",
 }

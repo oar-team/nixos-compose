@@ -139,8 +139,14 @@ def read_compose_info(ctx):
             compose_info = ctx.compositions_info["compositions_info"][
                 ctx.composition_name
             ]
-        compose_info["all"] = ctx.compositions_info["all"]
-        compose_info["flavour"] = ctx.compositions_info["flavour"]
+
+        if "all" not in compose_info:
+            compose_info["all"] = ctx.compositions_info["all"]
+            compose_info["flavour"] = ctx.compositions_info["flavour"]
+            if "compositions_info_path" in ctx.compositions_info:
+                compose_info["compositions_info_path"] = ctx.compositions_info[
+                    "compositions_info_path"
+                ]
 
         compose_flavour_name = ctx.compositions_info["flavour"]["name"]
         if ctx.flavour.name != compose_flavour_name:
@@ -287,6 +293,11 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     if "all" in ctx.compose_info:
         deployment["all"] = ctx.compose_info["all"]
 
+    if "compositions_info_path" in ctx.compose_info:
+        deployment["compositions_info_path"] = ctx.compose_info[
+            "compositions_info_path"
+        ]
+
     if ctx.composition_name:
         deployment["composition"] = ctx.composition_name
 
@@ -320,7 +331,7 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     return
 
 
-def generate_kexec_scripts(ctx):
+def generate_kexec_scripts(ctx, flavour_kernel_params=""):
     if ctx.use_httpd:
         base_url = f"http://{ctx.httpd.ip}:{ctx.httpd.port}"
         deploy_info_src = f"{base_url}/deploy/{ctx.composition_flavour_prefix}.json"
@@ -339,7 +350,7 @@ def generate_kexec_scripts(ctx):
         initrd_path = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
 
         kexec_args = "-l $KERNEL --initrd=$INITRD "
-        kexec_args += f"--append='deploy={deploy_info_src} console=tty0 console=ttyS0,115200 $DEBUG_INITRD'"
+        kexec_args += f"--append='deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} $DEBUG_INITRD'"
         script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
@@ -356,7 +367,7 @@ def generate_kexec_scripts(ctx):
             initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += f"--append='init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 $DEBUG_INITRD'"
+            kexec_args += f"--append='init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} $DEBUG_INITRD'"
             script_path = op.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")

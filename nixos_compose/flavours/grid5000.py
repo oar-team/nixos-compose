@@ -4,6 +4,7 @@ import time
 from string import Template
 import click
 import subprocess
+import socket
 
 from ..flavour import Flavour
 from ..actions import (
@@ -82,11 +83,11 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params_opts=""):
         kaenv_file.write(kaenv)
 
 
-class G5kRamdiskFlavour(Flavour):
+class G5kKexecBasedFlavour(Flavour):
     def __init__(self, ctx):
         super().__init__(ctx)
 
-        self.name = "g5k-ramdisk"
+        self.name = "g5k-nfs-store"
 
     def generate_deployment_info(self):
         generate_deployment_info(self.ctx)
@@ -142,6 +143,26 @@ class G5kRamdiskFlavour(Flavour):
 
     def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)
+
+
+class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
+    def __init__(self, ctx):
+        super().__init__(ctx)
+
+        self.name = "g5k-nfs-store"
+
+    def generate_kexec_scripts(self):
+        user = self.ctx.deployment_info["user"]
+        nfs = socket.getfqdn("nfs")
+        kernel_params = f"nfs_store={nfs}:/export/home/{user}/.nix/store"
+        generate_kexec_scripts(self.ctx, flavour_kernel_params=kernel_params)
+
+
+class G5kRamdiskFlavour(G5kKexecBasedFlavour):
+    def __init__(self, ctx):
+        super().__init__(ctx)
+
+        self.name = "g5k-ramdisk"
 
 
 class G5KImageFlavour(Flavour):
