@@ -354,11 +354,10 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
         script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
-            kexec_script.write(": ${SUDO:=sudo}\n")
             kexec_script.write(": ${KERNEL:=" + kernel_path + "}\n")
             kexec_script.write(": ${INITRD:=" + initrd_path + "}\n")
-            kexec_script.write(f"$SUDO kexec {kexec_args}\n")
-            kexec_script.write("$SUDO kexec -e\n")
+            kexec_script.write(f"kexec {kexec_args}\n")
+            kexec_script.write("kexec -e\n")
         os.chmod(script_path, 0o755)
     else:
         for ip, v in ctx.deployment_info["deployment"].items():
@@ -371,9 +370,8 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
             script_path = op.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
-                kexec_script.write(": ''${SUDO:=sudo}\n")
-                kexec_script.write(f"$SUDO kexec {kexec_args}\n")
-                kexec_script.write("$SUDO kexec -e\n")
+                kexec_script.write(f"kexec {kexec_args}\n")
+                kexec_script.write("kexec -e\n")
 
             os.chmod(script_path, 0o755)
 
@@ -484,10 +482,11 @@ def launch_ssh_kexec(ctx, ip=None, debug=False):
             kexec_script = op.join(base_path, "kexec_scripts/kexec.sh")
             ki = ""
             user = ""
-        if ctx.sudo:
-            sudo = f"SUDO={ctx.sudo}"
-        else:
-            sudo = ""
+        # USELESS ? TOREMOVE ?
+        # if ctx.sudo:
+        #     sudo = f"SUDO={ctx.sudo}"
+        # else:
+        #     sudo = ""
 
         if "DEBUG_STAGE1" in os.environ or debug:
             # debug_stage1 = os.environ["DEBUG_STAGE1"]
@@ -498,7 +497,7 @@ def launch_ssh_kexec(ctx, ip=None, debug=False):
             ki = f" {ki} DEBUG_INITRD=boot.debug1mounts "
 
         def one_ssh_kexec(ip_addr):
-            ssh_cmd = f'{ctx.ssh} {user}{ip_addr} "screen -dm bash -c \\"{sudo} {ki} {kexec_script}\\""'
+            ssh_cmd = f'{ctx.ssh} {user}{ip_addr} "screen -dm bash -c \\" {ki} {kexec_script}\\""'
             ctx.vlog(ssh_cmd)
             subprocess.call(ssh_cmd, shell=True)
 
