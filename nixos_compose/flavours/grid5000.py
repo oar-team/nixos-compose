@@ -152,9 +152,21 @@ class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
         self.name = "g5k-nfs-store"
 
     def generate_kexec_scripts(self):
-        user = self.ctx.deployment_info["user"]
-        nfs = socket.getfqdn("nfs")
-        kernel_params = f"nfs_store={nfs}:/export/home/{user}/.nix/store"
+        def store_path():
+            for prefix_store_path in self.ctx.alternative_stores:
+                store_path = f"{prefix_store_path}/store"
+                if op.exists(store_path):
+                    return store_path
+            raise "Store Path Not Found"
+
+        if "NFS_STORE" in os.environ:
+            kernel_params = f"nfs_store={os.environ['NFS_STORE']}"
+        else:
+            nfs = socket.getfqdn("nfs")
+            store_path = store_path()
+            kernel_params = f"nfs_store={nfs}:/export{store_path}"
+        self.ctx.vlog(f" kernel_params: {kernel_params}")
+
         generate_kexec_scripts(self.ctx, flavour_kernel_params=kernel_params)
 
 
