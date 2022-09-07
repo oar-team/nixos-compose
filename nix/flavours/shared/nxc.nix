@@ -117,7 +117,6 @@ in
       nix_path_registration="$nix_path_registration"-"$compositionName"-"$role"
     fi
 
-    echo "151.101.122.217 cache.nixos.org" >> /etc/hosts
     echo "nix-store: load db $nix_path_registration"
     ${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
 
