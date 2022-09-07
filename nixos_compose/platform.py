@@ -22,7 +22,7 @@ class Platform(object):
 class Grid5000Platform(Platform):
     def __init__(self, ctx):
         super().__init__(ctx, "Grid5000")
-        self.default_flavour = "g5k-ramdisk"
+        self.default_flavour = "g5k-nfs-store"
         self.copy_from_store = True
         self.first_start_values = ("ssh -l root", "sudo", None)
         self.subsequent_start_values = ("ssh -l root", "sudo", "/")
