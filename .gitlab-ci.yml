@@ -1,7 +1,8 @@
 image: registry.gitlab.inria.fr/nixos-compose/nixos-compose:doc
 pages:
   script:
-    - mdbook build -d public
+    - mkdir -p public
+    - mdbook build docs -d public
   artifacts:
     paths:
       - public
