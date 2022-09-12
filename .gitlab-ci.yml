@@ -7,6 +7,6 @@ pages:
       - public
   tags:
       - ci.inria.fr
-      - small  
+      - small
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
