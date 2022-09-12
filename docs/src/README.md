@@ -1,3 +1,7 @@
+
+```admonish warning
+This documentation is being written on a project under development. Recent changes or mistakes can occure.
+```
 _NixOSCompose_ generates and deploys reproducible distributed environnements, with a focus on the software stack.
 
 <!-- build and deploy config and software stack on different target platform with a focus on reproducibility -->
