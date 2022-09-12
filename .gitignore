@@ -4,3 +4,4 @@ attic*
 live*
 *.egg
 *.egg-info
+/docs/book/*
