@@ -51,7 +51,6 @@
         packageName = "nixos-compose";
       in rec {
         packages = {
-          default = self.packages.${system}.${packageName};
           ${packageName} = app;
           # "${packageName}-full" = app.overrideAttrs(attr: rec {
           #   propagatedBuildInputs = attr.propagatedBuildInputs ++ [
@@ -68,12 +67,9 @@
         defaultPackage = self.packages.${system}.${packageName};
 
         devShells = {
-          default = pkgs.mkShell {
-            buildInputs = with pkgs; [ poetry ];
-            inputsFrom = builtins.attrValues self.packages.${system};
-          };
           nxcShell = pkgs.mkShell {
-            buildInputs = [ self.packages.${system}.default ]; };
+            buildInputs = [ self.defaultPackage.${system} ];
+          };
           nxcShellFull = pkgs.mkShell {
             buildInputs = [
               self.packages.${system}.${packageName}
@@ -87,9 +83,12 @@
             buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ];
           };
         };
-      }) // {
-        lib = import ./nixos-compose/nix/lib.nix;
-        templates = import ./nixos-compose/examples/nix_flake_templates.nix;
-        overlays.default = import ./overlay.nix { inherit self; };
-      };
+
+        devShell = pkgs.mkShell {
+          buildInputs = with pkgs; [ poetry ];
+          inputsFrom = builtins.attrValues self.packages.${system};
+        };
+
+    }) //
+  {lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix; overlay = import ./overlay.nix { inherit self; };};
 }
