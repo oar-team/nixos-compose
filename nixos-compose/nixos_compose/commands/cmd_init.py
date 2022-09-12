@@ -1,6 +1,7 @@
 import os
 import os.path as op
 import json
+import re
 import subprocess
 import sys
 
@@ -8,27 +9,17 @@ from io import open
 
 import click
 
+from ..actions import get_nix_command, install_nix_static
 from ..context import pass_context
 
 from ..platform import platform_detection
-from ..utils import copy_tree, copy_file
+from ..utils import copy_tree
 
-EXAMPLES_PATH = op.abspath(op.join(op.dirname(__file__), "../..", "examples"))
-EXAMPLES = os.listdir(EXAMPLES_PATH)
-EXAMPLES.remove("flake.lock")
 NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
 
 
 @click.command("init")
 # @click.option("-f", "--force", is_flag=True, help="Overwrite existing env")
-@click.option(
-    "-e",
-    "--example",
-    default="basic",
-    help="Use example",
-    show_default=True,
-    type=click.Choice(EXAMPLES),
-)
 @click.option(
     "--no-symlink",
     is_flag=True,
@@ -37,7 +28,6 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
 @click.option(
     "-n", "--disable-detection", is_flag=True, help="Disable platform detection."
 )
-@click.option("--nur", is_flag=True, help="Add Nix User Repository (NUR) access.")
 @click.option(
     "-f",
     "--default-flavour",
@@ -53,16 +43,7 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
     "-F", "--list-flavours", is_flag=True, help="List available flavour",
 )
 @click.option(
-    "--no-flake-lock",
-    is_flag=True,
-    help="Does not set intial flake.lock, will be set by Nix during the first build",
-)
-@click.option(
-    "-t",
-    "--template",
-    default=None,
-    help="Use a template",
-    show_default=True,
+    "-t", "--template", default="basic", help="Use a template", show_default=True,
 )
 @click.option(
     "--use-local-templates",
@@ -76,23 +57,32 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
     default=False,
     help="Display the list of available templates as JSON",
 )
+@click.option(
+    "--install-nix",
+    is_flag=True,
+    default=False,
+    help="Install the nix command in $HOME/.local/bin",
+)
 @pass_context
 # @on_finished(lambda ctx: ctx.state.dump())
 def cli(
     ctx,
-    example,
     no_symlink,
     disable_detection,
-    nur,
     default_flavour,
     list_flavours,
     list_flavours_json,
-    no_flake_lock,
     template,
     use_local_templates,
     list_templates_json,
+    install_nix,
 ):
     """Initialize a new environment."""
+
+    if install_nix:
+        install_nix_static()
+
+    nix_cmd_base = get_nix_command(ctx)
 
     create = click.style("   create", fg="green")
 
@@ -111,43 +101,46 @@ def cli(
 
     if list_templates_json:
         out_file = "/tmp/.template_list.json"
-        flake_location = "." if use_local_templates else "git+https://gitlab.inria.fr/nixos-compose/nixos-compose"
-        subprocess.call(
-            f"nix build {flake_location}#showTemplates -o {out_file}",
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            shell=True,
+        flake_location = (
+            "."
+            if use_local_templates
+            else "git+https://gitlab.inria.fr/nixos-compose/nixos-compose"
         )
+        subprocess.call(
+            nix_cmd_base + ["build", f"{flake_location}#showTemplates", "-o", out_file],
+            stdout=subprocess.DEVNULL,
+            # stderr=subprocess.DEVNULL,
+        )
+
         list_templates = json.load(open(out_file, "r"))
         print(json.dumps(list_templates, indent=4))
         sys.exit(0)
 
-    if nur:
-        if example != "basic":
-            raise click.ClickException("nur option cannot be used with example")
-        else:
-            example = "basic-nur"
-
     if not disable_detection:
         platform_detection(ctx)
 
-    if template is not None:
-        flake_location = "." if use_local_templates else "git+https://gitlab.inria.fr/nixos-compose/nixos-compose"
-        subprocess.call(
-            f"nix flake new -t {flake_location}#{template} nxc",
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            shell=True,
-        )
-    else:
-        example_path = op.abspath(op.join(EXAMPLES_PATH, example))
-        if op.isdir(example_path):
-            copy_tree(example_path, ctx.envdir)
-            copy_tree(
-                NXC_NIX_PATH, op.abspath(op.join(ctx.envdir, "nix")),
-            )
+    flake_location = (
+        "."
+        if use_local_templates
+        else "git+https://gitlab.inria.fr/nixos-compose/nixos-compose"
+    )
+    res = subprocess.run(
+        nix_cmd_base + ["flake", "new", "-t", f"{flake_location}#{template}", "nxc"],
+        capture_output=True,
+    )
+    # Workaround for nix 2.10.3 due to bug with flae new -t and store located in  ~/.local/share/nix/root
+    # Should be resolved with availability of source tree abstraction
+    # see https://github.com/NixOS/nix/pull/6530
+    if res.returncode:
+        m = re.match(r"^error: '(.+)' was.+store", res.stderr.decode())
+        if m:
+            copy_tree(m.group(1), ctx.envdir)
+            subprocess.run(["chmod", "-R", "gu+w", ctx.envdir])
         else:
-            raise click.ClickException(f"Example must be a directory: {example_path}")
+            ctx.elog("Flake new from template failed:")
+            ctx.elog(f"returncode: {res.returncode}")
+            ctx.elog(f"stdout: {res.stdout.decode()}")
+            ctx.elog(f"stderr: {res.stderr.decode()}")
 
     nxc_json = {
         "composition": "composition.nix",  # TODO to enhance
@@ -156,6 +149,8 @@ def cli(
 
     if ctx.platform:
         nxc_json["platform"] = ctx.platform.name
+        if not default_flavour:
+            nxc_json["default_flavour"] = ctx.platform.default_flavour
         nxc_json_str = json.dumps(nxc_json)
 
         ctx.nxc = nxc_json
@@ -168,11 +163,6 @@ def cli(
 
     if not no_symlink:
         os.symlink(nxc_json_file, op.abspath(op.join(ctx.envdir, "..", "nxc.json")))
-
-    if not no_flake_lock:
-        flake_lock_path = op.join(ctx.envdir, "flake.lock")
-        click.echo("   " + create + "  " + flake_lock_path)
-        copy_file(op.abspath(op.join(EXAMPLES_PATH, "flake.lock")), flake_lock_path)
 
     ctx.log(
         "\nInitialized nixos-compose environment in "

@@ -6,6 +6,7 @@ from io import open
 from .utils import touch
 
 
+# TOREMOVE
 class State(dict):
     DEFAULTS = {"built": False, "started": False}
 
@@ -20,7 +21,7 @@ class State(dict):
             try:
                 with open(self.state_file, "rt") as json_file:
                     self.update(json.loads(json_file.read()))
-            except:
+            except Exception:
                 pass
 
     def dump(self):

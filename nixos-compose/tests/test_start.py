@@ -10,9 +10,9 @@ def run_test(cmd, tmp_path, ret_test=1):
 
 
 def run_init(cmd_init, tmp_path, ret_test=1):
-    run_test("git init", tmp_path)
+    # run_test("git init", tmp_path)
     res = run_test(cmd_init, tmp_path, ret_test)
-    run_test("git add .", tmp_path)
+    # run_test("git add .", tmp_path)
     return res
 
 
