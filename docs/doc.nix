@@ -24,8 +24,8 @@ in rec {
   };
 
   imageCIdoc = pkgs.dockerTools.buildImageWithNixDb {
-    name = "bleuzenj/nxc-doc";
-    tag = "plop";
+    name = "registry.gitlab.inria.fr/nixos-compose/nixos-compose";
+    tag = "doc";
     fromImage = flakeImage;
     contents = buildInputs;
   };
