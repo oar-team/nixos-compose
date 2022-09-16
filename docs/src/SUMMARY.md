@@ -19,7 +19,7 @@
 - [connect](commands/connect.md)
 - [stop](commands/stop.md)
 
-# Zoo
+# Zoo / Cookbook
 
 [Melissa](zoo/melissa.md)
 <!-- [K3S](zoo/k3s.md)

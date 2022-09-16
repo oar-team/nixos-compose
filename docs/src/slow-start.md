@@ -111,7 +111,7 @@ webserver/
     ```json
     {"composition": "composition.nix", "default_flavour": "nixos-test"}
     ```
-# Edit of composition
+<!-- # Edit of composition
 
 # Build
 
@@ -127,5 +127,5 @@ webserver/
 # run on G5K
 ## reservation
 ## start
-## connect
+## connect -->
 

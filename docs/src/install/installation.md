@@ -6,6 +6,6 @@ The installation and usage differs a bit on Grid5000 due to policy usage restric
 The use of the `nxc` command line tool can be acheive in multiple ways and it will depends at which step in the process of the experiment you are. 
 At the initialization of a project you will need Nix package manager and NixOSCompose project. Once an experiment is bundled (after `nxc init`) it comes with a mean to access to the nxc command through a shell provided by Nix. There is also the possibility to use an incomplete version of `nxc` when a Nix shell becomes a constraints to access testbeds platform tools, it is the case on Grid5000 (oar commands are not available in a nix shell).
 
+Nix dependant commands : [ init build ]
 
-INSERT PICTURE COMMAND SEPARATION NIX DEPENDENT OR NOT
-<!-- Est-ce que l'on promu l'utilisation d'un nix-shell sur la frontale -->
+Nix independant commands : [ start connect stop ]
