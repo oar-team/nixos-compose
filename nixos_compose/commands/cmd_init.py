@@ -132,9 +132,12 @@ def cli(
     # Should be resolved with availability of source tree abstraction
     # see https://github.com/NixOS/nix/pull/6530
     if res.returncode:
-        m = re.match(r"^error: '(.+)' was.+store", res.stderr.decode())
-        if m:
-            copy_tree(m.group(1), ctx.envdir)
+        # local_store_path can be present into one or three lines
+        r = re.compile(".*local/share/nix/root/nix/store.*")
+        res_error = res.stderr.decode()
+        local_store_path = list(filter(r.match, res_error.split()))
+        if local_store_path:
+            copy_tree(local_store_path[0][1:-1], ctx.envdir)
             subprocess.run(["chmod", "-R", "gu+w", ctx.envdir])
         else:
             ctx.elog("Flake new from template failed:")
