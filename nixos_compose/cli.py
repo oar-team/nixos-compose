@@ -1,13 +1,14 @@
 import os
 import os.path as op
 import sys
+import pkg_resources
 
 import click
 
-from . import VERSION
 from .context import pass_context, CONTEXT_SETTINGS
 
 click.disable_unicode_literals_warning = True
+version = pkg_resources.get_distribution("nixos-compose").version
 
 
 class NixosComposeCLI(click.MultiCommand):
@@ -36,7 +37,7 @@ class NixosComposeCLI(click.MultiCommand):
 )
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Verbose mode.")
 @click.option("--debug", "-D", is_flag=True, default=False, help="Enable debugging")
-@click.version_option(version=VERSION)
+@click.version_option(version=version)
 @pass_context
 def cli(ctx, envdir, verbose, debug):
     """Generate and manage multi Nixos composition."""

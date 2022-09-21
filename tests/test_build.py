@@ -1,6 +1,6 @@
 from subprocess import run
 
-from nixos_compose import __version__
+import pkg_resources
 
 
 def run_test(cmd, tmp_path, ret_test=1):
@@ -19,8 +19,9 @@ def run_init(cmd_init, tmp_path, ret_test=1):
 
 
 def test_version():
-    print(__version__)
-    assert __version__ == "0.1.0"
+    version = pkg_resources.get_distribution("nixos-compose").version
+    print(version)
+    assert version == "0.2.0"
 
 
 def test_build(tmp_path):
