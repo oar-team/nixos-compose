@@ -194,25 +194,46 @@ def populate_deployment_vm_by_ip(nodes_info, roles_quantities):
     return deployment, ips
 
 
-def health_check_roles_quantities(nodes_info, roles_quantities):
-    if len(roles_quantities) == 0:
+def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
+    roles_quantities = {}
+    remaining_role = None
+    nb_remaining = 0
+
+    if len(roles_quantities_in) == 0:
         # If no info we take one node per role
         roles_quantities = {role: [role] for role in nodes_info.keys()}
     else:
         # Step 1: if the user only gave the number of nodes of the roles
-        for role in roles_quantities:
-            if type(roles_quantities[role]) == int:
-                nb_nodes = roles_quantities[role]
+        for role in roles_quantities_in:
+            if type(roles_quantities_in[role]) == int:
+                nb_nodes = roles_quantities_in[role]
                 if nb_nodes == 1:
                     roles_quantities[role] = [f"{role}"]
                 else:
                     roles_quantities[role] = [
                         f"{role}{i}" for i in range(1, nb_nodes + 1)
                     ]
+            else:
+                if not ips:
+                    raise Exception(
+                        "Number of ip_address must be known with 'remaining' as role's number"
+                    )
+                if remaining_role:
+                    raise Exception(
+                        f"Role for remaining nodes is already set: {remaining_role}/{role}"
+                    )
+                else:
+                    remaining_role = role
 
-        # Step 2: check that we do not have any conflict on the hostnames
-
+        # Step 2: add remainings and check that we do not have any conflict on the hostnames
         all_hostnames = list(itertools.chain.from_iterable(roles_quantities.values()))
+        if remaining_role:
+            nb_remaining = len(ips) - len(all_hostnames)
+            if nb_remaining <= 0:
+                raise Exception(f"Nodes remaining is <= 0: {nb_remaining}")
+            roles_quantities[remaining_role] = [
+                f"{remaining_role}{i}" for i in range(1, nb_remaining + 1)
+            ]
         set_hostnames = set(all_hostnames)
         if len(all_hostnames) != len(set_hostnames):
             raise Exception("Conflict in the naming of the node")
@@ -220,7 +241,7 @@ def health_check_roles_quantities(nodes_info, roles_quantities):
 
 
 def populate_deployment_ips(nodes_info, ips, roles_quantities):
-    roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities)
+    roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities, ips)
     i = 0
     deployment = {}
     for role, v in nodes_info.items():
