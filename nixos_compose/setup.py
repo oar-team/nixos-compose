@@ -93,7 +93,4 @@ def apply_setup(
 
     ctx.setup = setup_toml
 
-    if nix_flags:
-        nix_flags = nix_flags.split()
-
     return (nix_flags, composition_file, composition_flavour, flavour)
