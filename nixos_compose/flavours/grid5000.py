@@ -151,7 +151,7 @@ class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
 
     def generate_kexec_scripts(self):
         def store_path():
-            for prefix_store_path in ["/nix"] + self.ctx.alternative_stores:
+            for prefix_store_path in self.ctx.alternative_stores + ["/nix"]:
                 store_path = f"{prefix_store_path}/store"
                 if op.exists(store_path):
                     return store_path
