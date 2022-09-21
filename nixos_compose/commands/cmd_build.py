@@ -5,7 +5,7 @@ import subprocess
 import click
 import json
 
-from ..actions import get_nix_command
+from ..actions import get_nix_command, realpath_from_store
 from ..context import pass_context, on_started, on_finished
 from ..setup import apply_setup
 
@@ -239,4 +239,8 @@ def get_flavours(nix_cmd_base, ctx):
     )
     if retcode:
         output_json = FLAVOURS_JSON
+    else:
+        if not op.exists(output_json):
+            output_json = realpath_from_store(ctx, output_json)
+
     return json.load(open(output_json, "r"))
