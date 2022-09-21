@@ -112,9 +112,15 @@ in
 
     # After booting, register the contents of the Nix store
     # in the Nix database in the tmpfs.
-    nix_path_registration="/etc/nxc/all_compositions_registration_store/nix-path-registration"
+
+    if [ -d /etc/nxc/all_compositions_registration_store ]; then
+      nix_path_registration="/etc/nxc/all_compositions_registration_store/nix-path-registration"
+    else
+      nix_path_registration="/nix/store/nix-path-registration"
+    fi
+
     if [[ -f "$nix_path_registration"-"$compositionName"-"$role" ]]; then
-      nix_path_registration="$nix_path_registration"-"$compositionName"-"$role"
+        nix_path_registration="$nix_path_registration"-"$compositionName"-"$role"
     fi
 
     echo "nix-store: load db $nix_path_registration"

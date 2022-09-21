@@ -72,10 +72,15 @@
 
                    init=""
                    if  [ ! -z $composition ]; then
-                       compositions_info_file=$(jq -r '."compositions_info_path" // empty' $deployment_json)
-                       echo "compositions info file: $compositions_info_file"
-                       init=$(jq -r ".\"$composition\".nodes.\"$role\".init" /mnt-root/$compositions_info_file)
-                       echo "init: $init"
+                      if [ -f /mnt-root/nix/store/compositions-info.json ]; then
+                         echo "/mnt-root/nix/store/compositions-info.json"
+                         init=$(jq -r ".\"$composition\".nodes.\"$role\".init" /mnt-root/nix/store/compositions-info.json)
+                      else
+                         compositions_info_file=$(jq -r '."compositions_info_path" // empty' $deployment_json)
+                         echo "compositions info file: $compositions_info_file"
+                         init=$(jq -r ".\"$composition\".nodes.\"$role\".init" /mnt-root/$compositions_info_file)
+                      fi
+                      echo "init: $init"
                    fi
                    export stage2Init=$init
                    echo $role > /mnt-root/etc/nxc/role
@@ -123,6 +128,6 @@
             esac
         done
 
-    # echo Breakpoint reached && fail
+    #echo Breakpoint reached && fail
      '';
 }
