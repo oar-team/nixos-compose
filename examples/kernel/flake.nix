@@ -2,7 +2,7 @@
   description = "nixos-compose - simple mutiple compositions";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/22.05";
     nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
   };
 

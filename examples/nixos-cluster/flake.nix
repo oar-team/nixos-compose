@@ -10,9 +10,13 @@
   outputs = { self, nixpkgs, nxc }:
     let
       system = "x86_64-linux";
+      myOverlay = final: prev: {
+        nixos-compose = nxc.packages.${system}.nixos-compose;
+      };
     in {
       packages.${system} = nxc.lib.compose {
         inherit nixpkgs system;
+        overlays = [ myOverlay ];
         composition = ./composition.nix;
       };
 
