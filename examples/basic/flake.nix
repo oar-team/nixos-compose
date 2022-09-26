@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/22.05";
-    nxc.url = "path:/home/quentin/ghq/gitlab.inria.fr/nixos-compose/nixos-compose/";
+    nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
   };
 
   outputs = { self, nixpkgs, nxc }:
