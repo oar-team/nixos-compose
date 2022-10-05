@@ -798,7 +798,7 @@ def get_nix_command(ctx):
         local_bin_nix = "{os.environ['HOME']}/.local/bin/nix"
         if not op.exists(local_bin_nix):
             ctx.elog(
-                "Nix not found, it can by installed in $HOME/.local/bin with command: nxc init --install-nix"
+                "Nix not found, it can by installed in $HOME/.local/bin with command: nxc helper install-nix"
             )
             sys.exit(1)
         else:

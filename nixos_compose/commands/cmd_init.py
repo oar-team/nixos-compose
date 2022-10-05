@@ -9,7 +9,7 @@ from io import open
 
 import click
 
-from ..actions import get_nix_command, install_nix_static
+from ..actions import get_nix_command
 from ..context import pass_context
 
 from ..platform import platform_detection
@@ -57,12 +57,6 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
     default=False,
     help="Display the list of available templates as JSON",
 )
-@click.option(
-    "--install-nix",
-    is_flag=True,
-    default=False,
-    help="Install the nix command in $HOME/.local/bin",
-)
 @pass_context
 # @on_finished(lambda ctx: ctx.state.dump())
 def cli(
@@ -75,12 +69,8 @@ def cli(
     template,
     use_local_templates,
     list_templates_json,
-    install_nix,
 ):
     """Initialize a new environment."""
-
-    if install_nix:
-        install_nix_static()
 
     nix_cmd_base = get_nix_command(ctx)
 
