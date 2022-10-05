@@ -68,7 +68,10 @@
 
         devShells = {
           nxcShell = pkgs.mkShell {
-            buildInputs = [ self.defaultPackage.${system} ];
+            buildInputs = [
+              self.defaultPackage.${system}
+              pkgs.tmux
+            ];
           };
           nxcShellFull = pkgs.mkShell {
             buildInputs = [
