@@ -7,6 +7,7 @@ import json
 
 from ..actions import get_nix_command, realpath_from_store
 from ..context import pass_context, on_started, on_finished
+from ..platform import platform_detection
 from ..setup import apply_setup
 
 # FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
@@ -94,6 +95,18 @@ def cli(
       nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
     """
 
+    def determine_flavour(ctx):
+        if "default_flavour" in ctx.nxc and ctx.nxc["default_flavour"]:
+            flavour = ctx.nxc["default_flavour"]
+        else:
+            platform_detection(ctx)
+            if ctx.platform:
+                flavour = ctx.platform.default_flavour
+            else:
+                flavour = "default"
+        ctx.vlog(f"Seleced flavour: {flavour}")
+        return flavour
+
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
         nix_flags, composition_file, composition_flavour, flavour = apply_setup(
             ctx,
@@ -160,10 +173,7 @@ def cli(
             os.mkdir(build_path)
 
         if not flavour:
-            if "default_flavour" in ctx.nxc:
-                flavour = ctx.nxc["default_flavour"]
-            else:
-                flavour = "default"
+            flavour = determine_flavour(ctx)
 
         if composition_flavour:
             ctx.composition_flavour_prefix = composition_flavour
@@ -175,6 +185,9 @@ def cli(
             ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
 
         out_link = op.join(build_path, ctx.composition_flavour_prefix)
+
+    if not flavour:
+        flavour = determine_flavour(ctx)
 
     if dry_build:
         build_cmd = nix_cmd_base + ["eval"] + build_cmd + ["--raw"]
