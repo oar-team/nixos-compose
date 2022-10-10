@@ -58,7 +58,7 @@ in
         serviceConfig.Type = "oneshot";
         script = ''
         # wait  network is ready
-        while ! ${pkgs.iproute}/bin/ip route get 1.0.0.0 ; do
+        while ! ${pkgs.iproute2}/bin/ip route get 1.0.0.0 ; do
         sleep .2
         done
         '';

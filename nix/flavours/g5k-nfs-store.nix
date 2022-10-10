@@ -26,5 +26,17 @@
 
     # Required for nfs mount to work in the early of stage-2
     boot.initrd.network.flushBeforeStage2 = false;
+
+    systemd.services.nxc-bindfs = {
+      before = [ "network.target" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig.Restart= "always";
+      script = ''
+        uid=$(stat -c '%u' /nix/.server-ro-store)
+        gid=$(stat -c '%g' /nix/.server-ro-store)
+        echo "Launch bindfs userid/groudid: $uid/$gid"
+        ${pkgs.bindfs}/bin/bindfs -f --map=$uid/0:@$gid/@0 /nix/store /nix/store
+      '';
+    };
   };
 }

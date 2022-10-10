@@ -38,7 +38,7 @@
 
          mount -t nfs -o vers=3,nolock,ro,soft,retry=10 $nfs_store /mnt-root/nix/.server-ro-store
 
-         mount -t overlay overlay -o lowerdir=/mnt-root/nix/.server-ro-store,upperdir=/mnt-root/nix/.rw-store/store,workdir=/mnt-root/nix/.rw-store/work  /mnt-root/nix/store
+         mount -t overlay overlay -o lowerdir=/mnt-root/nix/.server-ro-store,upperdir=/mnt-root/nix/.rw-store/store,workdir=/mnt-root/nix/.rw-store/work /mnt-root/nix/store
        fi
 
        for o in $(cat /proc/cmdline); do
