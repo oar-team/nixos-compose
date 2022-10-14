@@ -17,6 +17,8 @@ from typing import Tuple, Optional
 def generate_docker_compose_file(ctx):
     base_docker_compose = ctx.compose_info["docker-compose-file"]
     docker_compose_content = {"services": {}}
+    nodes_info = {}
+
     with open(base_docker_compose) as dc_file:
         dc_json = json.load(dc_file)
         if ctx.roles_quantities == {}:
@@ -47,29 +49,36 @@ def generate_docker_compose_file(ctx):
                     config = copy.copy(dc_json["services"][role])
                     config["hostname"] = hostname
                     docker_compose_content["services"][hostname] = config
+                    nodes_info[hostname] = role
                 else:
                     for i in range(1, quantities + 1):
                         hostname = f"{role}{i}"
                         config = copy.copy(dc_json["services"][role])
                         config["hostname"] = hostname
                         docker_compose_content["services"][hostname] = config
+                        nodes_info[hostname] = role
             elif type(quantities) is list:
                 for hostname in quantities:
                     config = copy.copy(dc_json["services"][role])
                     config["hostname"] = hostname
                     docker_compose_content["services"][hostname] = config
+                    nodes_info[hostname] = role
             elif type(quantities) is DefaultRole:
                 nb_min_nodes = quantities.nb_min_nodes
+                ctx.log(f"Docker: Using DefaultRole -> {nb_min_nodes} nodes for role '{role}'")
                 if nb_min_nodes == 1:
                     hostname = f"{role}"
                     config = copy.copy(dc_json["services"][role])
                     config["hostname"] = hostname
                     docker_compose_content["services"][hostname] = config
+                    nodes_info[hostname] = role
                 else:
                     for i in range(1, nb_min_nodes + 1):
                         hostname = f"{role}{i}"
                         config = copy.copy(dc_json["services"][role])
                         config["hostname"] = hostname
+                        docker_compose_content["services"][hostname] = config
+                        nodes_info[hostname] = role
             else:
                 raise Exception("Unvalid type for specifying the roles of the nodes")
         docker_compose_content["version"] = dc_json["version"]
@@ -85,7 +94,7 @@ def generate_docker_compose_file(ctx):
 
     with open(docker_compose_path, "w") as outfile:
         outfile.write(json.dumps(docker_compose_content))
-    return docker_compose_path
+    return docker_compose_path, nodes_info
 
 
 def generate_deployment_info_docker(ctx):
@@ -98,10 +107,12 @@ def generate_deployment_info_docker(ctx):
         ctx.log("   " + create + "  " + deploy_dir)
         os.mkdir(deploy_dir)
 
-    docker_compose_path = generate_docker_compose_file(ctx)
+    docker_compose_path, nodes_info = generate_docker_compose_file(ctx)
     deployment = {
-        "nodes": ctx.compose_info["nodes"],
-        "deployment": {n: {"role": n} for n in ctx.compose_info["nodes"]},
+        # "nodes": ctx.compose_info["nodes"],
+        "nodes": list(nodes_info.keys()),
+        # "deployment": {n: {"role": n} for n in ctx.compose_info["nodes"]},
+        "deployment": {node_name: {"role": role_name} for (node_name, role_name) in nodes_info.items()},
         "docker-compose-file": docker_compose_path,
     }
 

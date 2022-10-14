@@ -153,12 +153,8 @@ class Context(object):
             self.set_roles_quantities(json.load(roles_f))
 
     def _load_role_quantities_file_yaml(self, filename):
-        print(filename)
         with open(filename, "r") as roles_f:
-            print(roles_f.readlines())
-            # self.set_roles_quantities(yaml.load(roles_f, Loader=get_nxc_loader()))
-            self.set_roles_quantities(yaml.safe_load(roles_f))
-            print(self.roles_quantities)
+            self.set_roles_quantities(yaml.load(roles_f, Loader=get_nxc_loader()))
 
     def set_roles_quantities(self, roles_quantities):
         self.roles_quantities = roles_quantities
