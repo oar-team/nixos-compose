@@ -211,7 +211,10 @@ def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
                 sum_nb_asked_machines += len(roles_quantities_in[role])
             else:
                 pass
-        remaining_available_machines = len(ips) - sum_nb_asked_machines
+        if ips is not None:
+            remaining_available_machines = len(ips) - sum_nb_asked_machines
+        else:
+            remaining_available_machines = -1
 
         # Step 1: if the user only gave the number of nodes of the roles
         for role in roles_quantities_in:
