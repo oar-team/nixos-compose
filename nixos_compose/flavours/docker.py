@@ -9,6 +9,7 @@ from ..flavour import Flavour
 from ..actions import read_compose_info
 from ..driver.logger import rootlog
 from ..driver.machine import Machine
+from ..default_role import DefaultRole
 
 from typing import Tuple, Optional
 
@@ -57,6 +58,18 @@ def generate_docker_compose_file(ctx):
                     config = copy.copy(dc_json["services"][role])
                     config["hostname"] = hostname
                     docker_compose_content["services"][hostname] = config
+            elif type(quantities) is DefaultRole:
+                nb_min_nodes = quantities.nb_min_nodes
+                if nb_min_nodes == 1:
+                    hostname = f"{role}"
+                    config = copy.copy(dc_json["services"][role])
+                    config["hostname"] = hostname
+                    docker_compose_content["services"][hostname] = config
+                else:
+                    for i in range(1, nb_min_nodes + 1):
+                        hostname = f"{role}{i}"
+                        config = copy.copy(dc_json["services"][role])
+                        config["hostname"] = hostname
             else:
                 raise Exception("Unvalid type for specifying the roles of the nodes")
         docker_compose_content["version"] = dc_json["version"]
