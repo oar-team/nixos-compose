@@ -11,6 +11,7 @@ from functools import update_wrapper
 import click
 
 from .platform import Grid5000Platform
+from .default_role import DefaultRole, get_nxc_loader
 
 # from .state import State
 
@@ -153,7 +154,7 @@ class Context(object):
 
     def _load_role_quantities_file_yaml(self, filename):
         with open(filename, "r") as roles_f:
-            self.set_roles_quantities(yaml.safe_load(roles_f))
+            self.set_roles_quantities(yaml.load(roles_f, Loader=get_nxc_loader()))
 
     def set_roles_quantities(self, roles_quantities):
         self.roles_quantities = roles_quantities

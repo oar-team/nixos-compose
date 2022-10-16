@@ -17,6 +17,7 @@ import urllib.request
 
 from halo import Halo
 from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
+from .default_role import DefaultRole
 
 
 ##
@@ -197,12 +198,24 @@ def populate_deployment_vm_by_ip(nodes_info, roles_quantities):
 def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
     roles_quantities = {}
     remaining_role = None
-    nb_remaining = 0
 
     if len(roles_quantities_in) == 0:
         # If no info we take one node per role
         roles_quantities = {role: [role] for role in nodes_info.keys()}
     else:
+        sum_nb_asked_machines = 0
+        for role in roles_quantities_in:
+            if type(roles_quantities_in[role]) == int:
+                sum_nb_asked_machines += roles_quantities_in[role]
+            elif type(roles_quantities_in[role]) == list:
+                sum_nb_asked_machines += len(roles_quantities_in[role])
+            else:
+                pass
+        if ips is not None:
+            remaining_available_machines = len(ips) - sum_nb_asked_machines
+        else:
+            remaining_available_machines = -1
+
         # Step 1: if the user only gave the number of nodes of the roles
         for role in roles_quantities_in:
             if type(roles_quantities_in[role]) == int:
@@ -213,6 +226,18 @@ def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
                     roles_quantities[role] = [
                         f"{role}{i}" for i in range(1, nb_nodes + 1)
                     ]
+            elif type(roles_quantities_in[role]) == DefaultRole:
+                nb_min_nodes = roles_quantities_in[role].nb_min_nodes
+                if ips is None:
+                    # in the case of VMs we are not limited
+                    # so we take the min nb of nodes
+                    remaining_available_machines = nb_min_nodes
+                if remaining_available_machines < nb_min_nodes:
+                    raise Exception(f"Not enough nodes to satisfy default role {role} ({remaining_available_machines} available for {nb_min_nodes} asked)")
+                if remaining_available_machines == 1:
+                    roles_quantities[role] = [f"{role}"]
+                else:
+                    roles_quantities[role] = [f"{role}{i}" for i in range(1, remaining_available_machines + 1)]
             else:
                 if not ips:
                     raise Exception(
@@ -227,13 +252,6 @@ def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
 
         # Step 2: add remainings and check that we do not have any conflict on the hostnames
         all_hostnames = list(itertools.chain.from_iterable(roles_quantities.values()))
-        if remaining_role:
-            nb_remaining = len(ips) - len(all_hostnames)
-            if nb_remaining <= 0:
-                raise Exception(f"Nodes remaining is <= 0: {nb_remaining}")
-            roles_quantities[remaining_role] = [
-                f"{remaining_role}{i}" for i in range(1, nb_remaining + 1)
-            ]
         set_hostnames = set(all_hostnames)
         if len(all_hostnames) != len(set_hostnames):
             raise Exception("Conflict in the naming of the node")
