@@ -92,7 +92,7 @@ def cli(
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
-      nix build -f examples/webserver-flavour.nix -I compose=nix/compose.nix -I nixpkgs=channel:nixos-20.09 -o result-local
+      nix build
     """
 
     def determine_flavour(ctx):
