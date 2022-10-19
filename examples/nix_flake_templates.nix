@@ -7,10 +7,6 @@
     path = ./basic;
     description = "Minimal example";
   };
-  basic-flake-only = {
-    path = ./basic-flake-only;
-    description = "Basic example with nix dir via flake";
-  };
   execo = {
     path = ./execo;
     description = "Template with execo";
