@@ -62,7 +62,7 @@ def get_deployment_file(ctx, deployment_file):
 
     if not deployment_file:
         deployment_file = max(
-            glob.glob(f"{op.join(ctx.envdir, 'deploy')}/*"), key=op.getctime
+            glob.glob(f"{op.join(ctx.envdir, 'deploy')}/*::*"), key=op.getctime
         )
         exit_is_not_file(deployment_file)
         return deployment_file
@@ -233,11 +233,15 @@ def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
                     # so we take the min nb of nodes
                     remaining_available_machines = nb_min_nodes
                 if remaining_available_machines < nb_min_nodes:
-                    raise Exception(f"Not enough nodes to satisfy default role {role} ({remaining_available_machines} available for {nb_min_nodes} asked)")
+                    raise Exception(
+                        f"Not enough nodes to satisfy default role {role} ({remaining_available_machines} available for {nb_min_nodes} asked)"
+                    )
                 if remaining_available_machines == 1:
                     roles_quantities[role] = [f"{role}"]
                 else:
-                    roles_quantities[role] = [f"{role}{i}" for i in range(1, remaining_available_machines + 1)]
+                    roles_quantities[role] = [
+                        f"{role}{i}" for i in range(1, remaining_available_machines + 1)
+                    ]
             else:
                 if not ips:
                     raise Exception(
