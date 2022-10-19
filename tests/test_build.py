@@ -1,7 +1,5 @@
 from subprocess import run
 
-import pkg_resources
-
 
 def run_test(cmd, tmp_path, ret_test=1):
     res = run(cmd, shell=True, cwd=tmp_path)
@@ -16,12 +14,6 @@ def run_init(cmd_init, tmp_path, ret_test=1):
     res = run_test(cmd_init, tmp_path, ret_test)
     # run_test("git add .", tmp_path)
     return res
-
-
-def test_version():
-    version = pkg_resources.get_distribution("nixos-compose").version
-    print(version)
-    assert version == "0.2.0"
 
 
 def test_build(tmp_path):
