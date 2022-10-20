@@ -134,7 +134,7 @@ def cli(
             ctx.elog(f"returncode: {res.returncode}")
             ctx.elog(f"stdout: {res.stdout.decode()}")
             ctx.elog(f"stderr: {res.stderr.decode()}")
-
+            sys.exit(1)
     nxc_json = {
         "composition": "composition.nix",  # TODO to enhance
         "default_flavour": default_flavour,
