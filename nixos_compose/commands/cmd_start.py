@@ -452,7 +452,7 @@ def cli(
             toc = time.time()
             ctx.glog(f"test script finished in {(toc-tic):.2f}s")
         else:
-            print("juste start")
+            ctx.glog("just start ???")
             driver.test_script()
     if ctx.use_httpd:
         ctx.httpd.stop()
