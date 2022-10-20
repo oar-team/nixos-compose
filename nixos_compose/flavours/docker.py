@@ -65,7 +65,9 @@ def generate_docker_compose_file(ctx):
                     nodes_info[hostname] = role
             elif type(quantities) is DefaultRole:
                 nb_min_nodes = quantities.nb_min_nodes
-                ctx.log(f"Docker: Using DefaultRole -> {nb_min_nodes} nodes for role '{role}'")
+                ctx.log(
+                    f"Docker: Using DefaultRole -> {nb_min_nodes} nodes for role '{role}'"
+                )
                 if nb_min_nodes == 1:
                     hostname = f"{role}"
                     config = copy.copy(dc_json["services"][role])
@@ -83,7 +85,6 @@ def generate_docker_compose_file(ctx):
                 raise Exception("Unvalid type for specifying the roles of the nodes")
         docker_compose_content["version"] = dc_json["version"]
         docker_compose_content["x-nxc"] = dc_json["x-nxc"]
-
 
     deploy_dir = op.join(ctx.envdir, "deploy", "docker_compose")
     if not op.exists(deploy_dir):
@@ -112,9 +113,15 @@ def generate_deployment_info_docker(ctx):
         # "nodes": ctx.compose_info["nodes"],
         "nodes": list(nodes_info.keys()),
         # "deployment": {n: {"role": n} for n in ctx.compose_info["nodes"]},
-        "deployment": {node_name: {"role": role_name} for (node_name, role_name) in nodes_info.items()},
+        "deployment": {
+            node_name: {"role": role_name}
+            for (node_name, role_name) in nodes_info.items()
+        },
         "docker-compose-file": docker_compose_path,
     }
+
+    if "test_script" in ctx.compose_info:
+        deployment["test_script"] = ctx.compose_info["test_script"]
 
     if "all" in ctx.compose_info:
         deployment["all"] = ctx.compose_info["all"]
