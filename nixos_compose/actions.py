@@ -61,9 +61,11 @@ def get_deployment_file(ctx, deployment_file):
             sys.exit(1)
 
     if not deployment_file:
-        deployment_file = max(
-            glob.glob(f"{op.join(ctx.envdir, 'deploy')}/*::*"), key=op.getctime
-        )
+        deploy_dir = op.join(ctx.envdir, "deploy")
+        if not op.isdir(deploy_dir):
+            ctx.elog("Failed to find deploy directory, is composition started ?")
+            sys.exit(1)
+        deployment_file = max(glob.glob(f"{deploy_dir}/*::*"), key=op.getctime)
         exit_is_not_file(deployment_file)
         return deployment_file
     else:
