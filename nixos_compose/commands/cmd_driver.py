@@ -1,9 +1,10 @@
 import click
 import re
+import sys
 import ptpython.repl
 
 from ..context import pass_context
-from ..actions import read_deployment_info
+from ..actions import read_deployment_info, realpath_from_store
 from ..flavours import get_flavour_by_name
 
 from ..driver.driver import Driver
@@ -21,11 +22,14 @@ from ..driver.driver import Driver
     "--flavour",
     help="flavour, by default it's extracted from deployment file name",
 )
-@click.argument("test-script", required=False)
+@click.option(
+    "-t", "--test-script", is_flag=True, help="execute the 'embedded' testscript",
+)
+@click.argument("test-script-file", required=False)
 @pass_context
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, user, deployment_file, flavour, test_script):
+def cli(ctx, user, deployment_file, flavour, test_script_file, test_script):
     """Start driver to intearct with deployed environment."""
     read_deployment_info(ctx, deployment_file)
 
@@ -46,10 +50,20 @@ def cli(ctx, user, deployment_file, flavour, test_script):
 
     # TODO add test to ssh port
 
-    test_script_str = ""
     if test_script:
-        with open(test_script, "r") as f:
+        if "test_script" in ctx.deployment_info:
+            test_script_file = realpath_from_store(
+                ctx, ctx.deployment_info["test_script"]
+            )
+
+    test_script_str = ""
+    if test_script_file:
+        with open(test_script_file, "r") as f:
             test_script_str = f.read()
+
+    if test_script and test_script_str == "":
+        ctx.elog(f"test script ({test_script_file}) is empty")
+        sys.exit(1)
 
     with Driver(
         # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
