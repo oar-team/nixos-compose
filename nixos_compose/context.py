@@ -11,7 +11,7 @@ from functools import update_wrapper
 import click
 
 from .platform import Grid5000Platform
-from .default_role import DefaultRole, get_nxc_loader
+from .default_role import get_nxc_loader
 
 # from .state import State
 
@@ -108,7 +108,7 @@ class Context(object):
 
     def elog(self, msg, *args):
         """Logs a error message to stderr."""
-        self.log(click.style("Warning: %s" % msg, fg="red"), *args, file=sys.stderr)
+        self.log(click.style("Error: %s" % msg, fg="red"), *args, file=sys.stderr)
 
     def glog(self, msg, *args):
         """Logs a green message."""
