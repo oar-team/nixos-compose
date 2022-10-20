@@ -744,9 +744,16 @@ class Machine:
         self.log("QEMU running (pid {})".format(self.pid))
 
     def cleanup_statedir(self) -> None:
-        shutil.rmtree(self.state_dir)
-        rootlog.log(f"deleting VM state directory {self.state_dir}")
-        rootlog.log("if you want to keep the VM state, pass --keep-vm-state")
+        if self.ctx.flavour in [
+            "vm",
+            "vm-bridged",
+            "nixos-test",
+            "nixos-test-driver",
+            "nixos-test-ssh",
+        ]:
+            shutil.rmtree(self.state_dir)
+            rootlog.log(f"deleting VM state directory {self.state_dir}")
+            rootlog.log("if you want to keep the VM state, pass --keep-vm-state")
 
     def shutdown(self) -> None:
         if not self.booted:
