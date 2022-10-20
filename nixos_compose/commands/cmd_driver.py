@@ -1,4 +1,5 @@
 import click
+import json
 import re
 import sys
 import ptpython.repl
@@ -49,15 +50,25 @@ def cli(ctx, user, deployment_file, flavour, test_script_file, test_script):
     ctx.no_start = True
 
     # TODO add test to ssh port
-
     if test_script:
         if "test_script" in ctx.deployment_info:
-            test_script_file = realpath_from_store(
-                ctx, ctx.deployment_info["test_script"]
+            test_script_file = ctx.deployment_info["test_script"]
+
+        elif "compositions_info_path" in ctx.deployment_info:
+            compositions_info_file = realpath_from_store(
+                ctx, ctx.deployment_info["compositions_info_path"]
             )
+            with open(compositions_info_file, "r") as f:
+                compositions_info = json.load(f)
+
+            selected_composition = ctx.deployment_info["composition"]
+            test_script_file = compositions_info[selected_composition]["test_script"]
+
+        test_script_file = realpath_from_store(ctx, test_script_file)
 
     test_script_str = ""
     if test_script_file:
+        test_script = True
         with open(test_script_file, "r") as f:
             test_script_str = f.read()
 
@@ -74,6 +85,10 @@ def cli(ctx, user, deployment_file, flavour, test_script_file, test_script):
         False,
     ) as driver:
         if test_script:
-            driver.test_script()
+            try:
+                driver.test_script()
+            except Exception as e:
+                ctx.elog(e)
+                sys.exit(1)
         else:
             ptpython.repl.embed(driver.test_symbols(), {})
