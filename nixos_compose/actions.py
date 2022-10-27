@@ -264,11 +264,14 @@ def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
     return roles_quantities
 
 
-def populate_deployment_ips(nodes_info, ips, roles_quantities):
+def populate_deployment_ips(ctx, nodes_info, ips, roles_quantities):
     roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities, ips)
     i = 0
     deployment = {}
     for role, v in nodes_info.items():
+        if role not in roles_quantities:
+            ctx.elog(f"role: {role} not found in roles-quantities file")
+            exit(1)
         for hostname in roles_quantities[role]:
             ip = ips[i]
             deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
@@ -310,10 +313,9 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
 
     # if ctx.multiple_compositions:  :: TO REMOVE ???
     #    nodes = ctx.compose_info["nodes"]
-
     if ctx.ip_addresses:
         deployment = populate_deployment_ips(
-            ctx.compose_info["nodes"], ctx.ip_addresses, ctx.roles_quantities
+            ctx, ctx.compose_info["nodes"], ctx.ip_addresses, ctx.roles_quantities
         )
     elif ctx.forward_ssh_port:
         deployment = populate_deployment_forward_ssh_port(ctx.compose_info["nodes"])
