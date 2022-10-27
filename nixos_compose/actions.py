@@ -197,13 +197,20 @@ def populate_deployment_vm_by_ip(nodes_info, roles_quantities):
     return deployment, ips
 
 
-def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
+def health_check_roles_quantities(ctx, nodes_info, roles_quantities_in, ips=None):
     roles_quantities = {}
     remaining_role = None
 
     if len(roles_quantities_in) == 0:
         # If no info we take one node per role
         roles_quantities = {role: [role] for role in nodes_info.keys()}
+        if ips:
+            nb_nodes = len(ips) - len(nodes_info.keys())
+            if nb_nodes >= 0 and "node" in roles_quantities:
+                ctx.vlog("Apply node role as default on ")
+                roles_quantities["node"] = [
+                    f"node{i}" for i in range(1, (nb_nodes + 2))
+                ]
     else:
         sum_nb_asked_machines = 0
         for role in roles_quantities_in:
@@ -265,7 +272,9 @@ def health_check_roles_quantities(nodes_info, roles_quantities_in, ips=None):
 
 
 def populate_deployment_ips(ctx, nodes_info, ips, roles_quantities):
-    roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities, ips)
+    roles_quantities = health_check_roles_quantities(
+        ctx, nodes_info, roles_quantities, ips
+    )
     i = 0
     deployment = {}
     for role, v in nodes_info.items():
