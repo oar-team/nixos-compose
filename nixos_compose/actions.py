@@ -697,9 +697,7 @@ def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
         nb_panes = len(nodes)
         if pane_console:
             nb_panes += 1
-
-        if nb_panes < 9:
-            geometry = NB_PANES_2_GEOMETRY[nb_panes - 1]
+        geometry = NB_PANES_2_GEOMETRY[min(7, nb_panes - 1)]
 
     # translate geometry
     if "+" in geometry and "*" in geometry:

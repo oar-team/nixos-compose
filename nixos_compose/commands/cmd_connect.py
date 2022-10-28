@@ -10,7 +10,7 @@ from ..flavours import get_flavour_by_name
 @click.option(
     "-g",
     "--geometry",
-    help='Tmux geometry, 2 splitting indications are supported: +/*, examples: "1+3+2" (3 sucessive panes respectively horizontally splited by 1,3 and 2), "2*3" (2 sucessive panes horizontally splitted by 3)',
+    help='Tmux geometry, 2 splitting indications are supported: +/*, examples: "1+3+2" (3 adjacent panes respectively horizontally splited by 1,3 and 2), "2*3" (2 adjacent panes horizontally splitted by 3)',
 )
 @click.option(
     "-d",
