@@ -282,7 +282,11 @@ def populate_deployment_ips(ctx, nodes_info, ips, roles_quantities):
             ctx.elog(f"role: {role} not found in roles-quantities file")
             exit(1)
         for hostname in roles_quantities[role]:
-            ip = ips[i]
+            try:
+                ip = ips[i]
+            except IndexError as e:
+                ctx.elog(f"Not enough nodes are available for the deployment: {e}")
+                exit(1)
             deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
             i = i + 1
     return deployment
