@@ -1,5 +1,5 @@
 # NixOS Compose
-====================
+
 The goal of NixOS-Compose is to reduce the burden of setting up _ephemeral_ distributed systems thanks to [Nix](https://nixos.org) functional package manager and [Nixos](https://nixos.org)
 
 The main common use cases are:
