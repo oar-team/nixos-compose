@@ -174,8 +174,8 @@ def translate_hosts2ip(ctx, hosts):
     return
 
 
-def populate_deployment_vm_by_ip(nodes_info, roles_quantities):
-    roles_quantities = health_check_roles_quantities(nodes_info, roles_quantities)
+def populate_deployment_vm_by_ip(ctx, nodes_info, roles_quantities):
+    roles_quantities = health_check_roles_quantities(ctx, nodes_info, roles_quantities)
     i = 0
     deployment = {}
     ips = []
@@ -334,7 +334,7 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
         deployment = populate_deployment_forward_ssh_port(ctx.compose_info["nodes"])
     else:
         deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
-            ctx.compose_info["nodes"], ctx.roles_quantities
+            ctx, ctx.compose_info["nodes"], ctx.roles_quantities
         )
         deployment = {
             k: {
