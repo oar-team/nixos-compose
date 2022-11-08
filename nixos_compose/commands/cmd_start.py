@@ -120,6 +120,9 @@ class EventHandler(pyinotify.ProcessEvent):
 @click.argument(
     "roles_quantities_file", required=False, default=None, type=click.Path(exists=True)
 )
+@click.option(
+    "--compose-info" , type=click.Path(resolve_path=True), help="specific compose info file",
+)
 # @click.option(
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
@@ -142,7 +145,8 @@ def cli(
     test_script,
     file_test_script,
     sigwait,
-    roles_quantities_file
+    roles_quantities_file,
+    compose_info
     # dry_run,
 ):
     """Start Nixos Composition."""
@@ -172,7 +176,7 @@ def cli(
 
     build_path = op.join(ctx.envdir, "build")
 
-    if not op.exists(build_path):
+    if not compose_info and not op.exists(build_path):
         raise click.ClickException(
             "You need build composition first, with nxc build command"
         )
@@ -247,8 +251,9 @@ def cli(
             raise Exception(
                 "Sorry, provide only flavour or only composition is not supported"
             )
+    
 
-    if composition is None:
+    if composition is None and compose_info is None:
         if flavour_name:
             search_path = f"{build_path}/*::{flavour_name}"
         else:
@@ -281,11 +286,18 @@ def cli(
 
         ctx.flavour = get_flavour_by_name(splitted_basename[1])(ctx)
 
-    if op.isdir(build_path) and len(os.listdir(build_path)) == 0:
+    if not compose_info and op.isdir(build_path) and len(os.listdir(build_path)) == 0:
         ctx.wlog(f"{build_path} is an empty directory, surely a nixos-test result !")
         sys.exit(2)
 
-    ctx.compose_info_file = realpath_from_store(ctx, build_path)
+    if (composition is None) and flavour_name and compose_info:
+        ctx.flavour = get_flavour_by_name(flavour_name)(ctx)
+        ctx.compose_info_file = realpath_from_store(ctx, compose_info)
+        ctx.composition_flavour_prefix = op.basename(compose_info)
+        ctx.composition_name = "composition"
+        ctx.composition_basename_file = ctx.composition_name
+    else:
+        ctx.compose_info_file = realpath_from_store(ctx, build_path)
     # TODO remove only available in nixpkgs version 20.03 and before
     # if build is nixos_test result open log.html
     nixos_test_log = op.join(build_path, "log.html")
