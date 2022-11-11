@@ -172,6 +172,7 @@ in let
     all = {
       #image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
       initrd = "${baseConfig.system.build.initialRamdisk}/initrd";
+      qemu_script = "${baseConfig.system.build.qemu_script}";
       #initrd = "${baseRamdisk}/initrd";
       all_compositions_registration_store_path =
         "${allCompositionsRegistrationStorePath}";
