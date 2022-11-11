@@ -19,7 +19,7 @@ let
       testScriptRaw { inherit nodes; }
     else
       testScriptRaw;
-
+  #TODO to move or remove
   vmSharedDirMod = { lib, config, ... }: {
     options = {
       vm-shared-dir = { enable = lib.mkEnableOption "a vm shared directory"; };
@@ -45,7 +45,7 @@ let
             text = "${compositionName}";
           };
         }
-        {system.stateVersion = lib.mkDefault lib.trivial.release;} # perhaps a better place exist than here 
+        {system.stateVersion = lib.mkDefault lib.trivial.release;} # perhaps a better place exist than here
         configuration
         vmSharedDirMod
         flavourConfig

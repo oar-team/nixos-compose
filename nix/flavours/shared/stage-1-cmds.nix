@@ -10,7 +10,7 @@
 
   boot.initrd.postMountCommands = ''
        allowShell=1
-
+       #echo Breakpoint reached && fail
        mkdir -p /mnt-root/etc/nxc
 
        set -- $(IFS=' '; echo $(ip route get 1.0.0.0))
@@ -24,11 +24,15 @@
              nfs_store="$2"
              echo "nfs_store: $nfs_store"
              ;;
+           flavour=*)
+             set -- $(IFS==; echo $o)
+             flavour="$2"
+             echo "flavour: $flavour"
+             ;;
          esac
         done
 
        if [ "''${nfs_store+set}" = set ]; then
-
          mkdir -p /mnt-root/nix/.server-ro-store
          mkdir -p /mnt-root/nix/.rw-store/work
          mkdir -p /mnt-root/nix/.rw-store/store
@@ -39,6 +43,19 @@
          mount -t nfs -o vers=3,nolock,ro,soft,retry=10 $nfs_store /mnt-root/nix/.server-ro-store
 
          mount -t overlay overlay -o lowerdir=/mnt-root/nix/.server-ro-store,upperdir=/mnt-root/nix/.rw-store/store,workdir=/mnt-root/nix/.rw-store/work /mnt-root/nix/store
+       fi
+
+       if [ "''${flavour+set}" = set ] && [ $flavour == "vm" ];then
+         mkdir -p /mnt-root/nix/.ro-store
+         mkdir -p /mnt-root/nix/.rw-store/work
+         mkdir -p /mnt-root/nix/.rw-store/store
+         mkdir -p /mnt-root/nix/store
+
+        echo "Mount host shared store: nix-store"
+
+        mount -t 9p -o trans=virtio,version=9p2000.L,msize=16384,cache=loose nix-store /mnt-root/nix/.ro-store
+
+        mount -t overlay overlay -o lowerdir=/mnt-root/nix/.ro-store,upperdir=/mnt-root/nix/.rw-store/store,workdir=/mnt-root/nix/.rw-store/work /mnt-root/nix/store
        fi
 
        for o in $(cat /proc/cmdline); do
@@ -127,7 +144,5 @@
                    ;;
             esac
         done
-
-    #echo Breakpoint reached && fail
      '';
 }

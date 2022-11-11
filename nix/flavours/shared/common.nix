@@ -24,6 +24,7 @@ with lib; {
   services.udisks2.enable = false; # to reduce initrd
 
   system.build = rec {
+    # TODO move to netboot due to config.system.build.netbootRamdisk ?
     image =
       pkgs.runCommand "image" { buildInputs = [ pkgs.nukeReferences ]; } ''
         mkdir $out
@@ -64,15 +65,13 @@ with lib; {
         : ''${QEMU_VDE_SOCKET:=/tmp/kexec-qemu-vde1.ctl}
         : ''${SERVER_IP:=server=10.0.2.15}
         : ''${ROLE:=}
+        : ''${FLAVOUR:=}
         : ''${GRAPHIC:=0}
+        : ''${SHARED_NIX_STORE_DIR:=/nix/store}
+        : ''${MAX_LENGTH_APPEND:=2047}
 
         # zero padding: 2 digits vm_id
         VM_ID=$(printf "%02d\n" $VM_ID)
-
-        if [[ $DEPLOY == "1" ]]; then
-           DEPLOY="deploy=http://10.0.2.1:8000/deployment.json"
-           TAP=1
-        fi
 
         if [ ! -S $QEMU_VDE_SOCKET/ctl ]; then
            if [ -z $TAP ]; then
@@ -89,8 +88,8 @@ with lib; {
 
         mkdir -p /tmp/shared-xchg
 
-        : ''${KERNEL=${config.system.build.image}/kernel}
-        : ''${INITRD=${config.system.build.image}/initrd}
+        : ''${KERNEL=${config.system.build.kernel}/bzImage}
+        : ''${INITRD=${config.system.build.initialRamdisk}/initrd}
         : ''${INIT=${
           builtins.unsafeDiscardStringContext config.system.build.toplevel
         }/init}
@@ -99,12 +98,22 @@ with lib; {
            NOGRAPHIC="-nographic"
         fi
 
+        APPEND="console=tty0 console=ttyS0,115200n8 $FLAVOUR $ROLE $DEBUG_INITRD $DEPLOY $QEMU_APPEND"
+
+        LENGTH_APPEND=''${#APPEND}
+        echo "Length of kernel’s command-line parameters string: $LENGTH_APPEND"
+        if (( $LENGTH_APPEND > $MAX_LENGTH_APPEND )); then
+           echo "Length of kernel’s command-line parameters string is too large: $LENGTH_APPEND > $MAX_LENGTH_APPEND"
+           exit 1
+        fi
+
         qemu-kvm -name $NAME -m $MEM -kernel $KERNEL -initrd $INITRD \
-        -append "loglevel=4 init=$INIT console=tty0 console=ttyS0,115200n8 $ROLE $SERVER_IP $DEBUG_INITRD $DEPLOY $QEMU_APPEND " \
+        -append "$APPEND" \
         -device virtio-rng-pci \
         -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID \
         -netdev vde,id=vlan1,sock=$QEMU_VDE_SOCKET \
         -virtfs local,path=$SHARED_DIR,security_model=none,mount_tag=shared \
+        -virtfs local,path=$SHARED_NIX_STORE_DIR,security_model=none,mount_tag=nix-store \
         $NOGRAPHIC \
         $QEMU_OPTS
       '';
