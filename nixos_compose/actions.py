@@ -313,17 +313,6 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     with open(ssh_pub_key_file, "r") as f:
         sshkey_pub = f.read().rstrip()
 
-    if ctx.forward_ssh_port and sshkey_pub:
-        # QEMU_KERNEL_PARAMS environement variable is used to give ssh pub
-        # key with nixos-test-ssh flavour (see boot.initrd.postMountCommands in nix/base.nix)
-        qemu_kernel_params = ""
-        if "QEMU_KERNEL_PARAMS" in os.environ:
-            qemu_kernel_params = os.environ["QEMU_KERNEL_PARAMS"]
-        ssh_key_pub_b64 = base64.b64encode(sshkey_pub.encode()).decode()
-        os.environ[
-            "QEMU_KERNEL_PARAMS"
-        ] = f"{qemu_kernel_params} ssh_key.pub:{ssh_key_pub_b64}"
-
     # if ctx.multiple_compositions:  :: TO REMOVE ???
     #    nodes = ctx.compose_info["nodes"]
     if ctx.ip_addresses:
