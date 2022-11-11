@@ -394,7 +394,11 @@ def cli(
 
     ctx.flavour.generate_deployment_info()
 
-    if ctx.ip_addresses and (ctx.flavour.name != "vm-ramdisk"):
+    if (
+        ctx.ip_addresses
+        and (ctx.flavour.name != "vm-ramdisk")
+        and (ctx.flavour.name != "vm")
+    ):
         if ctx.use_httpd:
             ctx.vlog("Launch: httpd to distribute deployment.json")
             ctx.httpd = HTTPDaemon(ctx=ctx)

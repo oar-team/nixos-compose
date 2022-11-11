@@ -12,7 +12,8 @@ from ..driver.logger import rootlog
 from ..driver.machine import Machine, StartScript
 
 
-class VmRamdiskFlavour(Flavour):
+class VmBasedFlavour(Flavour):
+
     """
     The Vm Ramdisk flavour. This is flavour provides a system image to be executed with QEMU and use memory only for root system. By consequence lot of ram is used around 2Go minimum by node.
     """
@@ -23,10 +24,6 @@ class VmRamdiskFlavour(Flavour):
 
     def __init__(self, ctx):
         super().__init__(ctx)
-
-        self.name = "vm-ramdisk"
-        self.image = {"type": "ramdisk", "distribution": "all-in-one"}
-        self.description = "Plain vm ramdisk (all-in-memory), need lot of ram !"
 
     def generate_deployment_info(self):
         generate_deployment_info(self.ctx)
@@ -71,7 +68,7 @@ class VmRamdiskFlavour(Flavour):
                 if not ctx.httpd:
                     ctx.httpd = HTTPDaemon(ctx=ctx)
                     ctx.httpd.start(directory=ctx.envdir)
-                base_url = f"http://10.0.2.2:{ctx.httpd.port}"
+                base_url = f"http://{ctx.httpd.ip}:{ctx.httpd.port}"
                 deploy_info_src = (
                     f"{base_url}/deploy/{ctx.composition_flavour_prefix}.json"
                 )
@@ -83,6 +80,7 @@ class VmRamdiskFlavour(Flavour):
                     ).decode()
                 else:
                     deploy_info_src = ctx.deployment_info_b64
+
                 if len(deploy_info_src) > (4096 - 256):
                     rootlog.nested(
                         "The base64 encoded deploy data is too large: use an http server to serve it"
@@ -196,3 +194,19 @@ class VmRamdiskFlavour(Flavour):
 
     # def driver_start(self):
     #     pass
+
+
+class VmFlavour(VmBasedFlavour):
+    def __init__(self, ctx):
+        super().__init__(ctx)
+        self.name = "vm"
+        self.image = {"distribution": "all-in-one"}
+        self.description = "VM with shared nix-store and stage-1"
+
+
+class VmRamdiskFlavour(VmBasedFlavour):
+    def __init__(self, ctx):
+        super().__init__(ctx)
+        self.name = "vm-ramdisk"
+        self.image = {"type": "ramdisk", "distribution": "all-in-one"}
+        self.description = "Plain vm ramdisk (all-in-memory), need lot of ram !"

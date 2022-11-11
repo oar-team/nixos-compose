@@ -8,7 +8,8 @@
 #: Maps flavour names to 'submodule::classname'.
 FLAVOUR_MAP = {
     "docker": "docker::DockerFlavour",
-    "vm-ramdisk": "vm_ramdisk::VmRamdiskFlavour",
+    "vm": "vm::VmFlavour",
+    "vm-ramdisk": "vm::VmRamdiskFlavour",
     "nixos-test": "nixos_test::NixosTestFlavour",
     "nixos-test-driver": "nixos_test::NixosTestDriverFlavour",
     "nixos-test-ssh": "nixos_test::NixosTestSshFlavour",

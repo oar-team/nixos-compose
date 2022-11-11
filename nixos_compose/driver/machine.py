@@ -160,6 +160,7 @@ class VmStartCommand(StartCommand):
                 "QEMU_OPTS": self.qemu_opts,
                 "VM_ID": str(self.vm_id),
                 "QEMU_VDE_SOCKET": str(self.flavour.vlan.socket_dir),
+                "FLAVOUR": f"flavour={self.flavour.name}",
             }
         )
         return env
