@@ -19,7 +19,7 @@ def run_init(cmd_init, tmp_path, ret_test=1):
 def test_start_docker(tmp_path):
     run_init("nxc init", tmp_path)
 
-    # run_test("nxc build -C composition::nixos-test", tmp_path)
+    # run_test("nxc build -C composition::vm", tmp_path)
     run_test("nxc build -f docker", tmp_path)
 
     run_test("nxc start -t", tmp_path)
@@ -28,13 +28,13 @@ def test_start_docker(tmp_path):
 
 def test_start_nixos_test(tmp_path):
     run_init("nxc init", tmp_path)
-    run_test("nxc build -f nixos-test", tmp_path)
+    run_test("nxc build -f vm", tmp_path)
     # run_test("nxc start -t", tmp_path)  # not needed, tested on build
 
 
 def test_start_nixos_test_driver(tmp_path):
     run_init("nxc init", tmp_path)
-    run_test("nxc build -f nixos-test-driver", tmp_path)
+    run_test("nxc build -f vm-driver", tmp_path)
     # run_test("nxc start -t", tmp_path)  # not needed, tested on build
 
 

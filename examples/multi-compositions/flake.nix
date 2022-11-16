@@ -16,7 +16,7 @@
       };
 
       defaultPackage.${system} =
-        self.packages.${system}."bar::nixos-test";
+        self.packages.${system}."bar::vm";
 
       devShell.${system} = nxc.devShells.${system}.nxcShell;
     };

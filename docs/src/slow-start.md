@@ -12,7 +12,7 @@ Here we complete the quick start guide that was focused on the cli, we will go f
   - add a benchmark tool
   - launch/test
   - add a custom script ?
-  - 
+  -
 
 # Initialization
 
@@ -44,8 +44,8 @@ webserver/
 
 ### `flake.nix`
   A file that is key in the reproducibility of project. It defines all the dependencies of a project and what it is able to provide as ouputs
-  You can learn a bit onto how a flake file works [here](https://nix-tutorial.gitlabpages.inria.fr/nix-tutorial/flakes.html). 
-    
+  You can learn a bit onto how a flake file works [here](https://nix-tutorial.gitlabpages.inria.fr/nix-tutorial/flakes.html).
+
   This file manages the dependencies and the outputs of a project. It has multiple fields :
    - description
    - inputs
@@ -53,7 +53,7 @@ webserver/
 
   The **description** is a string that describes the flake.
 
-  The inputs is a set defining 
+  The inputs is a set defining
   ```nix
   {
     description = "nixos-compose - basic webserver setup";
@@ -73,14 +73,14 @@ webserver/
       };
 
       defaultPackage.${system} =
-        self.packages.${system}."composition::nixos-test";
+        self.packages.${system}."composition::vm";
 
       devShell.${system} = nxc.devShells.${system}.nxcShell;
     };
   }
   ```
 
-    
+
 - `composition.nix`
     ```nix
     { pkgs, ... }: {
@@ -109,7 +109,7 @@ webserver/
     ```
 - `nxc.json`
     ```json
-    {"composition": "composition.nix", "default_flavour": "nixos-test"}
+    {"composition": "composition.nix", "default_flavour": "vm"}
     ```
 <!-- # Edit of composition
 
@@ -128,4 +128,3 @@ webserver/
 ## reservation
 ## start
 ## connect -->
-

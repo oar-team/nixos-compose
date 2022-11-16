@@ -16,7 +16,7 @@
       };
 
       defaultPackage.${system} =
-        self.packages.${system}."linux_5_4::nixos-test";
+        self.packages.${system}."linux_5_4::vm";
 
       devShell.${system} = nxc.devShells.${system}.nxcShell;
     };

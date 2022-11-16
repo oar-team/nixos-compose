@@ -32,7 +32,7 @@
       };
 
       defaultPackage.${system} =
-        self.packages.${system}."composition::nixos-test";
+        self.packages.${system}."composition::vm";
 
       devShell.${system} = nxc.devShells.${system}.nxcShell;
     };
