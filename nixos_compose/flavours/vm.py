@@ -1,8 +1,9 @@
 import os
-import sys
-import json
-import base64
-from ..httpd import HTTPDaemon
+
+# import sys
+# import json
+# import base64
+# from ..httpd import HTTPDaemon
 
 from ..flavour import Flavour
 from ..actions import generate_deployment_info, ssh_connect, kill_proc_tree
@@ -54,7 +55,7 @@ class VmBasedFlavour(Flavour):
     def driver_initialize(self, tmp_dir):
         self.tmp_dir = tmp_dir
         ctx = self.ctx
-        deployment = ctx.deployment_info
+        # deployment = ctx.deployment_info
 
         if ctx.no_start:
             self.create_machines()
@@ -93,99 +94,44 @@ class VmBasedFlavour(Flavour):
         #########
         # Determine DEPLOY data
         #########
-        if "DEPLOY" not in os.environ:
-            if ctx.use_httpd:
-                if not ctx.httpd:
-                    ctx.httpd = HTTPDaemon(ctx=ctx)
-                    ctx.httpd.start(directory=ctx.envdir)
-                base_url = f"http://{ctx.httpd.ip}:{ctx.httpd.port}"
-                deploy_info_src = (
-                    f"{base_url}/deploy/{ctx.composition_flavour_prefix}.json"
-                )
-            else:
-                if not ctx.deployment_info_b64:
-                    deployment_info_str = json.dumps(deployment)
-                    deploy_info_src = base64.b64encode(
-                        deployment_info_str.encode()
-                    ).decode()
-                else:
-                    deploy_info_src = ctx.deployment_info_b64
+        # if "DEPLOY" not in os.environ:
+        #     if ctx.use_httpd:
+        #         if not ctx.httpd:
+        #             ctx.httpd = HTTPDaemon(ctx=ctx)
+        #             ctx.httpd.start(directory=ctx.envdir)
+        #         base_url = f"http://{ctx.httpd.ip}:{ctx.httpd.port}"
+        #         deploy_info_src = (
+        #             f"{base_url}/deploy/{ctx.composition_flavour_prefix}.json"
+        #         )
+        #     else:
+        #         if not ctx.deployment_info_b64:
+        #             deployment_info_str = json.dumps(deployment)
+        #             deploy_info_src = base64.b64encode(
+        #                 deployment_info_str.encode()
+        #             ).decode()
+        #         else:
+        #             deploy_info_src = ctx.deployment_info_b64
 
-                if len(deploy_info_src) > (4096 - 256):  # 4096 -> 2048 ???
-                    rootlog.nested(
-                        "The base64 encoded deploy data is too large: use an http server to serve it"
-                    )
-                    sys.exit(1)
-            os.environ["DEPLOY"] = f"deploy={deploy_info_src}"
-            print(f"deploy={deploy_info_src}")
+        #         if len(deploy_info_src) > (4096 - 256):  # 4096 -> 2048 ???
+        #             rootlog.nested(
+        #                 "The base64 encoded deploy data is too large: use an http server to serve it"
+        #             )
+        #             sys.exit(1)
+        #     os.environ["DEPLOY"] = f"deploy={deploy_info_src}"
+        #     print(f"deploy={deploy_info_src}")
+        # else:
+        #     rootlog.nested(f'Variable environment DEPLOY: {os.environ["DEPLOY"]}')
+        if "DEPLOY" not in os.environ:
+            os.environ[
+                "DEPLOY"
+            ] = f"deploy={self.ctx.deployment_filename[len(self.ctx.envdir)+1:]}"
         else:
             rootlog.nested(f'Variable environment DEPLOY: {os.environ["DEPLOY"]}')
 
-        # LOG
-        # for var_env in ["QEMU_APPEND", "DEBUG_INITRD"]:
-        #    if var_env in os.environ:
-        #        rootlog.nested(f"Variable environment {var_env}: {os.environ[var_env]}")
-
-        # if debug_stage1:
-        #     debug_var_base = f'KERNEL={deployment["all"]["kernel"]} \\\nINITRD={deployment["all"]["initrd"]} \\\n'
-
         self.create_machines()
 
-        # if ctx.forward_ssh_port:
-        #     import pdb; pdb.set_trace()
-        # else:
-        #     ip_addresses = []
-        #     for i in range(len(deployment["deployment"])):
-        #         ip = "10.0.2.{}".format(15 + i)
-        #         ip_addresses.append(ip)
-        #         if ip not in deployment["deployment"]:
-        #             rootlog.nested(f"In vm mode, {ip} must be present")
-        #             sys.exit(1)
-        #         v = deployment["deployment"][ip]
-
-        #         name = v["host"]
-
-        #         # useless will be the same ???? base_qemu_script for all
-        #         if base_qemu_script:
-        #             qemu_script = base_qemu_script
-        #         else:
-        #             qemu_script = v["qemu_script"]
-
-        #         if debug_stage1:
-        #             if debug_stage1 == name:
-        #                 # debloy="DEPLOY=deploy=http://10.0.2.1:8000/deploy/composition::vm-ramdisk.json \\\n"
-        #                 # deploy="DEPLOY=deploy={ctx.deploy_info_src}"
-        #                 params = f'{debug_var_base}INIT={v["init"]} \\\n'
-        #                 debug = " DEBUG_INITRD=boot.debug1mounts "
-        #                 # params = f'{params}QEMU_VDE_SOCKET={self.vlan.socket_dir}{debug}VM_ID={v["vm_id"]} ROLE={name}\\\n'
-        #                 params = f'{params}QEMU_VDE_SOCKET={self.vlan.socket_dir}{debug}VM_ID={v["vm_id"]} \\\n'
-        #                 if "DEPLOY" in os.environ:
-        #                     params = f'DEPLOY={os.environ["DEPLOY"]} \\\n{params}'
-
-        #                 print(f"DEBUG STAGE1 on role: {name}")
-        #                 print(f"{params}{qemu_script}")
-        #                 # subprocess.call(f"{params} bash -x {qemu_script}", shell=True)
-        #                 subprocess.call(f"{params}{qemu_script}", shell=True)
-        #                 sys.exit(0)
-        #         else:
-
-        #             self.machines.append(
-        #                 Machine(
-        #                     self.ctx,
-        #                     tmp_dir=tmp_dir,
-        #                     start_command=StartScript(qemu_script, v["vm_id"], self),
-        #                     name=name,
-        #                     ip=ip,
-        #                     keep_vm_state=False,
-        #                     vm_id=v["vm_id"],
-        #                     init=v["init"],
-        #                 )
-        #             )
-
     def vlan(self):
-
-        # self.vlan = VLan(0, self.tmp_dir, tap0=True)
-        self.vlan = VLan(0, self.tmp_dir, tap0=False)
+        self.vlan = VLan(0, self.tmp_dir, tap0=self.ctx.vde_tap)
         return self.vlan
 
     def start(self, machine):
@@ -225,15 +171,6 @@ class VmBasedFlavour(Flavour):
 
     def ext_connect(self, user, node, execute=True):
         return ssh_connect(self.ctx, user, node, execute)
-
-    # def start_all(self):
-    #    with rootlog.nested("start all VMs"):
-
-    # def start_composition(self):
-    #     pass
-
-    # def driver_start(self):
-    #     pass
 
 
 class VmFlavour(VmBasedFlavour):

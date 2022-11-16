@@ -355,9 +355,10 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
         ctx.log("   " + create + "  " + deploy_dir)
         os.mkdir(deploy_dir)
 
-    with open(
-        op.join(deploy_dir, f"{ctx.composition_flavour_prefix}.json"), "w"
-    ) as outfile:
+    ctx.deployment_filename = op.join(
+        deploy_dir, f"{ctx.composition_flavour_prefix}.json"
+    )
+    with open(ctx.deployment_filename, "w") as outfile:
         outfile.write(json_deployment)
 
     ctx.deployment_info = deployment

@@ -31,6 +31,7 @@ class Context(object):
         self.t0 = time.time()
         self.nxc_file = None
         self.nxc = None
+        self.envdir = None
         self.current_dir = os.getcwd()  # TOREMOVE ?
         self.verbose = False
         self.workdir = self.current_dir  # TOREMOVE ?
@@ -67,6 +68,9 @@ class Context(object):
         self.all_started: bool = False
         self.no_start: bool = False  # use w/ driver CLI command which must not start machines
         self.external_connect: bool = False
+        self.vde_tap: bool = False  # use to add tap interface which allow external IP
+        # access either done by port forwarding on local
+        # interface
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
