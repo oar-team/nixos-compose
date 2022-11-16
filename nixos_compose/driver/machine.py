@@ -161,6 +161,7 @@ class VmStartCommand(StartCommand):
                 "VM_ID": str(self.vm_id),
                 "QEMU_VDE_SOCKET": str(self.flavour.vlan.socket_dir),
                 "FLAVOUR": f"flavour={self.flavour.name}",
+                "SHARED_NXC_COMPOSITION_DIR": self.flavour.ctx.envdir,
             }
         )
         return env
@@ -709,6 +710,7 @@ class Machine:
 
         def create_socket(path: Path) -> socket.socket:
             s = socket.socket(family=socket.AF_UNIX, type=socket.SOCK_STREAM)
+            s.settimeout(0.5)
             s.bind(str(path))
             s.listen(1)
             return s
@@ -718,7 +720,22 @@ class Machine:
         self.process = self.start_command.run(
             self.state_dir, self.shared_dir, self.monitor_path, self.shell_path,
         )
-        self.monitor, _ = monitor_socket.accept()
+        try:
+            self.monitor, _ = monitor_socket.accept()
+        except socket.timeout:
+            self.ctx.elog("Time out reached on monitor socket accept (qemu)")
+            if self.process.poll():
+                self.ctx.elog(
+                    f"Qemu script exited with return code: {self.process.returncode}"
+                )
+                for line in self.process.stdout:
+                    self.ctx.elog(f"stdout: {line.decode()}")
+                for line in self.process.stderr:
+                    self.ctx.elog(f"stderr: {line.decode()}")
+                sys.exit(1)
+            else:
+                self.ctx.elog(f"Qemu seems stucks, pid: {self.process.pid}")
+                sys.exit(1)
         self.shell, _ = shell_socket.accept()
 
         # Store last serial console lines for use
