@@ -176,12 +176,12 @@ def translate_hosts2ip(ctx, hosts):
 
 def populate_deployment_vm_by_ip(ctx, nodes_info, roles_quantities):
     roles_quantities = health_check_roles_quantities(ctx, nodes_info, roles_quantities)
-    i = 0
+    i = 1
     deployment = {}
     ips = []
     for role, v in nodes_info.items():
         for hostname in roles_quantities[role]:
-            ip = "10.0.2.{}".format(15 + i)
+            ip = "192.168.1.{}".format(i)
             ips.append(ip)
             # deployment[ip] = {"role": role, "vm_id": i}
             deployment[ip] = {
@@ -190,8 +190,6 @@ def populate_deployment_vm_by_ip(ctx, nodes_info, roles_quantities):
                 "vm_id": i,
                 "host": hostname,
             }
-            if "qemu_script" in v:
-                deployment[ip]["qemu_script"] = v["qemu_script"]
             i = i + 1
 
     return deployment, ips
@@ -292,18 +290,6 @@ def populate_deployment_ips(ctx, nodes_info, ips, roles_quantities):
     return deployment
 
 
-def populate_deployment_forward_ssh_port(nodes):
-    i = 0
-    deployment = {}
-    for role in nodes:
-        ip0 = 1 + i
-        ip = f"127.0.0.{ip0}"
-        deployment[ip] = {"host": role, "role": role, "ssh-port": 22022 + i}
-        i = i + 1
-
-    return deployment
-
-
 def generate_deployment_info(ctx, ssh_pub_key_file=None):
     if not ctx.compose_info:
         read_compose_info(ctx)
@@ -319,8 +305,6 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
         deployment = populate_deployment_ips(
             ctx, ctx.compose_info["nodes"], ctx.ip_addresses, ctx.roles_quantities
         )
-    elif ctx.forward_ssh_port:
-        deployment = populate_deployment_forward_ssh_port(ctx.compose_info["nodes"])
     else:
         deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
             ctx, ctx.compose_info["nodes"], ctx.roles_quantities
@@ -766,30 +750,6 @@ def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     if "TMUX" not in os.environ:
         cmd = "tmux attach"
         subprocess.call(cmd, shell=True)
-
-
-# TODO launch_vm(ctx, kexec_info, debug=False):
-# TODO launch_vm_deploy(ctx, deployment, httpd_port=0, debug=False):
-# NOT USED
-def launch_vm(ctx, httpd_port=0, debug=False):
-
-    if not op.exists("/tmp/kexec-qemu-vde1.ctl/ctl"):
-        ctx.log("need sudo to create tap0 interface")
-        subprocess.call("sudo true", shell=True)
-
-    for ip, v in ctx.deployment_info["deployment"].items():
-        qemu_script = v["qemu_script"]
-        # cmd_qemu_script = f"DEPLOY='deploy=http://10.0.2.1:{httpd_port}/deployment.json' TAP=1"
-        #
-        cmd_qemu_script = "TAP=1"
-        if httpd_port:
-            cmd_qemu_script = " DEPLOY=1"
-        if debug:
-            cmd_qemu_script += " DEBUG_INITRD=boot.debug1mounts"
-
-        cmd_qemu_script += " VM_ID={:02d} {} &".format(v["vm_id"], qemu_script)
-        ctx.log("launch: {}".format(v["role"]))
-        ctx.vlog(f"command: {cmd_qemu_script}")
 
 
 # Helpers

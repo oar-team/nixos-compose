@@ -250,6 +250,7 @@ class Machine:
         start_command: StartCommand,
         name: str = "machine",
         ip: str = "",
+        ssh_port: int = 22,
         keep_vm_state: bool = False,
         allow_reboot: bool = False,
         vm_id: str = "",

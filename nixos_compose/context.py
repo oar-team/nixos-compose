@@ -65,7 +65,7 @@ class Context(object):
         self.setup = None
         self.sigwait = None
         self.all_started: bool = False
-        self.no_start: bool = False
+        self.no_start: bool = False  # use w/ driver CLI command which must not start machines
         self.external_connect: bool = False
 
     def init_workdir(self, env_name, env_id):
