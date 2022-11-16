@@ -57,7 +57,6 @@ class Context(object):
         self.platform = None
         self.use_httpd = False
         self.httpd = None
-        self.forward_ssh_port = False
         self.alternative_stores = [
             f"{os.environ['HOME']}/.local/share/nix/root/nix",
             f"{os.environ['HOME']}/.nix",

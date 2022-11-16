@@ -5,14 +5,11 @@ import os
 
 import os.path as op
 
-# import subprocess
 import sys
 import glob
 import pyinotify
 import asyncio
 
-# import re
-# import tempfile
 import ptpython.repl
 from halo import Halo
 
@@ -52,12 +49,6 @@ class EventHandler(pyinotify.ProcessEvent):
     "--interactive",
     is_flag=True,
     help="drop into a python repl with driver functions",
-)
-@click.option(
-    "-F",
-    "--forward-ssh-port",
-    is_flag=True,
-    help="forward ssh port with nixos-test-driver forward-ssh-port",
 )
 @click.option(
     "-m",
@@ -141,7 +132,6 @@ def cli(
     ssh,
     sudo,
     push_path,
-    forward_ssh_port,
     reuse,
     composition,
     flavour,
@@ -174,7 +164,6 @@ def cli(
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
-    ctx.forward_ssh_port = forward_ssh_port
 
     if remote_deployment_info:
         ctx.use_httpd = True
@@ -302,82 +291,7 @@ def cli(
         ctx.composition_basename_file = ctx.composition_name
     else:
         ctx.compose_info_file = realpath_from_store(ctx, build_path)
-    # TODO remove only available in nixpkgs version 20.03 and before
-    # if build is nixos_test result open log.html
-    # nixos_test_log = op.join(build_path, "log.html")
-    # if op.exists(nixos_test_log) and op.isfile(nixos_test_log):
-    #     subprocess.call(f"xdg-open {nixos_test_log}", shell=True)
-    #     sys.exit(0)
 
-    # nixos_test_driver = op.join(build_path, "bin/nixos-test-driver")
-    # if op.exists(nixos_test_driver) and op.isfile(nixos_test_driver):
-    #     test_script = None
-    #     # Deduce which nixos_test_driver is used (WARNNING: very fragile)
-    #     with open(nixos_test_driver) as f:
-    #         driver_script = f.read()
-
-    #     after_nixos_21_05 = False
-
-    #     if "startScript" in driver_script:
-    #         after_nixos_21_05 = True
-    #         ctx.vlog("Detected Nixos Test Driver post 21.05")
-    #     else:
-    #         ctx.vlog("Detected Nixos Test Driver pre 21.11")
-
-    #     if machines_file:
-    #         raise click.ClickException(
-    #             "Nixos Driver detected, --machines-files can not by use here."
-    #         )
-    #     ctx.log("Nixos Driver detected")
-
-    #     if not interactive:
-    #         test_script = read_test_script(ctx, op.join(build_path, "test-script"))
-
-    #     if forward_ssh_port:
-    #         ctx.forward_ssh_port = True
-    #         test_script = "start_all(); [m.forward_port(22022+i, 22) for i, m in enumerate(machines)]; join_all();"
-    #         nodes = [n.split("-")[1] for n in re.findall(r"run-\w+-vm", driver_script)]
-
-    #         if not ctx.compose_info:
-    #             ctx.compose_info = {}
-    #         ctx.compose_info["nodes"] = nodes
-
-    #         ctx.flavour.generate_deployment_info()
-
-    #     if "QEMU_OPTS" in os.environ:
-    #         qemu_opts = os.environ["QEMU_OPTS"]
-    #     else:
-    #         qemu_opts = ""
-    #     os.environ["QEMU_OPTS"] = f"{qemu_opts} -nographic"
-    #     print(f"qemu_opts: {qemu_opts}")
-    #     print(f"cmd: {nixos_test_driver}")
-
-    #     if not test_script:
-    #         ctx.wlog("Not test_script provided")
-
-    #     cmd = nixos_test_driver
-
-    #     if not after_nixos_21_05:
-    #         if test_script:
-    #             os.environ["tests"] = test_script
-    #         subprocess.call(cmd)
-    #     else:
-    #         if interactive:
-    #             cmd = f"{cmd} -I"
-    #         if test_script:
-    #             with tempfile.NamedTemporaryFile() as tmp:
-    #                 ctx.vlog(f"Create temporay test_script {tmp.name}")
-    #                 tmp.write(test_script.encode())
-    #                 tmp.seek(0)
-    #                 subprocess.call(f"{cmd} {tmp.name}", shell=True)
-    #         else:
-    #             subprocess.call(cmd, shell=True)
-    #     sys.exit(0)
-
-    # if not machines_file and ctx.platform:
-    # TODO
-    # machines = ctx.platform.retrieve_machines(ctx)
-    # import pdb; pdb.set_trace()
     if ctx.platform:
         if reuse:
             (ssh, sudo, push_path) = ctx.platform.subsequent_start_values
@@ -419,39 +333,8 @@ def cli(
         if not interactive:
             ctx.flavour.launch()
             sys.exit(0)
-            # if ctx.flavour["image"]["type"] == "ramdisk":
-            #     ctx.log("Launch ssh(s) kexec")
-            #     launch_ssh_kexec(ctx)
-            #     time.sleep(10)
-            #     wait_ssh_ports(ctx)
-            #     sys.exit(0)
-            # if ctx.flavour_name == "g5k-image":
-            #     generate_kadeploy_envfile(ctx)
-            #     launch_kadeploy(ctx)
-            #     sys.exit(0)
-
-    # elif ctx.flavour_name == "docker":
-    #     ctx.mode = DRIVER_MODES["docker"]
-    # else:
-    #     ctx.mode = DRIVER_MODES["vm"]
-
-    # use_remote_deployment = False
-    # if use_remote_deployment:
-    #     httpd = HTTPDaemon()
-    #     ctx.log(f"Launch httpd: port: {httpd.port}")
-    #     httpd.start()
 
     test_script = read_test_script(ctx, ctx.compose_info)
-
-    if forward_ssh_port:
-        # ctx.mode = DRIVER_MODES["vm-ssh"]
-        ctx.forward_ssh_port = forward_ssh_port
-        test_script = None
-
-    # driver(ctx, driver_repl, test_script)
-    # launch_vm(ctx, deployment, 0)
-    # wait_ssh_ports(ctx, ips, False)
-    # httpd.stop()
 
     if not interactive and not execute_test_script:
         test_script = "start_all()"
