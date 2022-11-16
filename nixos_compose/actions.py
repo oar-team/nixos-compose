@@ -631,8 +631,9 @@ def ssh_connect(ctx, user, node, execute=True):
         # if v["role"] == role:
         if v["host"] == role:
             host = ip
-            if "ssh-port" in v:
-                ssh_port = v["ssh-port"]
+            if "vm_id" in v:
+                host = "127.0.0.1"
+                ssh_port = 22021 + int(v["vm_id"])
             break
 
     ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} "

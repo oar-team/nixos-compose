@@ -49,7 +49,6 @@
                    set -- $(IFS==; echo $o)
                    cp /nxc-composition/$2 $deployment_json
                    umount nxc-composition
-                   jq . $deployment_json
                    composition=$(jq -r '."composition" // empty' $deployment_json)
                    echo "composition: $composition"
                    role_host=$(jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.host // \"\")\""  $deployment_json)

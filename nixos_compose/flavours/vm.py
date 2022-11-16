@@ -24,6 +24,7 @@ class VmBasedFlavour(Flavour):
 
     def __init__(self, ctx):
         super().__init__(ctx)
+        ctx.external_connect = True  # to force use of ssh on foo.execute(command)
 
     def generate_deployment_info(self):
         generate_deployment_info(self.ctx)
@@ -33,18 +34,15 @@ class VmBasedFlavour(Flavour):
         deployment_nodes = ctx.deployment_info["deployment"]
         qemu_script = ctx.deployment_info["all"]["qemu_script"]
 
-        for ip, node in deployment_nodes.items():
-            ssh_port = 22
-            if "ssh-port" in node:
-                ssh_port = node["ssh-port"]
+        for node in deployment_nodes.values():
             start_command = ""
             if not ctx.no_start:
                 start_command = StartScript(qemu_script, node["vm_id"], self)
             self.machines.append(
                 Machine(
                     ctx,
-                    ip=ip,
-                    ssh_port=ssh_port,
+                    ip="127.0.0.1",
+                    ssh_port=f"{22021 + int(node['vm_id'])}",
                     tmp_dir=self.tmp_dir,
                     start_command=start_command,
                     keep_vm_state=False,
@@ -134,23 +132,26 @@ class VmBasedFlavour(Flavour):
         self.vlan = VLan(0, self.tmp_dir, tap0=self.ctx.vde_tap)
         return self.vlan
 
+    def start_process_shell(self, machine):
+        machine.start_process_shell(
+            [
+                "ssh",
+                "-t",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-l",
+                "root",
+                "-p",
+                machine.ssh_port,
+                machine.ip,
+            ]
+        )
+
     def start(self, machine):
         if not self.ctx.no_start:
             machine._start_vm()
         else:
-            machine.start_process_shell(
-                [
-                    "ssh",
-                    "-t",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-l",
-                    "root",
-                    "-p",
-                    machine.ssh_port,
-                    machine.ip,
-                ]
-            )
+            self.start_process_shell(machine)
 
     def release(self, machine):
         if machine.pid is None:

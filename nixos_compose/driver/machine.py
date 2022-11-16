@@ -264,6 +264,7 @@ class Machine:
         self.name = name
         self.start_command = start_command
         self.ip = ip
+        self.ssh_port = ssh_port
         self.vm_id = vm_id
         self.init = init
 
@@ -408,7 +409,6 @@ class Machine:
             if not chunk:
                 # Probably a broken pipe, return the output we have
                 break
-
             decoded = chunk.decode()
             output_buffer += [decoded]
             if decoded[-1] == "\n":
@@ -419,7 +419,8 @@ class Machine:
     def execute(
         self, command: str, check_return: bool = True, timeout: Optional[int] = 900
     ) -> Tuple[int, str]:
-
+        # For now we use ssh for shell access (see: start in flavours/vm.py)
+        # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
         if self.ctx.external_connect:
             return self.execute_process_shell(command, check_return, timeout)
 
@@ -710,7 +711,7 @@ class Machine:
 
         def create_socket(path: Path) -> socket.socket:
             s = socket.socket(family=socket.AF_UNIX, type=socket.SOCK_STREAM)
-            s.settimeout(0.5)
+            s.settimeout(1.0)
             s.bind(str(path))
             s.listen(1)
             return s
@@ -720,6 +721,7 @@ class Machine:
         self.process = self.start_command.run(
             self.state_dir, self.shared_dir, self.monitor_path, self.shell_path,
         )
+
         try:
             self.monitor, _ = monitor_socket.accept()
         except socket.timeout:
@@ -736,7 +738,11 @@ class Machine:
             else:
                 self.ctx.elog(f"Qemu seems stucks, pid: {self.process.pid}")
                 sys.exit(1)
+
+        # For now we use ssh for shell access (see: start in flavours/vm.py)
+        # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
         self.shell, _ = shell_socket.accept()
+        self.ctx.flavour.start_process_shell(self)
 
         # Store last serial console lines for use
         # of wait_for_console_text
@@ -763,13 +769,7 @@ class Machine:
         self.log("QEMU running (pid {})".format(self.pid))
 
     def cleanup_statedir(self) -> None:
-        if self.ctx.flavour in [
-            "vm",
-            "vm-bridged",
-            "nixos-test",
-            "nixos-test-driver",
-            "nixos-test-ssh",
-        ]:
+        if self.ctx.flavour in ["vm", "vm-ramdisk"]:
             shutil.rmtree(self.state_dir)
             rootlog.log(f"deleting VM state directory {self.state_dir}")
             rootlog.log("if you want to keep the VM state, pass --keep-vm-state")
