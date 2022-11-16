@@ -7,7 +7,7 @@
   module = { config, pkgs, lib, modulesPath, ... }: {
     imports = [
       ./shared/base-vm.nix
-      ./shared/stage-1-cmds.nix
+      ./shared/vm-stage-1-cmds.nix
       ./shared/common.nix
       ./shared/nxc.nix
     ];

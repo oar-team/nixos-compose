@@ -66,76 +66,86 @@ in
     })
     (mkIf cfg.baseBootCommands.enable {
       boot.postBootCommands = ''
-    ln -s /run/current-system/sw/bin/bash /bin/bash
+       for o in $(cat /proc/cmdline); do
+          case $o in
+               ip=*)
+                   set -- $(IFS==; echo $o)
+                   set -- $(IFS=:; echo $2)
+                   ip_addr="$1"
+                   ${pkgs.iproute2}/bin/ip addr add $1/24 dev eth1
+                   ;;
+           esac
+       done
 
-    compositionName=""
-    if [[ -f /etc/nxc-composition ]]; then
-      compositionName=$(cat /etc/nxc-composition)
-    fi
-    echo "composition name: $compositionName"
+        ln -s /run/current-system/sw/bin/bash /bin/bash
+        compositionName=""
+        if [[ -f /etc/nxc-composition ]]; then
+          compositionName=$(cat /etc/nxc-composition)
+        fi
+        echo "composition name: $compositionName"
 
-    hostname=""
-    if [[ -f /etc/nxc/hostname ]]; then
-      hostname=$(cat /etc/nxc/hostname)
-    fi
+        hostname=""
+        if [[ -f /etc/nxc/hostname ]]; then
+          hostname=$(cat /etc/nxc/hostname)
+        fi
 
-    role=""
-    if [[ -f /etc/nxc/role ]]; then
-      role=$(cat /etc/nxc/role)
-      if [[ -z $hostname ]]; then
-        hostname=$role
-      fi
-    fi
+        role=""
+        if [[ -f /etc/nxc/role ]]; then
+          role=$(cat /etc/nxc/role)
+          if [[ -z $hostname ]]; then
+            hostname=$role
+          fi
+        fi
 
-    if [[ ! -z $hostname ]]; then
-      echo "hostname name: $hostname"
-      ${pkgs.inetutils}/bin/hostname $hostname
-    fi
+        if [[ ! -z $hostname ]]; then
+          echo "hostname name: $hostname"
+          ${pkgs.inetutils}/bin/hostname $hostname
+        fi
 
-    # Add deployment's hosts if any
-    if [[ -f /etc/nxc/deployment-hosts ]]; then
-      rm -f /etc/hosts
-      cat /etc/static/hosts > /etc/hosts
-      cat /etc/nxc/deployment-hosts >> /etc/hosts
-    fi
+        # Add deployment's hosts if any
+        if [[ -f /etc/nxc/deployment-hosts ]]; then
+          rm -f /etc/hosts
+          cat /etc/static/hosts > /etc/hosts
+          cat /etc/nxc/deployment-hosts >> /etc/hosts
+        fi
 
-    mkdir -p /root/.ssh/
-    chmod 700 /root/.ssh/
-    ${set_root_ssh_keys}
+        mkdir -p /root/.ssh/
+        chmod 700 /root/.ssh/
+        ${set_root_ssh_keys}
 
-    # Execute post boot scripts optionally provided through flavour/extraModules or composition
-    for post_boot_script in $(ls -d /etc/post-boot-script* 2> /dev/null);
-    do
-      echo execute $post_boot_script
-      $post_boot_script
-    done
+        # Execute post boot scripts optionally provided through flavour/extraModules or composition
+        for post_boot_script in $(ls -d /etc/post-boot-script* 2> /dev/null);
+        do
+          echo execute $post_boot_script
+          $post_boot_script
+        done
 
-    # After booting, register the contents of the Nix store
-    # in the Nix database in the tmpfs.
+        # After booting, register the contents of the Nix store
+        # in the Nix database in the tmpfs.
 
-    if [ -d /etc/nxc/all_compositions_registration_store ]; then
-      nix_path_registration="/etc/nxc/all_compositions_registration_store/nix-path-registration"
-    else
-      nix_path_registration="/nix/store/nix-path-registration"
-    fi
+        if [ -d /etc/nxc/all_compositions_registration_store ]; then
+          nix_path_registration="/etc/nxc/all_compositions_registration_store/nix-path-registration"
+        else
+          nix_path_registration="/nix/store/nix-path-registration"
+        fi
 
-    if [[ -f "$nix_path_registration"-"$compositionName"-"$role" ]]; then
-        nix_path_registration="$nix_path_registration"-"$compositionName"-"$role"
-    fi
+        if [[ -f "$nix_path_registration"-"$compositionName"-"$role" ]]; then
+          nix_path_registration="$nix_path_registration"-"$compositionName"-"$role"
+        fi
 
-    echo "nix-store: load db $nix_path_registration"
-    ${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
+        echo "nix-store: load db $nix_path_registration"
+        ${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
 
-    #echo "inetutils"
-    #echo ${pkgs.inetutils}/bin
-    #exec /bin/bash
+        #echo "inetutils"
+        #echo ${pkgs.inetutils}/bin
+        #exec /bin/bash
 
-    # nixos-rebuild also requires a "system" profile and an
-    # /etc/NIXOS tag.
-    touch /etc/NIXOS
-    ${config.nix.package}/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system
+        # nixos-rebuild also requires a "system" profile and an
+        # /etc/NIXOS tag.
+        touch /etc/NIXOS
+        ${config.nix.package}/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system
 
-    ${cfg.postBootCommands}
-    '';})
+        ${cfg.postBootCommands}
+      '';})
   ];
 }

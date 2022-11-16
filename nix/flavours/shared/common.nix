@@ -59,16 +59,29 @@ with lib; {
 
         : ''${NAME:=nixos}
         : ''${VM_ID:=1}
-        : ''${MEM:=4096}
+        : ''${MEM:=1024}
         : ''${TMPDIR:=/tmp}
         : ''${SHARED_DIR:=/tmp/shared-xchg}
         : ''${QEMU_VDE_SOCKET:=/tmp/kexec-qemu-vde1.ctl}
-        : ''${SERVER_IP:=server=10.0.2.15}
         : ''${ROLE:=}
         : ''${FLAVOUR:=}
         : ''${GRAPHIC:=0}
         : ''${SHARED_NIX_STORE_DIR:=/nix/store}
         : ''${MAX_LENGTH_APPEND:=2047}
+        : ''${HOSTFWDPORT:=22021}
+        : ''${SHARED_NXC_COMPOSITION_DIR=}
+
+        if [ -z $SHARED_NXC_COMPOSITION_DIR ]; then
+          echo "undefined SHARED_NXC_COMPOSITION_DIR"
+          exit 1
+        fi
+
+        IP=""
+        NIC_USER_SSH_FORWARD=""
+        if [ -z $TAP ]; then
+          IP="ip=192.168.1.$VM_ID:::::eth1"
+          NIC_USER_SSH_FORWARD="-nic user,model=virtio-net-pci,hostfwd=tcp::$(($HOSTFWDPORT+$VM_ID))-:22"
+        fi
 
         # zero padding: 2 digits vm_id
         VM_ID=$(printf "%02d\n" $VM_ID)
@@ -98,7 +111,7 @@ with lib; {
            NOGRAPHIC="-nographic"
         fi
 
-        APPEND="console=tty0 console=ttyS0,115200n8 $FLAVOUR $ROLE $DEBUG_INITRD $DEPLOY $QEMU_APPEND"
+        APPEND="$IP net.ifnames=0 console=tty0 console=ttyS0,115200n8 $FLAVOUR $ROLE $DEBUG_INITRD $DEPLOY $QEMU_APPEND"
 
         LENGTH_APPEND=''${#APPEND}
         echo "Length of kernel’s command-line parameters string: $LENGTH_APPEND"
@@ -112,8 +125,10 @@ with lib; {
         -device virtio-rng-pci \
         -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID \
         -netdev vde,id=vlan1,sock=$QEMU_VDE_SOCKET \
+        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::$(($HOSTFWDPORT+$VM_ID))-:22 \
         -virtfs local,path=$SHARED_DIR,security_model=none,mount_tag=shared \
         -virtfs local,path=$SHARED_NIX_STORE_DIR,security_model=none,mount_tag=nix-store \
+        -virtfs local,path=$SHARED_NXC_COMPOSITION_DIR,security_model=none,mount_tag=nxc-composition \
         $NOGRAPHIC \
         $QEMU_OPTS
       '';
