@@ -35,10 +35,19 @@ def get_fs_type(path):
 
 
 ##
+# Determine nix store location
+#
+def nix_store_location(ctx):
+    for store_path in ["/nix"] + ctx.alternative_stores:
+        if op.exists(store_path):
+            return f"{store_path}/store"
+    ctx.elog("Failed to find nix path location")
+    sys.exit(1)
+
+
+##
 # Retrieve from path from different store location if needed
 #
-
-
 def realpath_from_store(ctx, path, include_prefix_store=False):
     p = op.realpath(path)
     for store_path in ctx.alternative_stores:

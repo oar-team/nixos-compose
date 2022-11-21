@@ -6,10 +6,16 @@ import os
 # from ..httpd import HTTPDaemon
 
 from ..flavour import Flavour
-from ..actions import generate_deployment_info, ssh_connect, kill_proc_tree
+from ..actions import (
+    generate_deployment_info,
+    ssh_connect,
+    kill_proc_tree,
+    realpath_from_store,
+)
 from ..driver.vlan import VLan
 from ..driver.logger import rootlog
 from ..driver.machine import Machine, StartScript
+from ..platform import platform_detection
 
 
 class VmBasedFlavour(Flavour):
@@ -25,6 +31,7 @@ class VmBasedFlavour(Flavour):
     def __init__(self, ctx):
         super().__init__(ctx)
         ctx.external_connect = True  # to force use of ssh on foo.execute(command)
+        platform_detection(ctx)
 
     def generate_deployment_info(self):
         generate_deployment_info(self.ctx)
@@ -32,7 +39,9 @@ class VmBasedFlavour(Flavour):
     def create_machines(self):
         ctx = self.ctx
         deployment_nodes = ctx.deployment_info["deployment"]
-        qemu_script = ctx.deployment_info["all"]["qemu_script"]
+        qemu_script = realpath_from_store(
+            ctx, ctx.deployment_info["all"]["qemu_script"]
+        )
 
         for node in deployment_nodes.values():
             start_command = ""
@@ -119,6 +128,17 @@ class VmBasedFlavour(Flavour):
         #     print(f"deploy={deploy_info_src}")
         # else:
         #     rootlog.nested(f'Variable environment DEPLOY: {os.environ["DEPLOY"]}')
+        if ctx.platform and ctx.platform.nix_store:
+            os.environ["SHARED_NIX_STORE_DIR"] = ctx.platform.nix_store
+            os.environ["KERNEL"] = realpath_from_store(
+                ctx, ctx.deployment_info["all"]["kernel"]
+            )
+            os.environ["INITRD"] = realpath_from_store(
+                ctx, ctx.deployment_info["all"]["initrd"]
+            )
+            ctx.vlog(f"KERNEL: {os.environ['KERNEL']}")
+            ctx.vlog(f"INITRD: {os.environ['INITRD']}")
+
         if "DEPLOY" not in os.environ:
             os.environ[
                 "DEPLOY"
@@ -129,7 +149,7 @@ class VmBasedFlavour(Flavour):
         self.create_machines()
 
     def vlan(self):
-        self.vlan = VLan(0, self.tmp_dir, tap0=self.ctx.vde_tap)
+        self.vlan = VLan(0, self.tmp_dir, ctx=self.ctx)
         return self.vlan
 
     def start_process_shell(self, machine):

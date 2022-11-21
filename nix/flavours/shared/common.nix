@@ -55,7 +55,7 @@ with lib; {
       executable = true;
       name = "qemu_script";
       text = ''
-        #!/bin/sh
+        #!/usr/bin/env bash
 
         : ''${NAME:=nixos}
         : ''${VM_ID:=1}
@@ -120,7 +120,17 @@ with lib; {
            exit 1
         fi
 
-        qemu-kvm -name $NAME -m $MEM -kernel $KERNEL -initrd $INITRD \
+        QEMU=qemu-kvm
+        if ! command -v $QEMU &> /dev/null; then
+          echo "$QEMU command not found"
+          QEMU=kvm
+          if ! command -v $QEMU &> /dev/null; then
+            echo "$QEMU command not found"
+            exit 1
+          fi
+        fi
+
+        $QEMU -name $NAME -m $MEM -kernel $KERNEL -initrd $INITRD \
         -append "$APPEND" \
         -device virtio-rng-pci \
         -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID \

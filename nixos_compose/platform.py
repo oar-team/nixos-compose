@@ -5,10 +5,11 @@ import subprocess
 import json
 import time
 from halo import Halo
+from .actions import nix_store_location
 
 
 class Platform(object):
-    def __init__(self, ctx, name):  # TODO ctx remove ?
+    def __init__(self, ctx, name):
         self.name = name
         self.copy_from_store = False
 
@@ -28,6 +29,8 @@ class Grid5000Platform(Platform):
         self.subsequent_start_values = ("ssh -l root", "sudo", "/")
         self.oar_job_id = None
         self.oar_job = None
+        self.group_users = "g5k-users"
+        self.nix_store = nix_store_location(ctx)
 
     def retrieve_machines(self, ctx):
 

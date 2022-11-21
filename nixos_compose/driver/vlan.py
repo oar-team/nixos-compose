@@ -23,7 +23,8 @@ class VLan:
     def __repr__(self) -> str:
         return f"<Vlan Nr. {self.nr}>"
 
-    def __init__(self, nr: int, tmp_dir: Path, tap0: bool = False):
+    def __init__(self, nr: int, tmp_dir: Path, ctx):
+        self.ctx = ctx
         self.nr = nr
         self.socket_dir = tmp_dir / f"vde{self.nr}.ctl"
 
@@ -35,14 +36,24 @@ class VLan:
 
         vde_cmd = ["vde_switch"]
 
-        if tap0:
+        if ctx.vde_tap:
             rootlog.info(
                 f"starting VDE switch for network {self.nr}, with tap0 (sudo required)"
             )
             subprocess.call("sudo true", shell=True)
             vde_cmd = ["sudo"] + vde_cmd + ["-tap", "tap0"]
 
-        vde_cmd = vde_cmd + ["-s", self.socket_dir, "-mod", "0770", "-group", "users"]
+        group_users = "users"
+        if ctx.platform and ctx.platform.group_users:
+            group_users = ctx.platform.group_users
+        vde_cmd = vde_cmd + [
+            "-s",
+            self.socket_dir,
+            "-mod",
+            "0770",
+            "-group",
+            group_users,
+        ]
 
         self.process = subprocess.Popen(
             vde_cmd,
@@ -63,7 +74,7 @@ class VLan:
             rootlog.error("cannot start vde_switch")
 
         # setup tap0
-        if tap0:
+        if ctx.vde_tap:
             rootlog.info("setup tap0 interface")
             # TODO add error handling
             subprocess.call("sudo ip addr add 10.0.2.1/24 dev tap0", shell=True)
