@@ -63,6 +63,7 @@ let
       hostname = nodeName;
       image = "${name}:${tag}";
       stop_signal = "SIGINT";
+      #privileged = true;
       tmpfs = [ "/run" "/run/wrappers:exec,suid" "/tmp:exec,mode=777" ];
       tty = true;
       volumes = [

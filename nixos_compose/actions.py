@@ -39,14 +39,20 @@ def get_fs_type(path):
 #
 
 
-def realpath_from_store(ctx, path):
+def realpath_from_store(ctx, path, include_prefix_store=False):
     p = op.realpath(path)
     for store_path in ctx.alternative_stores:
         new_p = f"{store_path}{p[4:]}"
         if op.exists(new_p):
-            return new_p
+            if include_prefix_store:
+                return new_p, store_path
+            else:
+                return new_p
     if op.exists(p):
-        return p
+        if include_prefix_store:
+            return p, None
+        else:
+            return p
     ctx.elog(f"{path} does not exist in standard store or alternate")
     sys.exit(1)
 

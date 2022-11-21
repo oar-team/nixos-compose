@@ -6,7 +6,7 @@ import click
 import copy
 
 from ..flavour import Flavour
-from ..actions import read_compose_info
+from ..actions import read_compose_info, realpath_from_store
 from ..driver.logger import rootlog
 from ..driver.machine import Machine
 from ..default_role import DefaultRole
@@ -14,13 +14,31 @@ from ..default_role import DefaultRole
 from typing import Tuple, Optional
 
 
+def set_prefix_store_volumes(dc_json, prefix_store):
+    for service in dc_json["services"].keys():
+        volumes = dc_json["services"][service]["volumes"]
+        volumes_out = []
+        for vol in volumes:
+            if "/nix/store" == vol[:10]:
+                volumes_out.append(f"{prefix_store}{vol[4:]}")
+            else:
+                volumes_out.append(vol)
+        dc_json["services"][service]["volumes"] = volumes_out
+
+
 def generate_docker_compose_file(ctx):
-    base_docker_compose = ctx.compose_info["docker-compose-file"]
+    base_docker_compose, prefix_store = realpath_from_store(
+        ctx, ctx.compose_info["docker-compose-file"], include_prefix_store=True
+    )
     docker_compose_content = {"services": {}}
     nodes_info = {}
 
     with open(base_docker_compose) as dc_file:
+
         dc_json = json.load(dc_file)
+        if prefix_store:
+            set_prefix_store_volumes(dc_json, prefix_store)
+
         if ctx.roles_quantities == {}:
             roles_quantities = {role: 1 for role in ctx.compose_info["nodes"]}
         else:

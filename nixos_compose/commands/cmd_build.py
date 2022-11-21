@@ -215,9 +215,10 @@ def cli(
 
         # Loading the docker image"
         if flavour == "docker" and not dry_build:
+            out_link = realpath_from_store(ctx, out_link)
             with open(out_link, "r") as compose_info_json:
                 content = json.load(compose_info_json)
-                docker_image = content["image"]
+                docker_image = realpath_from_store(ctx, content["image"])
                 docker_load_command = f"docker load < {docker_image}"
                 returncode = subprocess.call(docker_load_command, shell=True)
                 if returncode:
