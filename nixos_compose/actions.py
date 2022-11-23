@@ -519,6 +519,7 @@ def generate_deploy_info_b64(ctx):
 
 
 def launch_ssh_kexec(ctx, ip=None, debug=False):
+    ctx.log("Launching remote kexec")
     if "all" in ctx.deployment_info:
         if ctx.push_path:
             kexec_script = f"{ctx.push_path}/kexec.sh"
