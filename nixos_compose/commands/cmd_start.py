@@ -108,7 +108,13 @@ class EventHandler(pyinotify.ProcessEvent):
     "-w",
     "--sigwait",
     is_flag=True,
-    help="wait any signal to exit after a start only action (not testscript execution or interactive use)",
+    help="wait any signal to exit after a start only action (not testscript execution or interactive use",
+)
+@click.option(
+    "-k",
+    "--kernel-params",
+    type=click.STRING,
+    help="additional kernel parameters, this option is flavour dependent",
 )
 @click.argument(
     "roles_quantities_file", required=False, default=None, type=click.Path(exists=True)
@@ -139,6 +145,7 @@ def cli(
     test_script,
     file_test_script,
     sigwait,
+    kernel_params,
     roles_quantities_file,
     compose_info
     # dry_run,
@@ -164,6 +171,7 @@ def cli(
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
+    ctx.kernel_params = kernel_params
 
     if remote_deployment_info:
         ctx.use_httpd = True

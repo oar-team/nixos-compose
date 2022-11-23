@@ -162,6 +162,7 @@ class VmStartCommand(StartCommand):
                 "QEMU_VDE_SOCKET": str(self.flavour.vlan.socket_dir),
                 "FLAVOUR": f"flavour={self.flavour.name}",
                 "SHARED_NXC_COMPOSITION_DIR": self.flavour.ctx.envdir,
+                "ADDITIONAL_KERNEL_PARAMS": self.flavour.ctx.kernel_params,
             }
         )
         return env

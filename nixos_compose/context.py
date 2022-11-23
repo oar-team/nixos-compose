@@ -64,6 +64,7 @@ class Context(object):
         self.roles_quantities = {}
         self.setup = None
         self.sigwait = None
+        self.kernel_params = None
         self.all_started: bool = False
         self.no_start: bool = False  # use w/ driver CLI command which must not start machines
         self.external_connect: bool = False

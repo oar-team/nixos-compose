@@ -399,7 +399,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
         initrd_path = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
 
         kexec_args = "-l $KERNEL --initrd=$INITRD "
-        kexec_args += f"--append='deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} $DEBUG_INITRD'"
+        kexec_args += fr'--append="deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {ctx.kernel_params}"'
         script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
@@ -415,7 +415,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
             initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += f"--append='init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} $DEBUG_INITRD'"
+            kexec_args += fr'--append="init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {ctx.kernel_params}"'
             script_path = op.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
