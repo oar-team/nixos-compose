@@ -2,6 +2,8 @@ from pathlib import Path
 import io
 import os
 import pty
+import sys
+import shutil
 import subprocess
 
 from .logger import rootlog
@@ -33,6 +35,10 @@ class VLan:
 
         rootlog.info("start vlan")
         pty_master, pty_slave = pty.openpty()
+
+        if not shutil.which("vde_switch"):
+            ctx.elog("vde_switch not found, please install vde2")
+            sys.exit(1)
 
         vde_cmd = ["vde_switch"]
 
