@@ -151,6 +151,9 @@ class VmStartCommand(StartCommand):
 
     def build_environment(self, state_dir: Path, shared_dir: Path,) -> dict:
         # We make a copy to not update the current environment
+        kernel_params = ""
+        if self.flavour.ctx.kernel_params:
+            kernel_params = self.flavour.ctx.kernel_params
         env = dict(os.environ)
         env.update(
             {
@@ -162,7 +165,7 @@ class VmStartCommand(StartCommand):
                 "QEMU_VDE_SOCKET": str(self.flavour.vlan.socket_dir),
                 "FLAVOUR": f"flavour={self.flavour.name}",
                 "SHARED_NXC_COMPOSITION_DIR": self.flavour.ctx.envdir,
-                "ADDITIONAL_KERNEL_PARAMS": self.flavour.ctx.kernel_params,
+                "ADDITIONAL_KERNEL_PARAMS": str(kernel_params),
             }
         )
         return env

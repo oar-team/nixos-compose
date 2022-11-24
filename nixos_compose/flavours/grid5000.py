@@ -71,6 +71,9 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
 
     user = os.environ["USER"]
     system = ctx.compositions_info["system"]
+    additional_kernel_params = ""
+    if ctx.kernel_params:
+        additional_kernel_params = ctx.kernel_params
     with open(kaenv_path, "w") as kaenv_file:
         t = Template(KADEPOY_ENV_DESC)
         kaenv = t.substitute(
@@ -78,7 +81,7 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
             author=user,
             system=KADEPOY_ARCH[system],
             file_image_url=f"http://public.grenoble.grid5000.fr/~{user}/nixos.tar.xz",
-            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {kernel_params} {ctx.kernel_params}",
+            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params} {ctx.kernel_params}",
         )
         kaenv_file.write(kaenv)
 
