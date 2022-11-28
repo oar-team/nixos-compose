@@ -15,7 +15,6 @@ import itertools
 import ipaddress
 import urllib.request
 
-from halo import Halo
 from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
 from .default_role import DefaultRole
 
@@ -523,7 +522,12 @@ def generate_deploy_info_b64(ctx):
 
 
 def launch_ssh_kexec(ctx, ip=None, debug=False):
-    ctx.log("Launching remote kexec")
+
+    if ctx.show_spinner:
+        ctx.spinner.start("Launching remote kexec(s)")
+    else:
+        ctx.log("Launching remote kexec(s)")
+
     if "all" in ctx.deployment_info:
         if ctx.push_path:
             kexec_script = f"{ctx.push_path}/kexec.sh"
@@ -563,9 +567,13 @@ def launch_ssh_kexec(ctx, ip=None, debug=False):
     else:
         raise Exception("Sorry, only all-in-one image version is supported up to now")
 
+    if ctx.show_spinner:
+        ctx.spinner.succeed("Remote kexec(s) launched")
 
-def wait_ssh_ports(ctx, ips=None, halo=True):
-    ctx.log("Waiting ssh ports:")
+
+def wait_ssh_ports(ctx, ips=None):
+    if not ctx.show_spinner:
+        ctx.log("Waiting ssh ports:")
     if not ips:
         ips = ctx.ip_addresses
     nb_ips = len(ips)
@@ -575,19 +583,20 @@ def wait_ssh_ports(ctx, ips=None, halo=True):
         f"nmap -p22 -Pn {' '.join(ips)} -oG - | grep '22/open' | wc -l"
     )
     ctx.vlog(waiting_ssh_ports_cmd)
-    if halo:
-        spinner = Halo(text=f"Opened ssh ports 0/{nb_ips}", spinner="dots")
-        spinner.start()
+
+    if ctx.show_spinner:
+        ctx.spinner.start(f"Waiting ssh ports, opened: 0/{nb_ips}")
+
     while nb_ssh_port != nb_ips:
         output = subprocess.check_output(waiting_ssh_ports_cmd, shell=True)
         nb_ssh_port = int(output.rstrip().decode())
-        if halo:
-            spinner.text = "Opened ssh ports: {}/{} ({:.1f}s)".format(
+        if ctx.show_spinner:
+            ctx.spinner.text = "Opened ssh ports: {}/{} ({:.1f}s)".format(
                 nb_ssh_port, nb_ips, ctx.elapsed_time()
             )
         time.sleep(0.25)
-    if halo:
-        spinner.succeed("Deployment taken {:.1f} sec".format(ctx.elapsed_time()))
+    if ctx.show_spinner:
+        ctx.spinner.succeed("Deployment taken {:.1f} sec".format(ctx.elapsed_time()))
     else:
         ctx.vlog("Deployment took {:.1f}s".format(ctx.elapsed_time()))
 
@@ -818,8 +827,15 @@ def get_nix_command(ctx):
 
 # get Nix-static
 def install_nix_static(
-    version="2.10.3", archi="x86_64", local_bin_path=f"{os.environ['HOME']}/.local/bin"
+    ctx,
+    version="2.10.3",
+    archi="x86_64",
+    local_bin_path=f"{os.environ['HOME']}/.local/bin",
 ):
+    if ctx.show_spinner:
+        ctx.spinner.start("Installing Nix")
+    else:
+        ctx.log("Installing Nix...")
 
     if not op.exists(local_bin_path):
         os.makedirs(local_bin_path)
@@ -831,3 +847,8 @@ def install_nix_static(
     )
 
     os.chmod(nix_path, 0o755)
+
+    if ctx.show_spinner:
+        ctx.spinner.succeed("Nix installed")
+    else:
+        ctx.log("Done")

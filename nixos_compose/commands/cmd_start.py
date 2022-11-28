@@ -11,7 +11,6 @@ import pyinotify
 import asyncio
 
 import ptpython.repl
-from halo import Halo
 
 from ..context import pass_context, on_finished, on_started
 from ..flavours import get_flavour_by_name
@@ -200,8 +199,8 @@ def cli(
         if not op.isfile(machines_file):
             # ctx.log(f"Waiting {machines_file} file creation")
             # TODO: add quiet option
-            spinner = Halo(text=f"Waiting for {machines_file} creation", spinner="dots")
-            spinner.start()
+            if ctx.show_spinner:
+                ctx.spinner.start(text=f"Waiting for {machines_file} creation")
 
             if "nfs" == get_fs_type(machines_file):
                 while not op.isfile(machines_file):
@@ -223,8 +222,10 @@ def cli(
                 loop.run_forever()
                 notifier.stop()
 
-            # ctx.log(f"{machines_file} file created")
-            spinner.succeed(f"{machines_file} file created")
+            if ctx.show_spinner:
+                ctx.spinner.succeed(f"{machines_file} file created")
+            else:
+                ctx.log(f"{machines_file} file created")
 
     # Determine composition and flavour name
     # First case composition is given not flavour name

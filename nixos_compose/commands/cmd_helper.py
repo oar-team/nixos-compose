@@ -9,7 +9,7 @@ def print_helper(ctx, options):
         if (option == "g5k_script") or (option == "g5k-script"):
             click.echo(key_sleep_script)
         elif option == "install-nix":
-            install_nix_static()
+            install_nix_static(ctx)
         else:
             ctx.elog(f"Helper: {option} does not exist")
 

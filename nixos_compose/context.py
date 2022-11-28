@@ -12,6 +12,7 @@ import click
 
 from .platform import Grid5000Platform
 from .default_role import get_nxc_loader
+from halo import Halo
 
 # from .state import State
 
@@ -71,6 +72,8 @@ class Context(object):
         self.vde_tap: bool = False  # use to add tap interface which allow external IP
         # access either done by port forwarding on local
         # interface
+        self.spinner = Halo(spinner="dots")
+        self.show_spinner = True
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
