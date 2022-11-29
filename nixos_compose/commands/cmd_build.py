@@ -108,7 +108,7 @@ def cli(
         return flavour
 
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
-        nix_flags, composition_file, composition_flavour, flavour = apply_setup(
+        nix_flags, composition_file, composition_flavour, flavour, _ = apply_setup(
             ctx,
             setup,
             nix_flags,
@@ -116,6 +116,7 @@ def cli(
             composition_flavour,
             flavour,
             setup_param,
+            None,
         )
 
     build_cmd = []

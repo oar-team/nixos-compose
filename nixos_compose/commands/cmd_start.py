@@ -26,6 +26,7 @@ from ..actions import (
 
 from ..driver.driver import Driver
 from ..httpd import HTTPDaemon
+from ..setup import apply_setup
 
 machines_file_towait = ""
 notifier = None
@@ -123,6 +124,9 @@ class EventHandler(pyinotify.ProcessEvent):
     type=click.Path(resolve_path=True),
     help="specific compose info file",
 )
+@click.option(
+    "-s", "--setup", type=click.STRING, help="Select setup variant",
+)
 # @click.option(
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
@@ -146,7 +150,8 @@ def cli(
     sigwait,
     kernel_params,
     roles_quantities_file,
-    compose_info
+    compose_info,
+    setup,
     # dry_run,
 ):
     """Start Nixos Composition."""
@@ -170,6 +175,12 @@ def cli(
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
+
+    # kernel_params can by setted through setup
+    if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
+        _, _, _, _, kernel_params = apply_setup(
+            ctx, setup, None, None, None, None, None, kernel_params,
+        )
     ctx.kernel_params = kernel_params
 
     if remote_deployment_info:

@@ -28,9 +28,9 @@ a="hello"
 b=20
 
 # build arguments can be setted w/ options, cli arguments will overrides them if any
-# [dev.options]
+# [dev.build.options]
 # nix-flags = "--impure --override-input nxc path:/home/user/nixos-compose/setup"
-
+# kernel-params = "intel_pstate=disable systemd.unified_cgroup_hierarchy=0"
 #
 # Change some build parameters per package
 #

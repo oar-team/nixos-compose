@@ -11,6 +11,7 @@ def apply_setup(
     composition_flavour,
     flavour,
     setup_param,
+    kernel_params,
     filename="setup.toml",
 ):
 
@@ -65,6 +66,8 @@ def apply_setup(
             composition_flavour = setup_toml["options"]["composition-flavour"]
         if not flavour and "flavour" in setup_toml["options"]:
             flavour = setup_toml["options"]["flavour"]
+        if not kernel_params and "kernel-params" in setup_toml["options"]:
+            kernel_params = setup_toml["options"]["kernel-params"]
 
     if selected_setup:
         if selected_setup not in setup_toml:
@@ -78,6 +81,10 @@ def apply_setup(
                 if "composition-file" in setup_toml[selected_setup]["options"]:
                     composition_file = setup_toml[selected_setup]["options"][
                         "composition-file"
+                    ]
+                if "kernel-params" in setup_toml[selected_setup]["options"]:
+                    kernel_params = setup_toml[selected_setup]["options"][
+                        "kernel-params"
                     ]
 
             if "project" not in setup_toml:
@@ -93,4 +100,4 @@ def apply_setup(
 
     ctx.setup = setup_toml
 
-    return (nix_flags, composition_file, composition_flavour, flavour)
+    return (nix_flags, composition_file, composition_flavour, flavour, kernel_params)
