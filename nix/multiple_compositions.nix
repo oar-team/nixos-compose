@@ -170,7 +170,6 @@ in let
     };
   } else {
     all = {
-      #image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
       initrd = "${baseConfig.system.build.initialRamdisk}/initrd";
       qemu_script = "${baseConfig.system.build.qemu_script}";
       #initrd = "${baseRamdisk}/initrd";
@@ -179,10 +178,10 @@ in let
       init = "${
           builtins.unsafeDiscardStringContext baseConfig.system.build.toplevel
         }/init";
-    }; #// (if flavour.image.type != "remote-store" then {
-      # image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
-    # } else
-    #   { });
+    } // (if flavour.image.type == "tarball" then {
+      image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
+    } else
+      { });
   };
 
 in pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate {

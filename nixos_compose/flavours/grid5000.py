@@ -208,11 +208,11 @@ class G5KImageFlavour(Flavour):
         )
         if machine_file:
             cmd_kadeploy = (
-                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f {machine_file} -k'
+                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f {machine_file}'
             )
         else:
             cmd_kadeploy = (
-                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f $OAR_NODEFILE -k'
+                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f $OAR_NODEFILE'
             )
 
         if machine_file or click.confirm(
