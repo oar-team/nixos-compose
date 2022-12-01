@@ -211,7 +211,7 @@ def cli(
             # ctx.log(f"Waiting {machines_file} file creation")
             # TODO: add quiet option
             if ctx.show_spinner:
-                ctx.spinner.start(text=f"Waiting for {machines_file} creation")
+                ctx.spinner.start(f"Waiting for {machines_file} creation")
 
             if "nfs" == get_fs_type(machines_file):
                 while not op.isfile(machines_file):
@@ -322,6 +322,9 @@ def cli(
 
     if machines_file:
         machines = read_hosts(machines_file)
+        if not machines:
+            ctx.elog(f"Machine file '{machines_file}' is empty")
+            sys.exit(1)
 
     if machines:
         translate_hosts2ip(ctx, machines)

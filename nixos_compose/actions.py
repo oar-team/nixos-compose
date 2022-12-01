@@ -591,8 +591,10 @@ def wait_ssh_ports(ctx, ips=None):
         output = subprocess.check_output(waiting_ssh_ports_cmd, shell=True)
         nb_ssh_port = int(output.rstrip().decode())
         if ctx.show_spinner:
-            ctx.spinner.text = "Opened ssh ports: {}/{} ({:.1f}s)".format(
-                nb_ssh_port, nb_ips, ctx.elapsed_time()
+            ctx.spinner.text(
+                "Opened ssh ports: {}/{} ({:.1f}s)".format(
+                    nb_ssh_port, nb_ips, ctx.elapsed_time()
+                )
             )
         time.sleep(0.25)
     if ctx.show_spinner:
@@ -650,26 +652,24 @@ def push_on_machines(ctx):
     #             )
 
 
-def ssh_connect(ctx, user, node, execute=True):
+def get_ip_ssh_port(ctx, host):
+    """Retrieve host's ip address and ssh port from deployment info"""
+    ssh_port = 22
     if not ctx.deployment_info:
         read_deployment_info(ctx)
-    role = node
-    host = node
-    ssh_port = None
     for ip, v in ctx.deployment_info["deployment"].items():
-        # if v["role"] == role:
-        if v["host"] == role:
-            host = ip
+        if v["host"] == host:
+            ip = ip
             if "vm_id" in v:
-                host = "127.0.0.1"
+                ip = "127.0.0.1"
                 ssh_port = 22021 + int(v["vm_id"])
             break
+    return (ip, ssh_port)
 
-    ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} "
-    if ssh_port:
-        ssh_cmd += f"-p {ssh_port} {host}"
-    else:
-        ssh_cmd += f"{host}"
+
+def ssh_connect(ctx, user, host, execute=True):
+    ip, ssh_port = get_ip_ssh_port(ctx, host)
+    ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} -p {ssh_port} {ip}"
 
     if execute:
         return_code = subprocess.run(ssh_cmd, shell=True).returncode
