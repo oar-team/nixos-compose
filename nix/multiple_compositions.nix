@@ -178,7 +178,7 @@ in let
       init = "${
           builtins.unsafeDiscardStringContext baseConfig.system.build.toplevel
         }/init";
-    } // (if flavour.image.type == "tarball" then {
+    } // (if flavour.image ? type && flavour.image.type == "tarball" then {
       image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
     } else
       { });
