@@ -27,6 +27,27 @@ def reraise(tp, value, tb=None):
     raise value
 
 
+class LazySpinner(object):
+    def __init__(self):
+        self.halo_spinner = None
+
+    def create_if_needed(self):
+        if not self.halo_spinner:
+            self.halo_spinner = Halo(spinner="dots")
+
+    def start(self, *args):
+        self.create_if_needed()
+        self.halo_spinner.start(*args)
+
+    def succeed(self, *args):
+        self.create_if_needed()
+        self.halo_spinner.succeed(*args)
+
+    def text(self, text):
+        self.create_if_needed()
+        self.halo_spinner.text = text
+
+
 class Context(object):
     def __init__(self):
         self.t0 = time.time()
@@ -72,7 +93,7 @@ class Context(object):
         self.vde_tap: bool = False  # use to add tap interface which allow external IP
         # access either done by port forwarding on local
         # interface
-        self.spinner = Halo(spinner="dots")
+        self.spinner = LazySpinner()
         self.show_spinner = True
 
     def init_workdir(self, env_name, env_id):
