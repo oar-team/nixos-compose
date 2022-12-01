@@ -216,6 +216,9 @@ def health_check_roles_quantities(ctx, nodes_info, roles_quantities_in, ips=None
     if len(roles_quantities_in) == 0:
         # If no info we take one node per role
         roles_quantities = {role: [role] for role in nodes_info.keys()}
+        # Apply role_quantity options if any
+        for role, quantity in ctx.role_quantity_options.items():
+            roles_quantities[role] = quantity
         if ips:
             nb_nodes = len(ips) - len(nodes_info.keys())
             if nb_nodes >= 0 and "node" in roles_quantities:
@@ -280,6 +283,7 @@ def health_check_roles_quantities(ctx, nodes_info, roles_quantities_in, ips=None
         set_hostnames = set(all_hostnames)
         if len(all_hostnames) != len(set_hostnames):
             raise Exception("Conflict in the naming of the node")
+
     return roles_quantities
 
 

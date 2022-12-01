@@ -116,6 +116,12 @@ class EventHandler(pyinotify.ProcessEvent):
     type=click.STRING,
     help="additional kernel parameters, this option is flavour dependent",
 )
+@click.option(
+    "-r",
+    "--role-quantity",
+    multiple=True,
+    help="specify the number of nodes or nodes' name for a role (e.g. compute=2 or server=foo,bar ).",
+)
 @click.argument(
     "roles_quantities_file", required=False, default=None, type=click.Path(exists=True)
 )
@@ -149,6 +155,7 @@ def cli(
     file_test_script,
     sigwait,
     kernel_params,
+    role_quantity,
     roles_quantities_file,
     compose_info,
     setup,
@@ -175,6 +182,7 @@ def cli(
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
+    ctx.set_roles_quantities_options(role_quantity)
 
     # kernel_params can by setted through setup
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):

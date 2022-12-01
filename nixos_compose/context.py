@@ -83,6 +83,7 @@ class Context(object):
             f"{os.environ['HOME']}/.local/share/nix/root/nix",
             f"{os.environ['HOME']}/.nix",
         ]
+        self.role_quantity_options = {}
         self.roles_quantities = {}
         self.setup = None
         self.sigwait = None
@@ -185,7 +186,24 @@ class Context(object):
             self.set_roles_quantities(yaml.load(roles_f, Loader=get_nxc_loader()))
 
     def set_roles_quantities(self, roles_quantities):
+        # Apply role_quantity options if any
+        for role, quantity in self.role_quantity_options.items():
+            roles_quantities[role] = quantity
         self.roles_quantities = roles_quantities
+
+    def set_roles_quantities_options(self, role_quantities):
+        for rq in role_quantities:
+            rq_splitted = rq.split("=")
+            if len(rq_splitted) != 2:
+                self.elog(f"Role distribution '{rq}'is malformatted")
+            hosts = None
+            try:
+                quantity = int(rq_splitted[1])
+                hosts = [f"{rq_splitted[0]}{i}" for i in range(1, quantity + 1)]
+            except ValueError:
+                hosts = rq_splitted[1].split(",")
+
+            self.role_quantity_options[rq_splitted[0]] = hosts
 
 
 def make_pass_decorator(ensure=False):
