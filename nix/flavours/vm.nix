@@ -13,7 +13,7 @@
     ];
     nxc.qemu-script.enable = true;
 
-    boot.loader.grub.enable = lib.mkDefault false;
+    boot.loader.grub.enable = false;
 
     fileSystems."/" = {
       fsType = "tmpfs";

@@ -62,7 +62,7 @@ let
   # overlays must be injected via (extra)config and pkgs' overlays parametrer (see nixos-test.nix)
   # Two pkgs exploitations in composition, same pkgs but used differently
   # {pkgs, ... }: {
-  #    nodes = {
+  #    roles = {
   #       foo = {pkgs, ... }:
   _extraConfigurations = extraConfigurations
     ++ [{ nixpkgs.overlays = _overlays; }];

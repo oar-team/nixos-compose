@@ -7,21 +7,14 @@ let
   lib = pkgs.lib;
   modulesPath = "${toString nixpkgs}/nixos";
   compositionSet = composition { inherit pkgs lib system modulesPath helpers flavour setup nur; };
-  nodes = compositionSet.nodes;
-  testScriptRaw =
-    if compositionSet ? testScript then compositionSet.testScript else "";
 
-  # from nixpkgs/nixos/lib/testing-python.nix
-  testScript =
-    # Call the test script with the computed nodes.
-    if pkgs.lib.isFunction testScriptRaw then
-      testScriptRaw { inherit nodes; }
-    else
-      testScriptRaw;
+  roles = if compositionSet ? roles then compositionSet.roles else compositionSet.nodes;
+
   testScriptFile = pkgs.writeTextFile {
     name = "test-script";
-    text = "${testScript}";
+    text = "${if compositionSet ? testScript then compositionSet.testScript else ""}";
   };
+
   # name and tag of the base container image
   name = "nxc-docker-base-image";
   tag = "latest";
@@ -74,7 +67,7 @@ let
       ] ++ extraVolumes;
       ports =
         if dockerPorts ? "${nodeName}" then dockerPorts."${nodeName}" else [ ];
-    }) nodes;
+    }) roles;
 
   dockerComposeConfigJSON = pkgs.writeTextFile {
     name = "docker-compose";
@@ -85,7 +78,7 @@ in pkgs.writeTextFile {
   name = "compose-info.json";
   text = (builtins.toJSON {
     inherit image;
-    nodes = builtins.attrNames nodes;
+    roles = builtins.attrNames roles;
     docker-compose-file = dockerComposeConfigJSON;
     test_script = testScriptFile;
     flavour = flavour.name;

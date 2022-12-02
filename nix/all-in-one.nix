@@ -1,12 +1,12 @@
 { pkgs, flavour, compositionName, allConfig, buildOneconfig }:
 let
 
-  machinesInfo =
+  rolesInfo =
     pkgs.lib.mapAttrs (n: m: m.config.system.build.initClosureInfo) allConfig;
 
-  allRoles = builtins.attrNames machinesInfo;
+  allRoles = builtins.attrNames rolesInfo;
   allClosureInfo =
-    pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") machinesInfo;
+    pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") rolesInfo;
   allStorePaths = map (x: "${x}/store-paths") allClosureInfo;
 
   allStoreInfo = pkgs.stdenv.mkDerivation {
@@ -41,8 +41,6 @@ let
   };
 
 in {
-  nodes = machinesInfo;
+  roles = rolesInfo;
   all_store_info = "${allStoreInfo}";
-  #nodesInit = pkgs.lib.mapAttrs (n: m: "${m.config.system.build.toplevel}/init")
-  #  allConfig;
 }

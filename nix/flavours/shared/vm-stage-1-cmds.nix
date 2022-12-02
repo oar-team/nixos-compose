@@ -61,7 +61,7 @@
                    compositions_info_file=$(jq -r '."compositions_info_path" // empty' $deployment_json)
                    echo "compositions info file: $compositions_info_file"
 
-                   init=$(jq -r ".\"$composition\".nodes.\"$role\".init" /mnt-root/$compositions_info_file)
+                   init=$(jq -r ".\"$composition\".roles.\"$role\".init" /mnt-root/$compositions_info_file)
                    echo "init: $init"
 
                    export stage2Init=$init

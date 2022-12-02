@@ -189,14 +189,14 @@ def translate_hosts2ip(ctx, hosts):
     return
 
 
-def populate_deployment_vm_by_ip(ctx, nodes_info, roles_distribution):
+def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
     roles_distribution = health_check_roles_distribution(
-        ctx, nodes_info, roles_distribution
+        ctx, roles_info, roles_distribution
     )
     i = 1
     deployment = {}
     ips = []
-    for role, v in nodes_info.items():
+    for role, v in roles_info.items():
         for hostname in roles_distribution[role]:
             ip = "192.168.1.{}".format(i)
             ips.append(ip)
@@ -212,9 +212,9 @@ def populate_deployment_vm_by_ip(ctx, nodes_info, roles_distribution):
     return deployment, ips
 
 
-def health_check_roles_distribution(ctx, nodes_info, roles_distribution_in, ips=None):
+def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=None):
 
-    roles_distribution = {role: [role] for role in nodes_info.keys()}
+    roles_distribution = {role: [role] for role in roles_info.keys()}
     for role, distribution in roles_distribution_in.items():
         roles_distribution[role] = distribution
 
@@ -295,13 +295,13 @@ def health_check_roles_distribution(ctx, nodes_info, roles_distribution_in, ips=
     return roles_distribution
 
 
-def populate_deployment_ips(ctx, nodes_info, ips, roles_distribution):
+def populate_deployment_ips(ctx, roles_info, ips, roles_distribution):
     roles_distribution = health_check_roles_distribution(
-        ctx, nodes_info, roles_distribution, ips
+        ctx, roles_info, roles_distribution, ips
     )
     i = 0
     deployment = {}
-    for role, v in nodes_info.items():
+    for role, v in roles_info.items():
         if role not in roles_distribution:
             ctx.elog(f"role: {role} not found in roles-distribution file")
             exit(1)
@@ -326,14 +326,14 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
         sshkey_pub = f.read().rstrip()
 
     # if ctx.multiple_compositions:  :: TO REMOVE ???
-    #    nodes = ctx.compose_info["nodes"]
+    #    roles = ctx.compose_info["roles"]
     if ctx.ip_addresses:
         deployment = populate_deployment_ips(
-            ctx, ctx.compose_info["nodes"], ctx.ip_addresses, ctx.roles_distribution
+            ctx, ctx.compose_info["roles"], ctx.ip_addresses, ctx.roles_distribution
         )
     else:
         deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
-            ctx, ctx.compose_info["nodes"], ctx.roles_distribution
+            ctx, ctx.compose_info["roles"], ctx.roles_distribution
         )
         deployment = {
             k: {

@@ -77,6 +77,9 @@
   #hardware.enableRedistributableFirmware = true;
   hardware.enableRedistributableFirmware = false;
 
-  vm-shared-dir.enable = true;
-
+  fileSystems."/tmp/shared" = {
+      device = "shared";
+      fsType = "9p";
+      options = [ "trans=virtio" "version=9p2000.L" ];
+    };
 }
