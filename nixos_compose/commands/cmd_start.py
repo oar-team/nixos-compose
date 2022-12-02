@@ -391,4 +391,4 @@ def cli(
     if ctx.use_httpd:
         ctx.httpd.stop()
 
-    ctx.glog("That's All Folk")
+    ctx.glog("Started")
