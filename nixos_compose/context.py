@@ -83,8 +83,8 @@ class Context(object):
             f"{os.environ['HOME']}/.local/share/nix/root/nix",
             f"{os.environ['HOME']}/.nix",
         ]
-        self.role_quantity_options = {}
-        self.roles_quantities = {}
+
+        self.roles_distribution = {}
         self.setup = None
         self.sigwait = None
         self.kernel_params = None
@@ -168,31 +168,28 @@ class Context(object):
         if "platform" in self.nxc and self.nxc["platform"] == "Grid5000":
             self.platform = Grid5000Platform(self)
 
-    def load_role_quantities_file(self, filename):
-        # (basename, extension)
-        filename_tuple = os.path.splitext(filename)
-        extension = filename_tuple[1]
-        if extension in [".yaml", ".yml"]:
-            self._load_role_quantities_file_yaml(filename)
-        else:
-            self._load_role_quantities_file_json(filename)
+    def set_roles_distribution(self, role_distribution_options, filename):
+        roles_distribution = {}
+        if filename:
+            filename_tuple = os.path.splitext(filename)
+            extension = filename_tuple[1]
 
-    def _load_role_quantities_file_json(self, filename):
-        with open(filename, "r") as roles_f:
-            self.set_roles_quantities(json.load(roles_f))
+            with open(filename, "r") as roles_f:
+                if extension in [".yaml", ".yml"]:
+                    roles_distribution = yaml.load(roles_f, Loader=get_nxc_loader())
+                else:
+                    roles_distribution = json.load(roles_f)
 
-    def _load_role_quantities_file_yaml(self, filename):
-        with open(filename, "r") as roles_f:
-            self.set_roles_quantities(yaml.load(roles_f, Loader=get_nxc_loader()))
+        # expend hostname role is associated to an integer
+        for role, quantity in roles_distribution.items():
+            try:
+                roles_distribution[role] = [
+                    f"{role}{i}" for i in range(1, int(quantity) + 1)
+                ]
+            except ValueError:
+                pass
 
-    def set_roles_quantities(self, roles_quantities):
-        # Apply role_quantity options if any
-        for role, quantity in self.role_quantity_options.items():
-            roles_quantities[role] = quantity
-        self.roles_quantities = roles_quantities
-
-    def set_roles_quantities_options(self, role_quantities):
-        for rq in role_quantities:
+        for rq in role_distribution_options:
             rq_splitted = rq.split("=")
             if len(rq_splitted) != 2:
                 self.elog(f"Role distribution '{rq}'is malformatted")
@@ -203,7 +200,8 @@ class Context(object):
             except ValueError:
                 hosts = rq_splitted[1].split(",")
 
-            self.role_quantity_options[rq_splitted[0]] = hosts
+            roles_distribution[rq_splitted[0]] = hosts
+        self.roles_distribution = roles_distribution
 
 
 def make_pass_decorator(ensure=False):

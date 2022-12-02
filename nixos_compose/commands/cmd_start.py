@@ -118,12 +118,15 @@ class EventHandler(pyinotify.ProcessEvent):
 )
 @click.option(
     "-r",
-    "--role-quantity",
+    "--role-distribution",
     multiple=True,
     help="specify the number of nodes or nodes' name for a role (e.g. compute=2 or server=foo,bar ).",
 )
 @click.argument(
-    "roles_quantities_file", required=False, default=None, type=click.Path(exists=True)
+    "roles_distribution_file",
+    required=False,
+    default=None,
+    type=click.Path(exists=True),
 )
 @click.option(
     "--compose-info",
@@ -155,8 +158,8 @@ def cli(
     file_test_script,
     sigwait,
     kernel_params,
-    role_quantity,
-    roles_quantities_file,
+    role_distribution,
+    roles_distribution_file,
     compose_info,
     setup,
     # dry_run,
@@ -182,7 +185,7 @@ def cli(
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
-    ctx.set_roles_quantities_options(role_quantity)
+    ctx.set_roles_distribution(role_distribution, roles_distribution_file)
 
     # kernel_params can by setted through setup
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
@@ -337,9 +340,6 @@ def cli(
     if machines:
         translate_hosts2ip(ctx, machines)
         print(ctx.ip_addresses, ctx.host2ip_address)
-
-    if roles_quantities_file:
-        ctx.load_role_quantities_file(roles_quantities_file)
 
     ctx.flavour.generate_deployment_info()
 

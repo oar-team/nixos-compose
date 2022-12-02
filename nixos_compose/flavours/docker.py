@@ -39,15 +39,10 @@ def generate_docker_compose_file(ctx):
         if prefix_store:
             set_prefix_store_volumes(dc_json, prefix_store)
 
-        if ctx.roles_quantities == {}:
-            roles_quantities = {role: 1 for role in ctx.compose_info["nodes"]}
-        else:
-            roles_quantities = dict(
-                filter(
-                    lambda x: x[0] in ctx.compose_info["nodes"],
-                    ctx.roles_quantities.items(),
-                )
-            )
+        roles_distribution = {role: 1 for role in ctx.compose_info["nodes"]}
+        for role, quantity in ctx.roles_distribution.items():
+            roles_distribution[role] = quantity
+
         # Add bind  deployment file inside containers
         deployment_file = op.join(
             ctx.envdir, f"deploy/{ctx.composition_flavour_prefix}.json"
@@ -60,29 +55,29 @@ def generate_docker_compose_file(ctx):
                     "target": "/etc/nxc/deployment.json",
                 }
             )
-        for role, quantities in roles_quantities.items():
-            if type(quantities) is int:
-                if quantities == 1:
+        for role, distribution in roles_distribution.items():
+            if type(distribution) is int:
+                if distribution == 1:
                     hostname = f"{role}"
                     config = copy.copy(dc_json["services"][role])
                     config["hostname"] = hostname
                     docker_compose_content["services"][hostname] = config
                     nodes_info[hostname] = role
                 else:
-                    for i in range(1, quantities + 1):
+                    for i in range(1, distribution + 1):
                         hostname = f"{role}{i}"
                         config = copy.copy(dc_json["services"][role])
                         config["hostname"] = hostname
                         docker_compose_content["services"][hostname] = config
                         nodes_info[hostname] = role
-            elif type(quantities) is list:
-                for hostname in quantities:
+            elif type(distribution) is list:
+                for hostname in distribution:
                     config = copy.copy(dc_json["services"][role])
                     config["hostname"] = hostname
                     docker_compose_content["services"][hostname] = config
                     nodes_info[hostname] = role
-            elif type(quantities) is DefaultRole:
-                nb_min_nodes = quantities.nb_min_nodes
+            elif type(distribution) is DefaultRole:
+                nb_min_nodes = distribution.nb_min_nodes
                 ctx.log(
                     f"Docker: Using DefaultRole -> {nb_min_nodes} nodes for role '{role}'"
                 )

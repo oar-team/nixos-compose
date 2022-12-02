@@ -16,7 +16,8 @@ import ipaddress
 import urllib.request
 
 from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
-from .default_role import DefaultRole
+
+# from .default_role import DefaultRole #TODO
 
 
 ##
@@ -188,13 +189,15 @@ def translate_hosts2ip(ctx, hosts):
     return
 
 
-def populate_deployment_vm_by_ip(ctx, nodes_info, roles_quantities):
-    roles_quantities = health_check_roles_quantities(ctx, nodes_info, roles_quantities)
+def populate_deployment_vm_by_ip(ctx, nodes_info, roles_distribution):
+    roles_distribution = health_check_roles_distribution(
+        ctx, nodes_info, roles_distribution
+    )
     i = 1
     deployment = {}
     ips = []
     for role, v in nodes_info.items():
-        for hostname in roles_quantities[role]:
+        for hostname in roles_distribution[role]:
             ip = "192.168.1.{}".format(i)
             ips.append(ip)
             # deployment[ip] = {"role": role, "vm_id": i}
@@ -209,95 +212,100 @@ def populate_deployment_vm_by_ip(ctx, nodes_info, roles_quantities):
     return deployment, ips
 
 
-def health_check_roles_quantities(ctx, nodes_info, roles_quantities_in, ips=None):
-    roles_quantities = {}
-    remaining_role = None
+def health_check_roles_distribution(ctx, nodes_info, roles_distribution_in, ips=None):
 
-    if len(roles_quantities_in) == 0:
-        # If no info we take one node per role
-        roles_quantities = {role: [role] for role in nodes_info.keys()}
-        # Apply role_quantity options if any
-        for role, quantity in ctx.role_quantity_options.items():
-            roles_quantities[role] = quantity
-        if ips:
-            nb_nodes = len(ips) - len(nodes_info.keys())
-            if nb_nodes >= 0 and "node" in roles_quantities:
-                ctx.vlog("Apply node role as default on ")
-                roles_quantities["node"] = [
-                    f"node{i}" for i in range(1, (nb_nodes + 2))
-                ]
-    else:
-        sum_nb_asked_machines = 0
-        for role in roles_quantities_in:
-            if type(roles_quantities_in[role]) == int:
-                sum_nb_asked_machines += roles_quantities_in[role]
-            elif type(roles_quantities_in[role]) == list:
-                sum_nb_asked_machines += len(roles_quantities_in[role])
-            else:
-                pass
-        if ips is not None:
-            remaining_available_machines = len(ips) - sum_nb_asked_machines
-        else:
-            remaining_available_machines = -1
+    roles_distribution = {role: [role] for role in nodes_info.keys()}
+    for role, distribution in roles_distribution_in.items():
+        roles_distribution[role] = distribution
 
-        # Step 1: if the user only gave the number of nodes of the roles
-        for role in roles_quantities_in:
-            if type(roles_quantities_in[role]) == int:
-                nb_nodes = roles_quantities_in[role]
-                if nb_nodes == 1:
-                    roles_quantities[role] = [f"{role}"]
-                else:
-                    roles_quantities[role] = [
-                        f"{role}{i}" for i in range(1, nb_nodes + 1)
-                    ]
-            elif type(roles_quantities_in[role]) == DefaultRole:
-                nb_min_nodes = roles_quantities_in[role].nb_min_nodes
-                if ips is None:
-                    # in the case of VMs we are not limited
-                    # so we take the min nb of nodes
-                    remaining_available_machines = nb_min_nodes
-                if remaining_available_machines < nb_min_nodes:
-                    raise Exception(
-                        f"Not enough nodes to satisfy default role {role} ({remaining_available_machines} available for {nb_min_nodes} asked)"
-                    )
-                if remaining_available_machines == 1:
-                    roles_quantities[role] = [f"{role}"]
-                else:
-                    roles_quantities[role] = [
-                        f"{role}{i}" for i in range(1, remaining_available_machines + 1)
-                    ]
-            else:
-                if not ips:
-                    raise Exception(
-                        "Number of ip_address must be known with 'remaining' as role's number"
-                    )
-                if remaining_role:
-                    raise Exception(
-                        f"Role for remaining nodes is already set: {remaining_role}/{role}"
-                    )
-                else:
-                    remaining_role = role
+    # TODO
+    # - if ips is present and ips number lower than host number
+    # - if ips is present and ips number greater than host number
+    #      do we manage default role to padding "--padding-role options ?"
+    # manage defaultRole / mini in yaml/ default distribution role in nix composition
 
-        # Step 2: add remainings and check that we do not have any conflict on the hostnames
-        all_hostnames = list(itertools.chain.from_iterable(roles_quantities.values()))
-        set_hostnames = set(all_hostnames)
-        if len(all_hostnames) != len(set_hostnames):
-            raise Exception("Conflict in the naming of the node")
+    # if len(roles_quantities_in) == 0:
+    #     # If no info we take one node per role
+    #     roles_quantities = {role: [role] for role in nodes_info.keys()}
+    #     if ips:
+    #         nb_nodes = len(ips) - len(nodes_info.keys())
+    #         if nb_nodes >= 0 and "node" in roles_quantities:
+    #             ctx.vlog("Apply node role as default on ")
+    #             roles_quantities["node"] = [
+    #                 f"node{i}" for i in range(1, (nb_nodes + 2))
+    #             ]
+    # else:
+    #     sum_nb_asked_machines = 0
+    #     for role in roles_quantities_in:
+    #         if type(roles_quantities_in[role]) == int:
+    #             sum_nb_asked_machines += roles_quantities_in[role]
+    #         elif type(roles_quantities_in[role]) == list:
+    #             sum_nb_asked_machines += len(roles_quantities_in[role])
+    #         else:
+    #             pass
+    #     if ips is not None:
+    #         remaining_available_machines = len(ips) - sum_nb_asked_machines
+    #     else:
+    #         remaining_available_machines = -1
 
-    return roles_quantities
+    #     # Step 1: if the user only gave the number of nodes of the roles
+    #     for role in roles_quantities_in:
+    #         if type(roles_quantities_in[role]) == int:
+    #             nb_nodes = roles_quantities_in[role]
+    #             if nb_nodes == 1:
+    #                 roles_quantities[role] = [f"{role}"]
+    #             else:
+    #                 roles_quantities[role] = [
+    #                     f"{role}{i}" for i in range(1, nb_nodes + 1)
+    #                 ]
+    #         elif type(roles_quantities_in[role]) == DefaultRole:
+    #             nb_min_nodes = roles_quantities_in[role].nb_min_nodes
+    #             if ips is None:
+    #                 # in the case of VMs we are not limited
+    #                 # so we take the min nb of nodes
+    #                 remaining_available_machines = nb_min_nodes
+    #             if remaining_available_machines < nb_min_nodes:
+    #                 raise Exception(
+    #                     f"Not enough nodes to satisfy default role {role} ({remaining_available_machines} available for {nb_min_nodes} asked)"
+    #                 )
+    #             if remaining_available_machines == 1:
+    #                 roles_quantities[role] = [f"{role}"]
+    #             else:
+    #                 roles_quantities[role] = [
+    #                     f"{role}{i}" for i in range(1, remaining_available_machines + 1)
+    #                 ]
+    #         else:
+    #             if not ips:
+    #                 raise Exception(
+    #                     "Number of ip_address must be known with 'remaining' as role's number"
+    #                 )
+    #             if remaining_role:
+    #                 raise Exception(
+    #                     f"Role for remaining nodes is already set: {remaining_role}/{role}"
+    #                 )
+    #             else:
+    #                 remaining_role = role
+
+    # Step 2: add remainings and check that we do not have any conflict on the hostnames
+    all_hostnames = list(itertools.chain.from_iterable(roles_distribution.values()))
+    set_hostnames = set(all_hostnames)
+    if len(all_hostnames) != len(set_hostnames):
+        raise Exception("Conflict in the naming of the nodes")
+
+    return roles_distribution
 
 
-def populate_deployment_ips(ctx, nodes_info, ips, roles_quantities):
-    roles_quantities = health_check_roles_quantities(
-        ctx, nodes_info, roles_quantities, ips
+def populate_deployment_ips(ctx, nodes_info, ips, roles_distribution):
+    roles_distribution = health_check_roles_distribution(
+        ctx, nodes_info, roles_distribution, ips
     )
     i = 0
     deployment = {}
     for role, v in nodes_info.items():
-        if role not in roles_quantities:
-            ctx.elog(f"role: {role} not found in roles-quantities file")
+        if role not in roles_distribution:
+            ctx.elog(f"role: {role} not found in roles-distribution file")
             exit(1)
-        for hostname in roles_quantities[role]:
+        for hostname in roles_distribution[role]:
             try:
                 ip = ips[i]
             except IndexError as e:
@@ -321,11 +329,11 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     #    nodes = ctx.compose_info["nodes"]
     if ctx.ip_addresses:
         deployment = populate_deployment_ips(
-            ctx, ctx.compose_info["nodes"], ctx.ip_addresses, ctx.roles_quantities
+            ctx, ctx.compose_info["nodes"], ctx.ip_addresses, ctx.roles_distribution
         )
     else:
         deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
-            ctx, ctx.compose_info["nodes"], ctx.roles_quantities
+            ctx, ctx.compose_info["nodes"], ctx.roles_distribution
         )
         deployment = {
             k: {
