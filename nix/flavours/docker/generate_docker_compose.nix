@@ -34,14 +34,14 @@ let
   dockerPorts =
     if compositionSet ? dockerPorts then compositionSet.dockerPorts else { };
 
-  dockerComposeConfig.services = builtins.mapAttrs (nodeName: nodeConfig:
+  dockerComposeConfig.services = builtins.mapAttrs (roleName: roleConfig:
     let
-      nodeConfigWithoutVirutalisation = configNode:
+      roleConfigWithoutVirtualisation = configRole:
         args@{ pkgs, ... }:
-        builtins.removeAttrs (configNode args) [ "virtualisation" ];
+        builtins.removeAttrs (configRole args) [ "virtualisation" ];
       config = {
         system.stateVersion = lib.mkDefault lib.trivial.release;
-        imports = [ (import ./systemd.nix nodeName)  (nodeConfigWithoutVirutalisation nodeConfig) ]
+        imports = [ (import ./systemd.nix roleName)  (roleConfigWithoutVirtualisation roleConfig) ]
           ++ extraConfigurations;
       };
       builtConfig = pkgs.nixos config;
@@ -53,7 +53,7 @@ let
         PATH = "/bin:/usr/bin:/run/current-system/sw/bin";
         container = "docker";
       };
-      hostname = nodeName;
+      hostname = roleName;
       image = "${name}:${tag}";
       stop_signal = "SIGINT";
       #privileged = true;
@@ -66,7 +66,7 @@ let
         "/tmp/shared:/tmp/shared:rw"
       ] ++ extraVolumes;
       ports =
-        if dockerPorts ? "${nodeName}" then dockerPorts."${nodeName}" else [ ];
+        if dockerPorts ? "${roleName}" then dockerPorts."${roleName}" else [ ];
     }) roles;
 
   dockerComposeConfigJSON = pkgs.writeTextFile {
