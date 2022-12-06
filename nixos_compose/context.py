@@ -180,7 +180,8 @@ class Context(object):
                 else:
                     roles_distribution = json.load(roles_f)
 
-        # expend hostname role is associated to an integer
+        # for roles
+        # expand hostname role if associated to an integer
         for role, quantity in roles_distribution.items():
             try:
                 roles_distribution[role] = [

@@ -39,9 +39,14 @@ def generate_docker_compose_file(ctx):
         if prefix_store:
             set_prefix_store_volumes(dc_json, prefix_store)
 
-        roles_distribution = {role: 1 for role in ctx.compose_info["roles"]}
-        for role, quantity in ctx.roles_distribution.items():
-            roles_distribution[role] = quantity
+        roles_distribution = {}
+        for role in ctx.compose_info["roles"]:
+            if role in ctx.roles_distribution:
+                roles_distribution[role] = ctx.roles_distribution[role]
+            elif role in ctx.compose_info["roles_distribution"]:
+                roles_distribution[role] = ctx.compose_info["roles_distribution"][role]
+            else:
+                roles_distribution[role] = 1
 
         # Add bind  deployment file inside containers
         deployment_file = op.join(

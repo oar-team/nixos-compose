@@ -15,6 +15,11 @@ let
     text = "${if compositionSet ? testScript then compositionSet.testScript else ""}";
   };
 
+  # only rolesDistribution, could be extended
+  optionalCompositionAttr = if compositionSet ? rolesDistribution then
+    { roles_distribution = compositionSet.rolesDistribution; }
+                            else {};
+
   # name and tag of the base container image
   name = "nxc-docker-base-image";
   tag = "latest";
@@ -56,7 +61,6 @@ let
       hostname = roleName;
       image = "${name}:${tag}";
       stop_signal = "SIGINT";
-      #privileged = true;
       tmpfs = [ "/run" "/run/wrappers:exec,suid" "/tmp:exec,mode=777" ];
       tty = true;
       volumes = [
@@ -76,11 +80,11 @@ let
 
 in pkgs.writeTextFile {
   name = "compose-info.json";
-  text = (builtins.toJSON {
+  text = builtins.toJSON ({
     inherit image;
     roles = builtins.attrNames roles;
     docker-compose-file = dockerComposeConfigJSON;
     test_script = testScriptFile;
     flavour = flavour.name;
-  });
+  } // optionalCompositionAttr );
 }

@@ -35,6 +35,11 @@ in let
     text = "${if compositionSet ? testScript then compositionSet.testScript else ""}";
   };
 
+  # only rolesDistribution, could be extended
+  optionalCompositionAttr = if compositionSet ? rolesDistribution then
+    { roles_distribution = compositionSet.rolesDistribution; }
+                            else {};
+
   imageInfo = if flavour.image ? distribution && flavour.image.distribution
   == "all-in-one" then
     import ./all-in-one.nix {
@@ -51,4 +56,4 @@ in let
 in if baseConfig then
   buildOneconfig "" { }
 else
-  { test_script = testScriptFile; } // imageInfo
+  { test_script = testScriptFile; } // optionalCompositionAttr // imageInfo

@@ -214,9 +214,21 @@ def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
 
 def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=None):
 
-    roles_distribution = {role: [role] for role in roles_info.keys()}
-    for role, distribution in roles_distribution_in.items():
-        roles_distribution[role] = distribution
+    roles_distribution = {}
+    for role in roles_info.keys():
+        if role in roles_distribution_in:
+            roles_distribution[role] = roles_distribution_in[role]
+        elif role in ctx.compose_info["roles_distribution"]:
+            hosts = ctx.compose_info["roles_distribution"][role]
+            if type(hosts) != list:
+                try:
+                    quantity = int(hosts)
+                    hosts = [f"{role}{i}" for i in range(1, quantity + 1)]
+                except ValueError:
+                    pass
+            roles_distribution[role] = hosts
+        else:
+            roles_distribution[role] = [role]
 
     # TODO
     # - if ips is present and ips number lower than host number
