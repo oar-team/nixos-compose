@@ -19,6 +19,10 @@
     path = ./nixos-cluster;
     description = "A remote store for nixos machines";
   };
+  npb-mpi = {
+    path = ./nbp-mpi;
+    description = "Nas Parallel Benchmark with Openmpi";
+  };
   multi-compositions = {
     path = ./multi-compositions;
     description = "A multi-compositions example";
