@@ -425,29 +425,30 @@ class Machine:
     ) -> Tuple[int, str]:
         # For now we use ssh for shell access (see: start in flavours/vm.py)
         # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
+
         if self.ctx.external_connect:
             return self.execute_process_shell(command, check_return, timeout)
 
         self.connect()
 
-        if timeout is not None:
-            command = "timeout {} sh -c {}".format(timeout, shlex.quote(command))
+        # if timeout is not None:
+        #     command = "timeout {} sh -c {}".format(timeout, shlex.quote(command))
 
-        out_command = f"( set -euo pipefail; {command} ) | (base64 --wrap 0; echo)\n"
-        assert self.shell
-        self.shell.send(out_command.encode())
+        # out_command = f"( set -euo pipefail; {command} ) | (base64 --wrap 0; echo)\n"
+        # assert self.shell
+        # self.shell.send(out_command.encode())
 
-        # Get the output
-        output = base64.b64decode(self._next_newline_closed_block_from_shell())
+        # # Get the output
+        # output = base64.b64decode(self._next_newline_closed_block_from_shell())
 
-        if not check_return:
-            return (-1, output.decode())
+        # if not check_return:
+        #     return (-1, output.decode())
 
-        # Get the return code
-        self.shell.send("echo ${PIPESTATUS[0]}\n".encode())
-        rc = int(self._next_newline_closed_block_from_shell().strip())
+        # # Get the return code
+        # self.shell.send("echo ${PIPESTATUS[0]}\n".encode())
+        # rc = int(self._next_newline_closed_block_from_shell().strip())
 
-        return (rc, output.decode())
+        # return (rc, output.decode())
 
     @use_flavour_method_if_any
     def shell_interact(self) -> None:
@@ -901,7 +902,12 @@ class Machine:
             return (-1, "")
 
         status_code = process_shell.returncode
-        self.restart_process_shell()
+
+        # If process gone we need to restart one for next command
+        # Need more investigation why we cannot reuse previous shell...
+        if self.process_shell.poll() is not None:
+            # print("need to restart process")
+            self.restart_process_shell()
 
         if not check_return:
             return (-1, stdout.decode())

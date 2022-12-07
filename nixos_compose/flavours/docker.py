@@ -224,9 +224,12 @@ class DockerFlavour(Flavour):
                 "-f",
                 self.docker_compose_file,
                 "exec",
+                "-u",
+                "root",
                 "-T",
                 machine.name,
                 "bash",
+                "-l",
             ]
         )
 
@@ -266,7 +269,7 @@ class DockerFlavour(Flavour):
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
 
         cmd = f"docker-compose -f {self.docker_compose_file} exec -u {user} {node} bash"
-
+        print(f"ext_connect {cmd}")
         if execute:
             return_code = subprocess.run(cmd, shell=True).returncode
 
