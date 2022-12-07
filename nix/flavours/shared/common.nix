@@ -6,18 +6,14 @@ with lib; {
     [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "i40e" "mlx5_core" ];
   boot.kernelModules = [ "kvm-intel" ];
 
+  users.users.root.password = "nixos";
+
+  networking.firewall.enable = false;
+
+  services.sshd.enable = true;
   systemd.services.sshd.wantedBy = mkForce [ "multi-user.target" ];
   networking.hostName = mkDefault "";
 
-  # add second serial console
-  #systemd.services."getty@ttyS1".enable = true;
-  #systemd.services."serial-getty@ttyS1" = {
-  #enable = true;
-  #wantedBy = [ "getty.target" ]; # to start at boot
-  #serviceConfig.Restart = "always"; # restart when session is closed
-  #};
-
-  services.sshd.enable = true;
   services.getty.autologinUser = mkDefault "root";
 
   security.polkit.enable = false; # to reduce initrd
@@ -50,7 +46,7 @@ with lib; {
       #sshkey_priv = "${snakeOilPrivateKeyFile}";
     }  // initClosureInfo;
     # TODO remove or add as option
-    # also used by multipl_compositions
+    # also used by multiple_compositions
     qemu_script = if config.nxc.qemu-script.enable then pkgs.writeTextFile {
       executable = true;
       name = "qemu_script";
@@ -150,8 +146,6 @@ with lib; {
 
   environment.noXlibs = mkDefault true;
 
-  # This isn't perfect, but let's expect the user specifies an UTF-8 defaultLocale
-  #i18n.supportedLocales = [ (config.i18n.defaultLocale + "/UTF-8") ];
   i18n.defaultLocale = "en_US.UTF-8";
 
   documentation.enable = mkDefault false;
