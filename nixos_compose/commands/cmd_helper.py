@@ -1,5 +1,6 @@
 import click
 import sys
+import socket
 from ..context import pass_context
 from ..g5k import key_sleep_script
 from ..actions import install_nix_static, get_ip_ssh_port
@@ -25,6 +26,14 @@ def print_helper(ctx, options):
         else:
             ctx.elog("Host argument required")
             sys.exit(1)
+    elif option == "fqdn":
+        if len(options) > 1:
+            ip, _ = get_ip_ssh_port(ctx, options[1])
+            fqdn = socket.getfqdn(ip)
+            print(f"{fqdn}")
+        else:
+            ctx.elog("Host argument required")
+            sys.exit(1)
     else:
         ctx.elog(f"Helper: {option} does not exist")
         sys.exit(1)
@@ -37,6 +46,7 @@ def print_helper_list(helper_options):
     print(
         "ip_ssh_port <composition_hostname>: print hostname's ip address and ssh port"
     )
+    print("fqdn <composition_hostname>: print hostname's fully qualified domain name ")
 
 
 @click.command("helper")
