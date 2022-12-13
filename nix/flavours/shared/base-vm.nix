@@ -4,6 +4,7 @@
     "${modulesPath}/profiles/qemu-guest.nix"
     #./base-hardware.nix
     ./installation-device.nix
+    ./nxc-shared-dirs-nfs.nix
   ];
 
   boot.initrd.availableKernelModules = [ # SATA/PATA support.

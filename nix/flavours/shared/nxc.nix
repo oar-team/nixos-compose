@@ -3,6 +3,7 @@
 with lib;
 let
   cfg = config.nxc;
+  helpers = import ../../helpers.nix;
   unsafeSshKeys = import ./ssh-keys.nix;
   set_root_ssh_keys = if cfg.root-sshKeys.enable then ''
     # set unsafe root keys
@@ -14,9 +15,9 @@ let
     echo "   StrictHostKeyChecking no" >> /root/.ssh/config
     echo "   HashKnownHosts no" >> /root/.ssh/config
   '' else "";
+
 in
 {
-
   options = {
     nxc = {
       qemu-script = {
@@ -47,10 +48,63 @@ in
       wait-online = {
         enable = mkEnableOption "Wait to network is operational";
       };
+      users = {
+        names = mkOption {
+          default = [ ];
+          example =  ["user1" "user2"];
+          type = types.listOf types.str;
+          description = "List of user names";
+        };
+        prefixHome = mkOption {
+          default = "/home";
+          example = "/users";
+          type = types.str;
+          description = "Directory prefix of users' home";
+        };
+      };
+
+      sharedDirs = mkOption {
+        default = {};
+        type = with types; attrsOf (submodule {
+          options = {
+            export = mkOption {
+              type = types.bool;
+              default = false;
+              description = "";
+            };
+            server = mkOption {
+               type = types.str;
+               default = "";
+               description = "";
+            };
+          };
+        });
+        example = {
+          "/users".export = true;
+        };
+        description = "Shared directory (flavour dependent)";
+      };
+      sharedDirsBootCommands = mkOption {
+        default = "";
+        example = "touch /etc/foo";
+        type = types.lines;
+        description = ''
+        '';
+      };
     };
   };
 
-  config = mkMerge [
+  config =
+    mkMerge [
+
+    (mkIf (cfg.users.names != [ ]) {
+      users.users = helpers.mapListToAttrs (n: { ${n} = { isNormalUser = true;
+                                                          home = "${cfg.users.prefixHome}/${n}";
+                                                          group = "users";
+                                                          #openssh.authorizedKeys.keys = (import ./ssh-keys.nix).snakeOilPublicKey;
+                                                        };
+                                               }) cfg.users.names;})
+
     (mkIf cfg.wait-online.enable {
       systemd.services.nxc-network-wait-online = {
         after = [ "network.target" ];
@@ -144,8 +198,18 @@ in
         # /etc/NIXOS tag.
         touch /etc/NIXOS
         ${config.nix.package}/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system
-
+        ${
+          if cfg.sharedDirsBootCommands != "" then
+            cfg.sharedDirsBootCommands
+          else
+            ""
+        }
+        ${
+          if cfg.users.names != [ ] then
+            "chmod 755 ${cfg.users.prefixHome}"
+            else ""
+         }
         ${cfg.postBootCommands}
       '';})
-  ];
+      ];
 }

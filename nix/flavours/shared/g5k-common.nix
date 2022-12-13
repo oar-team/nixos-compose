@@ -7,6 +7,7 @@
     ./common.nix
     ./nxc.nix
     ./g5k-ssh-host-keys.nix
+    ./nxc-shared-dirs-nfs.nix
   ];
 
   boot.initrd.availableKernelModules =
