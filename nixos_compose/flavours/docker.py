@@ -43,7 +43,10 @@ def generate_docker_compose_file(ctx):
         for role in ctx.compose_info["roles"]:
             if role in ctx.roles_distribution:
                 roles_distribution[role] = ctx.roles_distribution[role]
-            elif role in ctx.compose_info["roles_distribution"]:
+            elif (
+                "roles_distribution" in ctx.compose_info
+                and role in ctx.compose_info["roles_distribution"]
+            ):
                 roles_distribution[role] = ctx.compose_info["roles_distribution"][role]
             else:
                 roles_distribution[role] = 1

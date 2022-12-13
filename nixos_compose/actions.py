@@ -218,7 +218,10 @@ def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=
     for role in roles_info.keys():
         if role in roles_distribution_in:
             roles_distribution[role] = roles_distribution_in[role]
-        elif role in ctx.compose_info["roles_distribution"]:
+        elif (
+            "roles_distribution" in ctx.compose_info
+            and role in ctx.compose_info["roles_distribution"]
+        ):
             hosts = ctx.compose_info["roles_distribution"][role]
             if type(hosts) != list:
                 try:
