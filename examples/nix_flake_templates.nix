@@ -31,6 +31,10 @@
     path = ./setup;
     description = "Setup example";
   };
+  shared-directories-users = {
+    path = ./shared-directories-users;
+    description = "Demonstrate nxc.sharedDirs and nxc.users helpers";
+  };
   scripts = {
     path = ./scripts;
     description = "Scripts example";
