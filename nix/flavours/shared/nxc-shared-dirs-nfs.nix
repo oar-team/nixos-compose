@@ -3,17 +3,21 @@ with lib;
 let
   cfg = config.nxc;
   sharedDirs = attrNames cfg.sharedDirs;
-  any_sharedDirsExport = builtins.any (x: x.export) (builtins.attrValues cfg.sharedDirs);
-  any_sharedDirsServer = builtins.any (x: x.server != "") (builtins.attrValues cfg.sharedDirs);
+  all_sharedDirsExport = builtins.filter (x: cfg.sharedDirs.${x}.export) sharedDirs;
   all_sharedDirsServers = builtins.filter (x: cfg.sharedDirs.${x}.server != "") sharedDirs;
 in {
   config = mkMerge [
-    (mkIf (cfg.sharedDirs != {} && any_sharedDirsExport) {
+    # Create nfs server configurations and create directories
+    (mkIf (cfg.sharedDirs != { } && all_sharedDirsExport != [ ]) {
       services.nfs.server.enable = true;
-      services.nfs.server.exports = concatStrings (map (n: "${n} *(rw,no_subtree_check,fsid=0,no_root_squash)\n") (builtins.filter (x: cfg.sharedDirs.${x}.export) sharedDirs) );
+      services.nfs.server.exports = concatStrings (map
+        (n: "${n} *(rw,no_subtree_check,fsid=0,no_root_squash)\n") all_sharedDirsExport);
+      nxc.sharedDirsBootCommands = concatStrings (map
+        (n: "mkdir -p ${n}" ) all_sharedDirsExport);
     })
 
-    (mkIf (cfg.sharedDirs != {} && any_sharedDirsServer) {
+    # Create nfs client configuration (/etc/fstab entries)
+    (mkIf (cfg.sharedDirs != { } && all_sharedDirsServers != [ ] ) {
       fileSystems = builtins.listToAttrs (map
         (x: { name = x;
               value = {
