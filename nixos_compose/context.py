@@ -39,6 +39,10 @@ class LazySpinner(object):
         self.create_if_needed()
         self.halo_spinner.start(*args)
 
+    def stop(self, *args):
+        self.create_if_needed()
+        self.halo_spinner.stop(*args)
+
     def succeed(self, *args):
         self.create_if_needed()
         self.halo_spinner.succeed(*args)

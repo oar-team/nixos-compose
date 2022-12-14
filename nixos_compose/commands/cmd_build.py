@@ -72,6 +72,12 @@ from ..setup import apply_setup
     multiple=True,
     help="Override setup parameter",
 )
+@click.option(
+    "-u",
+    "--update-flake",
+    is_flag=True,
+    help="Update flake.lock equivalent to: nix flake update",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
@@ -87,6 +93,7 @@ def cli(
     dry_build,
     composition_flavour,
     list_compositions_flavours,
+    update_flake,
     setup,
     setup_param,
 ):
@@ -106,6 +113,10 @@ def cli(
                 flavour = "default"
         ctx.vlog(f"Seleced flavour: {flavour}")
         return flavour
+
+    if setup and not op.exists(op.join(ctx.envdir, "setup.toml")):
+        ctx.elog("setup option is given but setup.toml is not found")
+        sys.exit(1)
 
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
         nix_flags, composition_file, composition_flavour, flavour, _ = apply_setup(
@@ -127,6 +138,23 @@ def cli(
         sys.exit(1)
 
     nix_cmd_base = get_nix_command(ctx)
+
+    if update_flake:
+        cmd = nix_cmd_base + ["flake", "update"]
+        if ctx.show_spinner:
+            ctx.spinner.start("Updating flake.lock")
+            ret = subprocess.call(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=ctx.envdir,
+            )
+            if ret:
+                ctx.spinner.stop()
+                ctx.elog("Updating flake.lock is failed")
+                sys.exit(1)
+            else:
+                ctx.spinner.succeed("Updating flake.lock is done")
 
     description_flavours = get_flavours(nix_cmd_base, ctx)
 
