@@ -27,6 +27,8 @@ let
   dockerComposeConfig = {
     version = "3.4";
     x-nxc = { inherit image; };
+    #volumes = { nxc-shared = { external = false; }; };
+    volumes = { nxc-shared = null; };
   };
   baseEnv = pkgs.buildEnv {
     name = "container-system-env";
@@ -68,6 +70,7 @@ let
         "/nix/store:/nix/store:ro"
         "${baseEnv}:/run/system:ro"
         "/tmp/shared:/tmp/shared:rw"
+        "nxc-shared:/var/nxc/shared"
       ] ++ extraVolumes;
       ports =
         if dockerPorts ? "${roleName}" then dockerPorts."${roleName}" else [ ];

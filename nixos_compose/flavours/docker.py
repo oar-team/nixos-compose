@@ -104,8 +104,8 @@ def generate_docker_compose_file(ctx):
                         nodes_info[hostname] = role
             else:
                 raise Exception("Unvalid type for specifying the roles of the nodes")
-        docker_compose_content["version"] = dc_json["version"]
-        docker_compose_content["x-nxc"] = dc_json["x-nxc"]
+        dc_json.pop("services")
+        docker_compose_content = docker_compose_content | dc_json
 
     deploy_dir = op.join(ctx.envdir, "deploy", "docker_compose")
     if not op.exists(deploy_dir):
