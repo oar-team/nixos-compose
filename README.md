@@ -11,3 +11,6 @@ The main common use cases are:
 The NixOS-Compose project takes inspiration and code from [NixOS Tests](https://nixos.org/manual/nixos/stable/index.html#sec-nixos-tests), [nixos-generators](https://github.com/nix-community/nixos-generators) and [Arion](https://github.com/hercules-ci/arion).
 
 Documentation is located [here](https://nixos-compose.gitlabpages.inria.fr/nixos-compose)
+
+Academic Publication
+- [Painless Transposition of Reproducible Distributed Environments with NixOS Compose](https://www.archives-ouvertes.fr/hal-03723771), IEEE Cluster'22 conference, 2022, [[pdf](https://hal.archives-ouvertes.fr/hal-03723771v1/document)][[bibtex](https://www.archives-ouvertes.fr/hal-03723771v1/bibtex)].
