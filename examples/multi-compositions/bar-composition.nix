@@ -1,5 +1,5 @@
 { pkgs, ... }: {
-  nodes = {
+  roles = {
     bar = { pkgs, lib, ... }:
       {
 

@@ -2,7 +2,7 @@
 let scripts = import ./scripts/scripts.nix { inherit pkgs; };
 in
 {
-  nodes = {
+  roles = {
     bar = { ... }:
       {
         environment.systemPackages = [ scripts.test0-python3  ];

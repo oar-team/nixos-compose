@@ -1,5 +1,5 @@
 { pkgs, setup, ... }: {
-  nodes = {
+  roles = {
     bar = { ... }:
       {
         environment.variables.A = setup.params.a;

@@ -1,5 +1,5 @@
 { pkgs, ... }: {
-  nodes = {
+  roles = {
     linux_5_4 = { pkgs, lib, ... }: {
       boot.kernelPackages = pkgs.linuxKernel.packages.linux_5_4;
     };

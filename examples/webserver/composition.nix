@@ -1,5 +1,5 @@
 { pkgs, ... }: {
-  nodes = {
+  roles = {
     server = { pkgs, ... }: {
       services.nginx = {
         enable = true;

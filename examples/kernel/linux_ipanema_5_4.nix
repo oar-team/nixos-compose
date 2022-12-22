@@ -1,5 +1,5 @@
 { pkgs, ... }: {
-  nodes = {
+  roles = {
     linux_ipanema_5_4 = { pkgs, lib, ... }: {
       boot.kernelPackages = let
         linux_ipanema_pkg = { fetchgit, buildLinux, ... }@args:

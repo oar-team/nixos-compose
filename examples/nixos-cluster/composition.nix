@@ -24,7 +24,7 @@ let
   };
 
 in {
-  nodes = {
+  roles = {
     builder = { pkgs, ... }: {
       imports = [ commonConfig ];
       boot.postBootCommands = ''
