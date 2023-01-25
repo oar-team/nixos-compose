@@ -44,7 +44,7 @@ def cli(ctx, envdir, verbose, debug):
     ctx.envdir = envdir
     if os.path.isfile("nxc.json"):
         if os.path.islink("nxc.json"):
-            ctx.nxc_file = os.readlink("nxc.json")
+            ctx.nxc_file = op.abspath(os.readlink("nxc.json"))
         else:
             ctx.nxc_file = op.abspath("nxc.json")
         with open(ctx.nxc_file, "r") as f:
