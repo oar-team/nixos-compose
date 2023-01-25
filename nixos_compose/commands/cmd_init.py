@@ -155,7 +155,7 @@ def cli(
             f.write(nxc_json_str)
 
     if not no_symlink:
-        os.symlink(nxc_json_file, op.abspath(op.join(ctx.envdir, "..", "nxc.json")))
+        os.symlink("nxc/nxc.json", op.abspath(op.join(ctx.envdir, "..", "nxc.json")))
 
     ctx.log(
         "\nInitialized nixos-compose environment in "
