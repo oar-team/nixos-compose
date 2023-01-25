@@ -16,10 +16,13 @@ let
     extraCommands = ''
       export NIX_REMOTE=local?root=$PWD
     '';
-    contents = [
+    copyToRoot = [
       minContents
       # TODO: required ?
-      pkgs.nix
+      (buildEnv {
+        buildInputs = [pkgs.nix];
+        paths = ["/bin"];
+      })
     ];
   };
 in baseImage

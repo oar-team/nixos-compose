@@ -27,6 +27,6 @@ in rec {
     name = "registry.gitlab.inria.fr/nixos-compose/nixos-compose";
     tag = "doc";
     fromImage = flakeImage;
-    contents = buildInputs;
+    copyToRoot = buildInputs;
   };
 }

@@ -2,7 +2,7 @@
   description = "nixos-compose";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/22.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/22.11";
     flake-utils.url = "github:numtide/flake-utils";
     kapack.url = "github:oar-team/nur-kapack";
     kapack.inputs.nixpkgs.follows = "nixpkgs";

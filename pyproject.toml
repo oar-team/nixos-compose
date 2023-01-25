@@ -24,11 +24,8 @@ psutil = "^5.9.0"
 PyYAML = "^6.0"
 execo = "^2.6.8"
 requests = "^2.27.1"
-tomlkit = "^0.10.0"
+tomlkit = "^0.11"
 
-[tool.poetry.dev-dependencies]
-pytest = "^3.0"
-pre-commit = { version = "^2.6", python = "^3.6.1" }
 
 [tool.poetry.scripts]
 nixos-compose = 'nixos_compose.cli:main'
@@ -36,6 +33,7 @@ nxc = 'nixos_compose.cli:main'
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
+pre-commit = { version = "^2.6", python = "^3.6.1" }
 
 [tool.black]
 line-length = 88
