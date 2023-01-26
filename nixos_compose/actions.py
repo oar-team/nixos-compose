@@ -41,8 +41,8 @@ def nix_store_location(ctx):
     for store_path in ["/nix"] + ctx.alternative_stores:
         if op.exists(store_path):
             return f"{store_path}/store"
-    ctx.elog("Failed to find nix path location")
-    sys.exit(1)
+    ctx.wlog("Failed to find nix store location")
+    return ""
 
 
 ##
@@ -874,6 +874,9 @@ def install_nix_static(
     )
 
     os.chmod(nix_path, 0o755)
+
+    # create store directory to satisfy autodetection in build phase
+    os.makedirs(f"{os.environ['HOME']}/.local/share/nix/root/nix/store")
 
     if ctx.show_spinner:
         ctx.spinner.succeed("Nix installed")
