@@ -146,8 +146,6 @@ with lib; {
 
   environment.noXlibs = mkDefault true;
 
-  i18n.defaultLocale = "en_US.UTF-8";
-
   documentation.enable = mkDefault false;
 
   documentation.nixos.enable = mkDefault false;

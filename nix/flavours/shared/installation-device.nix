@@ -12,11 +12,11 @@ with lib;
 
       # Allow "nixos-rebuild" to work properly by providing
       # /etc/nixos/configuration.nix.
-      "${toString modulesPath}/profiles/clone-config.nix"
+      #"${toString modulesPath}/profiles/clone-config.nix"
 
       # Include a copy of Nixpkgs so that nixos-install works out of
       # the box.
-      "${toString modulesPath}/installer/cd-dvd/channel.nix"
+      #"${toString modulesPath}/installer/cd-dvd/channel.nix"
     ];
 
   config = {
@@ -54,9 +54,6 @@ with lib;
       An ssh daemon is running. You then must set a password
       for either "root" or "nixos" with `passwd` or add an ssh key
       to /home/nixos/.ssh/authorized_keys be able to login.
-    '' + optionalString config.services.xserver.enable ''
-      Type `sudo systemctl start display-manager' to
-      start the graphical user interface.
     '';
 
     # We run sshd by default. Login via root is only possible after adding a
@@ -83,7 +80,7 @@ with lib;
     # fairly often, preventing processes such as nix-worker or
     # download-using-manifests.pl from forking even if there is
     # plenty of free memory.
-    boot.kernel.sysctl."vm.overcommit_memory" = "1";
+    #boot.kernel.sysctl."vm.overcommit_memory" = "1";
 
     # To speed up installation a little bit, include the complete
     # stdenv in the Nix store on the CD.
