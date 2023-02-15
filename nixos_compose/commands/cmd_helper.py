@@ -2,7 +2,7 @@ import click
 import sys
 import socket
 from ..context import pass_context
-from ..g5k import key_sleep_script
+from ..g5k import key_sleep_script, g5k_get_seed_store
 from ..actions import install_nix_static, get_ip_ssh_port
 
 
@@ -31,9 +31,11 @@ def print_helper(ctx, options):
             ip, _ = get_ip_ssh_port(ctx, options[1])
             fqdn = socket.getfqdn(ip)
             print(f"{fqdn}")
+    elif option == "g5k-get-seed-store":
+        if len(options) > 1:
+            g5k_get_seed_store(ctx, options[1])
         else:
-            ctx.elog("Host argument required")
-            sys.exit(1)
+            g5k_get_seed_store(ctx)
     else:
         ctx.elog(f"Helper: {option} does not exist")
         sys.exit(1)
@@ -42,6 +44,9 @@ def print_helper(ctx, options):
 def print_helper_list(helper_options):
     print("g5k-script: print path to g5k_key_sleep_script Grid'5000 script")
     print("install-nix: install the nix command in ~/.local/bin")
+    print(
+        "g5k-get-seed-store: get an initial store default url: http://public.grenoble.grid5000.fr/~orichard/seed-nix-store.tgz"
+    )
     print("ip <composition_hostname>: print hostname's ip address")
     print(
         "ip_ssh_port <composition_hostname>: print hostname's ip address and ssh port"
