@@ -70,6 +70,8 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
             deploy = ctx.deployment_info_b64
 
     user = os.environ["USER"]
+    g5k_frontend = socket.gethostname()
+    g5k_site = g5k_frontend[1:]
     system = ctx.compositions_info["system"]
     additional_kernel_params = ""
     if ctx.kernel_params:
@@ -80,7 +82,7 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
             image_name="NixOS",
             author=user,
             system=KADEPOY_ARCH[system],
-            file_image_url=f"http://public.grenoble.grid5000.fr/~{user}/nixos.tar.xz",
+            file_image_url=f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
             kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params} {ctx.kernel_params}",
         )
         kaenv_file.write(kaenv)
