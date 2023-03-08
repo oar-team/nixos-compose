@@ -23,10 +23,14 @@
     after = [ "network.target" "network-online.target" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
-    serviceConfig.Type = "oneshot";
+    serviceConfig = {
+      Type = "oneshot";
+      Restart = "on-failure";
+      RestartSec=1;
+    };
     #path = [ pkgs.hostname pkgs.iproute pkgs.jq ];
     script = ''
-      user=$( ${pkgs.jq}/bin/jq -r '."user" // empty' etc/nxc/deployment.json)
+      user=$( ${pkgs.jq}/bin/jq -r '."user" // empty' /etc/nxc/deployment.json)
       mkdir -p /home/$user
       ${pkgs.util-linux}/bin/mount -t nfs nfs:/export/home/$user /home/$user'';
   };
