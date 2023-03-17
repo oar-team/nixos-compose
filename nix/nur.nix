@@ -20,20 +20,21 @@
 #
 { nixpkgs, system, NUR, repoOverrides ? { } }:
 let nurpkgs = import nixpkgs { inherit system; };
-in {
+in
+{
   overlay = (final: prev: {
     nur = import NUR {
       nurpkgs = prev;
       pkgs = prev;
       repoOverrides =
         builtins.mapAttrs (name: value: import value { pkgs = prev; })
-        repoOverrides;
+          repoOverrides;
     };
   });
   repos = (import NUR {
     inherit nurpkgs;
     repoOverrides =
-      builtins.mapAttrs (name: value: import value { }) repoOverrides;
+      builtins.mapAttrs (name: value: import value { pkgs = nurpkgs; }) repoOverrides;
   }).repos;
 
 }
