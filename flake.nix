@@ -9,89 +9,92 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, kapack }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        mdbook-admonish =
-    nixpkgs.legacyPackages.${system}.callPackage ./docs/mdbook-admonish.nix { };
-        pkgs = nixpkgs.legacyPackages.${system};
-        python3pkgs = pkgs.python3Packages;
-        kapackpkgs = kapack.packages.${system};
+    flake-utils.lib.eachDefaultSystem
+      (system:
+        let
+          mdbook-admonish =
+            nixpkgs.legacyPackages.${system}.callPackage ./docs/mdbook-admonish.nix { };
+          pkgs = nixpkgs.legacyPackages.${system};
+          python3pkgs = pkgs.python3Packages;
+          kapackpkgs = kapack.packages.${system};
 
-        #customOverrides = self: super: {
-        # Overrides go here
-        #};
+          #customOverrides = self: super: {
+          # Overrides go here
+          #};
 
-        app = python3pkgs.buildPythonPackage rec {
-          pname = "nxc";
-          version = "locale";
-          name = "${pname}-${version}";
+          app = python3pkgs.buildPythonPackage rec {
+            pname = "nxc";
+            version = "locale";
+            name = "${pname}-${version}";
 
-          src = builtins.filterSource
-            (path: type: type != "directory" || baseNameOf path != ".git" || path != "result")
-            ./.;
+            src = builtins.filterSource
+              (path: type: type != "directory" || baseNameOf path != ".git" || path != "result")
+              ./.;
 
-          format = "pyproject";
-          buildInputs = [ python3pkgs.poetry ];
-          propagatedBuildInputs = with python3pkgs; [
-            click
-            kapackpkgs.execo
-            halo
-            pexpect
-            psutil
-            ptpython
-            pyinotify
-            pyyaml
-            requests
-            tomlkit
-          ] ++ [ pkgs.taktuk ];
-        };
-
-        doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
-
-        packageName = "nixos-compose";
-      in rec {
-        packages = {
-          ${packageName} = app;
-          # "${packageName}-full" = app.overrideAttrs(attr: rec {
-          #   propagatedBuildInputs = attr.propagatedBuildInputs ++ [
-          #     pkgs.docker-compose
-          #     pkgs.qemu_kvm
-          #     pkgs.vde2
-          #   ];
-          # });
-          showTemplates = pkgs.writeText "templates.json" (
-            builtins.toJSON (builtins.mapAttrs (name: value: value.description) self.templates)
-          );
-        } // flake-utils.lib.flattenTree doc;
-
-        defaultPackage = self.packages.${system}.${packageName};
-
-        devShells = {
-          nxcShell = pkgs.mkShell {
-            buildInputs = [
-              self.defaultPackage.${system}
-              pkgs.tmux
-            ];
+            format = "pyproject";
+            buildInputs = [ python3pkgs.poetry ];
+            propagatedBuildInputs = with python3pkgs; [
+              click
+              kapackpkgs.execo
+              halo
+              pexpect
+              psutil
+              ptpython
+              pyinotify
+              pyyaml
+              requests
+              tomlkit
+            ] ++ [ pkgs.taktuk pkgs.nix-output-monitor ];
           };
-          nxcShellFull = pkgs.mkShell {
-            buildInputs = [
-              self.packages.${system}.${packageName}
-              pkgs.docker-compose
-              pkgs.qemu_kvm
-              pkgs.vde2
-              pkgs.tmux
-            ];
-          };
-          devDoc = pkgs.mkShell {
-            buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ];
-          };
-        };
 
-        devShell = pkgs.mkShell {
-          buildInputs = with pkgs; [ poetry ];
-          inputsFrom = builtins.attrValues self.packages.${system};
-        };
+          doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
 
-    }) //
-  {lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix; overlay = import ./overlay.nix { inherit self; };};
+          packageName = "nixos-compose";
+        in
+        rec {
+          packages = {
+            ${packageName} = app;
+            # "${packageName}-full" = app.overrideAttrs(attr: rec {
+            #   propagatedBuildInputs = attr.propagatedBuildInputs ++ [
+            #     pkgs.docker-compose
+            #     pkgs.qemu_kvm
+            #     pkgs.vde2
+            #   ];
+            # });
+            showTemplates = pkgs.writeText "templates.json" (
+              builtins.toJSON (builtins.mapAttrs (name: value: value.description) self.templates)
+            );
+          } // flake-utils.lib.flattenTree doc;
+
+          defaultPackage = self.packages.${system}.${packageName};
+
+          devShells = {
+            nxcShell = pkgs.mkShell {
+              buildInputs = [
+                self.defaultPackage.${system}
+                pkgs.tmux
+              ];
+            };
+            nxcShellFull = pkgs.mkShell {
+              buildInputs = [
+                self.packages.${system}.${packageName}
+                pkgs.docker-compose
+                pkgs.qemu_kvm
+                pkgs.vde2
+                pkgs.tmux
+              ];
+            };
+            devDoc = pkgs.mkShell {
+              buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ];
+            };
+
+            default = pkgs.mkShell {
+              buildInputs = with pkgs; [ poetry ];
+              # inputsFrom = builtins.attrValues self.packages.${system};
+              inputsFrom = [ self.packages.${system}.${packageName} ];
+            };
+          };
+
+        }) //
+    { lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix; overlay = import ./overlay.nix { inherit self; }; };
 }

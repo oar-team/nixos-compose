@@ -78,6 +78,11 @@ from ..setup import apply_setup
     is_flag=True,
     help="Update flake.lock equivalent to: nix flake update",
 )
+@click.option(
+    "--monitor",
+    is_flag=True,
+    help="Build with nix-output-monitor",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
@@ -96,6 +101,7 @@ def cli(
     update_flake,
     setup,
     setup_param,
+    monitor,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -137,7 +143,10 @@ def cli(
         ctx.elog("Not Found flake.nix file")
         sys.exit(1)
 
-    nix_cmd_base = get_nix_command(ctx)
+    if monitor:
+        nix_cmd_base = ["nom"]
+    else:
+        nix_cmd_base = get_nix_command(ctx)
 
     if update_flake:
         cmd = nix_cmd_base + ["flake", "update"]
