@@ -89,6 +89,12 @@ class EventHandler(pyinotify.ProcessEvent):
     help="deployement info is served by http (in place of kernel parameters)",
 )
 @click.option(
+    "--port",
+    type=click.INT,
+    default=0,
+    help="Port to use for the HTTP server",
+)
+@click.option(
     "-c",
     "-C",
     "--composition",
@@ -154,6 +160,7 @@ def cli(
     composition,
     flavour,
     remote_deployment_info,
+    port,
     test_script,
     file_test_script,
     sigwait,
@@ -350,7 +357,8 @@ def cli(
     ):
         if ctx.use_httpd:
             ctx.vlog("Launch: httpd to distribute deployment.json")
-            ctx.httpd = HTTPDaemon(ctx=ctx)
+            ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
+
 
         if hasattr(ctx.flavour, "generate_kexec_scripts"):
             ctx.flavour.generate_kexec_scripts()
