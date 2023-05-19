@@ -34,7 +34,8 @@ def get_oar_job_nodes_nxc(oar_job_id,
                           compose_info_file=None,
                           flavour_name="g5k-ramdisk",
                           composition_name="composition",
-                          roles_quantities={}):
+                          roles_quantities={},
+                          port=0):
     """
     Brother of the "get_oar_job_nodes" function from execo
     but does the mapping with roles from NXC
@@ -62,7 +63,7 @@ def get_oar_job_nodes_nxc(oar_job_id,
     machines = [node.address for node in g5k_nodes]
     if len(machines) > 4:
         ctx.use_http = True
-        ctx.httpd = HTTPDaemon(ctx=ctx)
+        ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
         ctx.httpd.start(directory=ctx.envdir)
     translate_hosts2ip(ctx, machines)
 
