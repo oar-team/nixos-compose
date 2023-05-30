@@ -92,16 +92,19 @@ def get_oar_job_nodes_nxc(oar_job_id,
         flavour.launch()
     else:
         tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)
         try:
             machines_str = "\n".join(machine for machine in machines)
             # for machine in machines:
             #     machines_str += f"{machine}\n"
             tmp.write(machines_str.encode('utf-8'))
             tmp.flush()
-            flavour.launch(machine_file=tmp.name)
+            flavour.launch(machine_file=tmp.name, kaenv_path=tmp_kaenv.name)
         finally:
             tmp.close()
             os.unlink(tmp.name)
+            tmp_kaenv.close()
+            os.unlink(tmp_kaenv.name)
 
     roles = {}
     for ip_addr, node_info in flavour.ctx.deployment_info["deployment"].items():

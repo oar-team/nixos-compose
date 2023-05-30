@@ -51,7 +51,7 @@ KADEPOY_ENV_DESC = """
 """
 
 
-def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
+def generate_kadeploy_envfile(ctx, deploy=None, kernel_params="", kaenv_path=None):
     if not ctx.compose_info:
         read_compose_info(ctx)
 
@@ -59,7 +59,8 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
         ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
     )
     os.makedirs(base_path, mode=0o700, exist_ok=True)
-    kaenv_path = op.join(base_path, "nixos.yaml")
+    if kaenv_path is None:
+        kaenv_path = op.join(base_path, "nixos.yaml")
 
     if not deploy:
         if ctx.use_httpd:
@@ -189,8 +190,8 @@ class G5KImageFlavour(Flavour):
     def generate_deployment_info(self):
         generate_deployment_info(self.ctx)
 
-    def launch(self, machine_file=None):
-        generate_kadeploy_envfile(self.ctx)
+    def launch(self, machine_file=None, kaenv_path=None):
+        generate_kadeploy_envfile(self.ctx, kaenv_path=kaenv_path)
         image_path = realpath_from_store(
             self.ctx, self.ctx.deployment_info["all"]["image"]
         )
@@ -208,13 +209,15 @@ class G5KImageFlavour(Flavour):
             self.ctx.envdir,
             f"artifact/{self.ctx.composition_name}/{self.ctx.flavour.name}",
         )
+        if kaenv_path is None:
+            kaenv_path = op.join(base_path, "nixos.yaml") 
         if machine_file:
             cmd_kadeploy = (
-                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f {machine_file}'
+                f'kadeploy3 -a {kaenv_path} -f {machine_file}'
             )
         else:
             cmd_kadeploy = (
-                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f $OAR_NODEFILE'
+                f'kadeploy3 -a {kaenv_path} -f $OAR_NODEFILE'
             )
 
         if machine_file or click.confirm(
