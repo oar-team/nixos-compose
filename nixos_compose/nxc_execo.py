@@ -100,7 +100,7 @@ def get_oar_job_nodes_nxc(oar_job_id,
             #     machines_str += f"{machine}\n"
             tmp.write(machines_str.encode('utf-8'))
             tmp.flush()
-            nxc_image_path = op.join(temp_dir, "nixos.tar.xz")
+            nxc_image_path = op.join(temp_dir.name, "nixos.tar.xz")
             flavour.launch(machine_file=tmp.name, kaenv_path=tmp_kaenv.name, deploy_image_path=nxc_image_path)
         finally:
             tmp.close()
