@@ -91,6 +91,8 @@ def get_oar_job_nodes_nxc(oar_job_id,
         flavour.generate_kexec_scripts()
         flavour.launch()
     else:
+        user = os.environ["USER"]
+        tempfile.tempdir = f"/home/{user}/public"
         tmp = tempfile.NamedTemporaryFile(delete=False)
         tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)
         temp_dir = tempfile.TemporaryDirectory()
