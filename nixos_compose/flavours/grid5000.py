@@ -196,7 +196,8 @@ class G5KImageFlavour(Flavour):
             self.ctx, self.ctx.deployment_info["all"]["image"]
         )
         if deploy_image_path is None:
-            deploy_image_path = f"~{os.environ["USER"]}/public/nixos.tar.xz"
+            user = os.environ["USER"]
+            deploy_image_path = f"~{user}/public/nixos.tar.xz"
             
         cmd_copy_image = f'cp {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}'
         if machine_file or click.confirm(
