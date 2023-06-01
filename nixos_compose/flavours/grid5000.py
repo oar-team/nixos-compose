@@ -190,14 +190,17 @@ class G5KImageFlavour(Flavour):
     def generate_deployment_info(self):
         generate_deployment_info(self.ctx)
 
-    def launch(self, machine_file=None, kaenv_path=None):
+    def launch(self, machine_file=None, kaenv_path=None, deploy_image_path=None):
         generate_kadeploy_envfile(self.ctx, kaenv_path=kaenv_path)
         image_path = realpath_from_store(
             self.ctx, self.ctx.deployment_info["all"]["image"]
         )
-        cmd_copy_image = f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz && chmod 644 ~{os.environ["USER"]}/public/nixos.tar.xz'
+        if deploy_image_path is None:
+            deploy_image_path = f"~{os.environ["USER"]}/public/nixos.tar.xz"
+            
+        cmd_copy_image = f'cp {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}'
         if machine_file or click.confirm(
-            f'Do you want to copy image to ~{os.environ["USER"]}/public/nixos.tar.xz ?'
+            f'Do you want to copy image to {deploy_image_path} ?'
         ):
             try:
                 subprocess.call(cmd_copy_image, shell=True)

@@ -93,18 +93,21 @@ def get_oar_job_nodes_nxc(oar_job_id,
     else:
         tmp = tempfile.NamedTemporaryFile(delete=False)
         tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)
+        temp_dir = tempfile.TemporaryDirectory()
         try:
             machines_str = "\n".join(machine for machine in machines)
             # for machine in machines:
             #     machines_str += f"{machine}\n"
             tmp.write(machines_str.encode('utf-8'))
             tmp.flush()
-            flavour.launch(machine_file=tmp.name, kaenv_path=tmp_kaenv.name)
+            nxc_image_path = op.join(temp_dir, "nixos.tar.xz")
+            flavour.launch(machine_file=tmp.name, kaenv_path=tmp_kaenv.name, deploy_image_path=nxc_image_path)
         finally:
             tmp.close()
             os.unlink(tmp.name)
             tmp_kaenv.close()
             os.unlink(tmp_kaenv.name)
+            temp_dir.cleanup()
 
     roles = {}
     for ip_addr, node_info in flavour.ctx.deployment_info["deployment"].items():
