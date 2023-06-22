@@ -2,7 +2,7 @@
   description = "nixos-compose";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/22.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/23.05";
     flake-utils.url = "github:numtide/flake-utils";
     kapack.url = "github:oar-team/nur-kapack";
     kapack.inputs.nixpkgs.follows = "nixpkgs";
@@ -32,8 +32,9 @@
               ./.;
 
             format = "pyproject";
-            buildInputs = [ python3pkgs.poetry ];
+            buildInputs = [ pkgs.poetry ];
             propagatedBuildInputs = with python3pkgs; [
+              poetry-core
               click
               kapackpkgs.execo
               halo
