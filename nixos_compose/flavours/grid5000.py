@@ -51,7 +51,7 @@ KADEPOY_ENV_DESC = """
 """
 
 
-def generate_kadeploy_envfile(ctx, deploy=None, kernel_params="", kaenv_path=None):
+def generate_kadeploy_envfile(ctx, deploy=None, kernel_params="", kaenv_path=None, deploy_image_path=None):
     if not ctx.compose_info:
         read_compose_info(ctx)
 
@@ -83,7 +83,7 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params="", kaenv_path=Non
             image_name="NixOS",
             author=user,
             system=KADEPOY_ARCH[system],
-            file_image_url=f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
+            file_image_url=if deploy_image_path f"local://{deploy_image_path}" else f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
             kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params} {ctx.kernel_params}",
         )
         kaenv_file.write(kaenv)
@@ -191,7 +191,7 @@ class G5KImageFlavour(Flavour):
         generate_deployment_info(self.ctx)
 
     def launch(self, machine_file=None, kaenv_path=None, deploy_image_path=None):
-        generate_kadeploy_envfile(self.ctx, kaenv_path=kaenv_path)
+        generate_kadeploy_envfile(self.ctx, kaenv_path=kaenv_path, deploy_image_path=deploy_image_path)
         image_path = realpath_from_store(
             self.ctx, self.ctx.deployment_info["all"]["image"]
         )
