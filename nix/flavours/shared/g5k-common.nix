@@ -12,7 +12,7 @@
 
   boot.initrd.network.enable = true;
   boot.initrd.availableKernelModules =
-    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "igb" "ixbe" ];
+    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "igb" "ixgbe" ];
 
   boot.kernelModules = [ "kvm-intel" ];
 
