@@ -10,8 +10,10 @@
     ./nxc-shared-dirs-nfs.nix
   ];
 
+  boot.initrd.network.enable = true;
   boot.initrd.availableKernelModules =
-    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" ];
+    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "igb" "ixbe" ];
+
   boot.kernelModules = [ "kvm-intel" ];
 
   # Kadeploy tests some ports' accessibility to follow deployment steps
