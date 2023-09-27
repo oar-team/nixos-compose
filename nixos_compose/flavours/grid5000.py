@@ -99,7 +99,7 @@ class G5kKexecBasedFlavour(Flavour):
     def generate_kexec_scripts(self):
         generate_kexec_scripts(self.ctx)
 
-    def launch(self):
+    def launch(self, machine_file=None):
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
