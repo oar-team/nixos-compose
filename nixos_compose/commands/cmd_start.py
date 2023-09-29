@@ -370,7 +370,7 @@ def cli(
             ctx.httpd.start(directory=ctx.envdir)
 
         if not interactive:
-            ctx.flavour.launch(machines_file)
+            ctx.flavour.launch(machine_file=machines_file)
             sys.exit(0)
 
     test_script = read_test_script(ctx, ctx.compose_info)
