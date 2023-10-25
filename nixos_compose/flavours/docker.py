@@ -169,7 +169,7 @@ class DockerFlavour(Flavour):
         self.description = ""
         # TOR self.docker_processes = {}
 
-    def generate_deployment_info(self):
+    def generate_deployment_info(self, ssh_pub_key_file = None):
         self.docker_compose_file = generate_deployment_info_docker(self.ctx)
 
     def driver_initialize(self, tmp_dir):

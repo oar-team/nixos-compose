@@ -140,6 +140,12 @@ class EventHandler(pyinotify.ProcessEvent):
     help="specific compose info file",
 )
 @click.option(
+    "-i",
+    "--identity-file",
+    type=click.STRING,
+    help="path to the ssh public key to use to connect to the deployments"
+)
+@click.option(
     "-s", "--setup", type=click.STRING, help="Select setup variant",
 )
 # @click.option(
@@ -168,6 +174,7 @@ def cli(
     role_distribution,
     roles_distribution_file,
     compose_info,
+    identity_file,
     setup,
     # dry_run,
 ):
@@ -348,7 +355,7 @@ def cli(
         translate_hosts2ip(ctx, machines)
         print(ctx.ip_addresses, ctx.host2ip_address)
 
-    ctx.flavour.generate_deployment_info()
+    ctx.flavour.generate_deployment_info(identity_file)
 
     if (
         ctx.ip_addresses

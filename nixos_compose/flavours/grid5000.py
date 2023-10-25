@@ -93,8 +93,8 @@ class G5kKexecBasedFlavour(Flavour):
     def __init__(self, ctx):
         super().__init__(ctx)
 
-    def generate_deployment_info(self):
-        generate_deployment_info(self.ctx)
+    def generate_deployment_info(self, ssh_pub_key_file = None):
+        generate_deployment_info(self.ctx, ssh_pub_key_file)
 
     def generate_kexec_scripts(self):
         generate_kexec_scripts(self.ctx)
@@ -187,8 +187,8 @@ class G5KImageFlavour(Flavour):
 
         self.name = "g5k-image"
 
-    def generate_deployment_info(self):
-        generate_deployment_info(self.ctx)
+    def generate_deployment_info(self, ssh_pub_key_file = None):
+        generate_deployment_info(self.ctx, ssh_pub_key_file)
 
     def launch(self, machine_file=None, kaenv_path=None, deploy_image_path=None):
         generate_kadeploy_envfile(self.ctx, kaenv_path=kaenv_path, deploy_image_path=deploy_image_path)
