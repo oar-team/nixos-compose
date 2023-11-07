@@ -10,9 +10,8 @@
     ./nxc-shared-dirs-nfs.nix
   ];
 
-  boot.initrd.network.enable = true;
   boot.initrd.availableKernelModules =
-    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "igb" "ixgbe" ];
+    [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" ];
 
   boot.kernelModules = [ "kvm-intel" ];
 
