@@ -12,6 +12,10 @@
     boot.loader.grub.version = 2;
     boot.loader.grub.device = "/dev/root";
 
+    boot.initrd.network.enable = true;
+    boot.initrd.kernelModules =
+      [ "squashfs" "loop" "overlay" "nfsv3" "igb" "ixgbe" ];
+
     fileSystems."/" = {
       device = "/dev/root";
       autoResize = true;
