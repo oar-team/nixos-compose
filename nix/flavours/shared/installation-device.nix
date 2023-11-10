@@ -63,7 +63,6 @@ with lib;
     # mounting the storage in a different system.
     services.openssh = {
       enable = true;
-      # permitRootLogin = "yes";
       settings.PermitRootLogin = "yes";
     };
 
