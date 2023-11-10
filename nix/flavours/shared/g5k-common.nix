@@ -12,6 +12,7 @@
 
   boot.initrd.availableKernelModules =
     [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" ];
+
   boot.kernelModules = [ "kvm-intel" ];
 
   # Kadeploy tests some ports' accessibility to follow deployment steps
