@@ -34,7 +34,6 @@ def generate_docker_compose_file(ctx):
     nodes_info = {}
 
     with open(base_docker_compose) as dc_file:
-
         dc_json = json.load(dc_file)
         if prefix_store:
             set_prefix_store_volumes(dc_json, prefix_store)
@@ -107,12 +106,12 @@ def generate_docker_compose_file(ctx):
         dc_json.pop("services")
         docker_compose_content = docker_compose_content | dc_json
 
-    deploy_dir = op.join(ctx.envdir, "deploy", "docker_compose")
-    if not op.exists(deploy_dir):
-        create = click.style("   create", fg="green")
-        ctx.log("   " + create + "  " + deploy_dir)
-        os.mkdir(deploy_dir)
-    docker_compose_path = op.join(deploy_dir, "docker-compose.json")
+    artifact_dir = op.join(
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
+    )
+    os.makedirs(artifact_dir, mode=0o700, exist_ok=True)
+
+    docker_compose_path = op.join(artifact_dir, "docker-compose.json")
 
     with open(docker_compose_path, "w") as outfile:
         outfile.write(json.dumps(docker_compose_content))
@@ -159,7 +158,6 @@ def generate_deployment_info_docker(ctx):
 
 
 class DockerFlavour(Flavour):
-
     docker_compose_file = None
 
     def __init__(self, ctx):
@@ -169,11 +167,10 @@ class DockerFlavour(Flavour):
         self.description = ""
         # TOR self.docker_processes = {}
 
-    def generate_deployment_info(self, ssh_pub_key_file = None):
+    def generate_deployment_info(self, ssh_pub_key_file=None):
         self.docker_compose_file = generate_deployment_info_docker(self.ctx)
 
     def driver_initialize(self, tmp_dir):
-
         assert self.ctx.deployment_info
         if not self.docker_compose_file:
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
@@ -181,7 +178,12 @@ class DockerFlavour(Flavour):
         nodes_names = self.ctx.deployment_info["nodes"]
         for name in nodes_names:
             self.machines.append(
-                Machine(self.ctx, tmp_dir=tmp_dir, start_command="", name=name,)
+                Machine(
+                    self.ctx,
+                    tmp_dir=tmp_dir,
+                    start_command="",
+                    name=name,
+                )
             )
 
     def check(self, state="running"):
@@ -243,7 +245,6 @@ class DockerFlavour(Flavour):
         check_return: bool = True,
         timeout: Optional[int] = 900,
     ) -> Tuple[int, str]:
-
         return machine.execute_process_shell(command, check_return, timeout)
 
     def restart(self, machine):

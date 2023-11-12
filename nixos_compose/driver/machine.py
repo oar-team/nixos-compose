@@ -149,7 +149,11 @@ class VmStartCommand(StartCommand):
 
         return f"{self._cmd}"
 
-    def build_environment(self, state_dir: Path, shared_dir: Path,) -> dict:
+    def build_environment(
+        self,
+        state_dir: Path,
+        shared_dir: Path,
+    ) -> dict:
         # We make a copy to not update the current environment
         kernel_params = ""
         if self.flavour.ctx.kernel_params:
@@ -724,7 +728,10 @@ class Machine:
         monitor_socket = create_socket(clear(self.monitor_path))
         shell_socket = create_socket(clear(self.shell_path))
         self.process = self.start_command.run(
-            self.state_dir, self.shared_dir, self.monitor_path, self.shell_path,
+            self.state_dir,
+            self.shared_dir,
+            self.monitor_path,
+            self.shell_path,
         )
 
         try:
@@ -860,7 +867,6 @@ class Machine:
 
     @use_flavour_method_if_any
     def release(self) -> None:
-
         if self.pid is None:
             return
 
@@ -878,17 +884,21 @@ class Machine:
 
     def start_process_shell(self, args):
         # command examples:
-        # ['docker-compose', '-f', '/home/auguste/work/tests/21-22/nxc-test/nxc/deploy/docker_compose/docker-compose.json', 'exec', '-T', ']
-
+        # ['docker-compose', '-f', 'nxc/artifact/composition/docker/docker-compose.json', 'exec', '-T', ']
         # ['ssh', '-t', '-o', 'StrictHostKeyChecking=no', '-l', 'root', '10.0.2.16']
         self.process_shell = subprocess.Popen(
-            args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
 
     def execute_process_shell(
-        self, command: str, check_return: bool = True, timeout: Optional[int] = 900,
+        self,
+        command: str,
+        check_return: bool = True,
+        timeout: Optional[int] = 900,
     ) -> Tuple[int, str]:
-
         self.connect()
 
         process_shell = self.process_shell
