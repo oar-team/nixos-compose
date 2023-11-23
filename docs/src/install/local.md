@@ -1,9 +1,6 @@
 The installation and usage of the _NixOSCompose_ differs in function of the state at wich the project you are working on is. In the case of a new project you will want to install the `nxc` command line tool as it is described in [Local Installation](local.md#local-installationusage). If the project you are working on is already using _NixOSCompose_ because you are developing it, or if you re-run an experiment conducted in the past, you might prefer to use the version of `nxc` linked to the project. Accessing/invoking this specific version of the _NixOSCompose_ is described in [Linked/project embeded `nxc`](local.md#linkedproject-embeded-nxc)
 
-
 The usage of _NixOSCompose_ is seperated two scenarii.
-
-To invoke the `nxc` command line tool, either you are introducing _NixOSCompose_ in your project are you are working on one that is already using it.
 
 # Requierements
 
