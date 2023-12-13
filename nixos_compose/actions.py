@@ -126,7 +126,6 @@ def read_test_script(ctx, compose_info_or_str):
 
 
 def read_compose_info(ctx):
-
     if not op.isfile(ctx.compose_info_file):
         raise click.ClickException(f"{ctx.compose_info_filename} does not exist")
     with open(ctx.compose_info_file, "r") as f:
@@ -213,7 +212,6 @@ def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
 
 
 def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=None):
-
     roles_distribution = {}
     for role in roles_info.keys():
         if role in roles_distribution_in:
@@ -223,7 +221,7 @@ def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=
             and role in ctx.compose_info["roles_distribution"]
         ):
             hosts = ctx.compose_info["roles_distribution"][role]
-            if type(hosts) != list:
+            if isinstance(hosts, list):
                 try:
                     quantity = int(hosts)
                     hosts = [f"{role}{i}" for i in range(1, quantity + 1)]
@@ -359,25 +357,26 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
             }
             for k, v in deployment.items()
         }
-    deployment = {
-        "ssh_key.pub": sshkey_pub,
-        "deployment": deployment,
-    }
+
+    deployment_info = ctx.deployment_info
+
+    deployment_info["ssh_key.pub"] = sshkey_pub
+    deployment_info["deployment"] = deployment
 
     if "all" in ctx.compose_info:
-        deployment["all"] = ctx.compose_info["all"]
+        deployment_info["all"] = ctx.compose_info["all"]
 
     if "compositions_info_path" in ctx.compose_info:
-        deployment["compositions_info_path"] = ctx.compose_info[
+        deployment_info["compositions_info_path"] = ctx.compose_info[
             "compositions_info_path"
         ]
 
     if ctx.composition_name:
-        deployment["composition"] = ctx.composition_name
+        deployment_info["composition"] = ctx.composition_name
 
     # Add user, used to determine nfs mount path on Grid'5000 by example
     # TODO: add option to override this (
-    deployment["user"] = os.environ["USER"]
+    deployment_info["user"] = os.environ["USER"]
 
     # for k in ["all", "flavour"]:
     #    if k in compose_info:
@@ -385,10 +384,8 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
 
     # If there is too much nodes httpd must used to tranfert deployment info,
     # due to kernel parameter size limit (deployment_info_b64 certainly will exceed it)
-    if len(deployment["deployment"]) > 4:
+    if len(deployment_info["deployment"]) > 4:
         ctx.use_httpd = True
-
-    json_deployment = json.dumps(deployment, indent=2)
 
     deploy_dir = op.join(ctx.envdir, "deploy")
     if not op.exists(deploy_dir):
@@ -399,10 +396,10 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     ctx.deployment_filename = op.join(
         deploy_dir, f"{ctx.composition_flavour_prefix}.json"
     )
-    with open(ctx.deployment_filename, "w") as outfile:
-        outfile.write(json_deployment)
 
-    ctx.deployment_info = deployment
+    with open(ctx.deployment_filename, "w") as outfile:
+        outfile.write(json.dumps(deployment_info, indent=2))
+
     return
 
 
@@ -429,7 +426,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
         initrd_path = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
 
         kexec_args = "-l $KERNEL --initrd=$INITRD "
-        kexec_args += fr'--append="deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
+        kexec_args += rf'--append="deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
         script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
@@ -445,7 +442,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
             initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += fr'--append="init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
+            kexec_args += rf'--append="init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
             script_path = op.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
@@ -456,7 +453,6 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
 
 
 def generate_deploy_info_b64(ctx):
-
     deployment_info = {
         k: ctx.deployment_info[k]
         for k in [n for n in ctx.deployment_info.keys() if n != "deployment"]
@@ -549,7 +545,6 @@ def generate_deploy_info_b64(ctx):
 
 
 def launch_ssh_kexec(ctx, ip=None, debug=False):
-
     if ctx.show_spinner:
         ctx.spinner.start("Launching remote kexec(s)")
     else:

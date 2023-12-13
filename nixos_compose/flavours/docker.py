@@ -130,29 +130,27 @@ def generate_deployment_info_docker(ctx):
 
     docker_compose_path, nodes_info = generate_docker_compose_file(ctx)
 
-    deployment = ctx.deployment_info
+    deployment_info = ctx.deployment_info
 
     # "nodes": ctx.compose_info["nodes"],
-    deployment["nodes"] = list(nodes_info.keys())
+    deployment_info["nodes"] = list(nodes_info.keys())
     # "deployment": {n: {"role": n} for n in ctx.compose_info["nodes"]},
-    deployment["deployment"] = {
+    deployment_info["deployment"] = {
         node_name: {"role": role_name} for (node_name, role_name) in nodes_info.items()
     }
-    deployment["docker-compose-file"] = docker_compose_path
+    deployment_info["docker-compose-file"] = docker_compose_path
 
     if "test_script" in ctx.compose_info:
-        deployment["test_script"] = ctx.compose_info["test_script"]
+        deployment_info["test_script"] = ctx.compose_info["test_script"]
 
     if "all" in ctx.compose_info:
-        deployment["all"] = ctx.compose_info["all"]
+        deployment_info["all"] = ctx.compose_info["all"]
 
-    json_deployment = json.dumps(deployment, indent=2)
-
-    # TODO move to action.py
+    # TODO move to action.py and factorize w/ geenerate_deployment_info
     with open(
         op.join(deploy_dir, f"{ctx.composition_flavour_prefix}.json"), "w"
     ) as outfile:
-        outfile.write(json_deployment)
+        outfile.write(json.dumps(deployment_info, indent=2))
 
     return docker_compose_path
 
