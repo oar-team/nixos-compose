@@ -9,6 +9,8 @@ import sys
 import glob
 import pyinotify
 import asyncio
+import ast
+import json
 
 import ptpython.repl
 
@@ -74,7 +76,6 @@ class EventHandler(pyinotify.ProcessEvent):
     help="specify particular sudo command",
 )
 @click.option(
-    "-p",
     "--push-path",
     help="remote path where to push image, kernel and kexec_script on machines (use to re-kexec)",
 )
@@ -102,13 +103,21 @@ class EventHandler(pyinotify.ProcessEvent):
     help="specify composition, can specify flavour e.g. composition::flavour",
 )
 @click.option(
-    "-f", "--flavour", type=click.STRING, help="specify flavour",
+    "-f",
+    "--flavour",
+    type=click.STRING,
+    help="specify flavour",
 )
 @click.option(
-    "-t", "--test-script", is_flag=True, help="execute testscript",
+    "-t",
+    "--test-script",
+    is_flag=True,
+    help="execute testscript",
 )
 @click.option(
-    "--file-test-script", type=click.STRING, help="alternative testscript",
+    "--file-test-script",
+    type=click.STRING,
+    help="alternative testscript",
 )
 @click.option(
     "-w",
@@ -143,12 +152,27 @@ class EventHandler(pyinotify.ProcessEvent):
     "-i",
     "--identity-file",
     type=click.STRING,
-    help="path to the ssh public key to use to connect to the deployments"
+    help="path to the ssh public key to use to connect to the deployments",
 )
 @click.option(
-    "-s", "--setup", type=click.STRING, help="Select setup variant",
+    "-s",
+    "--setup",
+    type=click.STRING,
+    help="Select setup variant",
 )
-# @click.option(
+@click.option(
+    "-p",
+    "--parameter",
+    type=click.STRING,
+    multiple=True,
+    help="Parameter added to deployment file (for contextualization phase)",
+)
+@click.option(
+    "-P",
+    "--parameter-file",
+    type=click.STRING,
+    help="Json file contains parameters added to deployment file (for contextualization phase)",
+)
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
 @pass_context
@@ -176,9 +200,12 @@ def cli(
     compose_info,
     identity_file,
     setup,
+    parameter,
+    parameter_file,
     # dry_run,
 ):
     """Start Nixos Composition."""
+    # import pdb; pdb.set_trace()
     flavour_name = flavour
     if test_script:
         execute_test_script = True
@@ -204,12 +231,39 @@ def cli(
     # kernel_params can by setted through setup
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
         _, _, _, _, kernel_params = apply_setup(
-            ctx, setup, None, None, None, None, None, kernel_params,
+            ctx,
+            setup,
+            None,
+            None,
+            None,
+            None,
+            None,
+            kernel_params,
         )
     ctx.kernel_params = kernel_params
 
     if remote_deployment_info:
         ctx.use_httpd = True
+
+    if parameter_file:
+        with open(parameter_file, "r") as f:
+            try:
+                ctx.deployment_info["parameters"] = json.load(f)
+            except ValueError:
+                raise click.ClickException(
+                    f"Failed to parse parameters json file: {parameter_file}"
+                )
+
+    if parameter:
+        if "parameters" not in ctx.deployment_info:
+            ctx.deployment_info["parameters"] = {}
+        for p in parameter:
+            try:
+                (k, v) = p.split("=", 1)
+                v = ast.literal_eval(v)
+            except ValueError:
+                raise click.ClickException(f"Fail to parse parameter: {p}")
+            ctx.deployment_info["parameters"][k] = v
 
     build_path = op.join(ctx.envdir, "build")
 
@@ -269,7 +323,6 @@ def cli(
         splitted_composition = composition.split("::")
         len_splitted_composition = len(splitted_composition)
         if len_splitted_composition == 2:
-
             composition_name, flavour_name = splitted_composition
             composition_all_in_one_file = op.join(ctx.envdir, f"build/::{flavour_name}")
 
@@ -302,7 +355,8 @@ def cli(
             raise click.ClickException("Failed to find last build")
 
         last_build_path = max(
-            build_paths, key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
+            build_paths,
+            key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
         )
 
         ctx.log("Use last build:")
@@ -365,7 +419,6 @@ def cli(
         if ctx.use_httpd:
             ctx.vlog("Launch: httpd to distribute deployment.json")
             ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
-
 
         if hasattr(ctx.flavour, "generate_kexec_scripts"):
             ctx.flavour.generate_kexec_scripts()
