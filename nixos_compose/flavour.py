@@ -24,5 +24,5 @@ class Flavour(object):
             time.sleep(period)
         return False
 
-    def generate_deployment_info(self, ssh_pub_key_file = None):
+    def generate_deployment_info(self, ssh_pub_key_file=None):
         pass
