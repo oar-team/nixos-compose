@@ -28,6 +28,11 @@
     },
     "name": "g5k-ramdisk"
   },
+  "nspawn": {
+    "description": "Systemd-nspawn",
+    "image": {},
+    "name": "nspawn"
+  },
   "vm": {
     "description": "vm ",
     "image": {
