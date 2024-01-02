@@ -173,6 +173,12 @@ class EventHandler(pyinotify.ProcessEvent):
     type=click.STRING,
     help="Json file contains parameters added to deployment file (for contextualization phase)",
 )
+@click.option(
+    "--ip-range",
+    type=click.STRING,
+    default="",
+    help="IP range (for now only usable with nspawn flavour)",
+)
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
 @pass_context
@@ -202,6 +208,7 @@ def cli(
     setup,
     parameter,
     parameter_file,
+    ip_range,
     # dry_run,
 ):
     """Start Nixos Composition."""
@@ -226,6 +233,8 @@ def cli(
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
+    ctx.ip_range = ip_range
+
     ctx.set_roles_distribution(role_distribution, roles_distribution_file)
 
     # kernel_params can by setted through setup

@@ -100,8 +100,7 @@ class NspawnFlavour(Flavour):
         super().__init__(ctx)
 
         self.name = "nspawn"
-        self.description = ""
-        # TOR self.nspawn_processes = {}
+        self.description = "Systemd-nspawn container"
 
     @staticmethod
     def host_info(role, hostname, info):
