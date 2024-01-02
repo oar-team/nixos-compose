@@ -26,14 +26,14 @@ class VmBasedFlavour(Flavour):
 
     vm = True
     tmp_dir = None
-    vlan = None
+    _vlan = None
 
     def __init__(self, ctx):
         super().__init__(ctx)
         ctx.external_connect = True  # to force use of ssh on foo.execute(command)
         platform_detection(ctx)
 
-    def generate_deployment_info(self, ssh_pub_key_file = None):
+    def generate_deployment_info(self, ssh_pub_key_file=None):
         generate_deployment_info(self.ctx, ssh_pub_key_file)
 
     def create_machines(self):
@@ -149,8 +149,8 @@ class VmBasedFlavour(Flavour):
         self.create_machines()
 
     def vlan(self):
-        self.vlan = VLan(0, self.tmp_dir, ctx=self.ctx)
-        return self.vlan
+        self._vlan = VLan(0, self.tmp_dir, ctx=self.ctx)
+        return self._vlan
 
     def start_process_shell(self, machine):
         machine.start_process_shell(

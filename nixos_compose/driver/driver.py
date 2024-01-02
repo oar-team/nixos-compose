@@ -44,6 +44,7 @@ class Driver:
         else:
             rootlog.warning("No machine defined during driver init")
 
+        # TODO move
         if hasattr(ctx.flavour, "vlan") and not ctx.no_start:
             self.vlans = [ctx.flavour.vlan()]
 
@@ -131,7 +132,12 @@ class Driver:
 
     def test_script(self) -> None:
         """Run the test script"""
-        with rootlog.nested("run the test script"):
+        if self.ctx.execute_test_script:
+            message = "run the test script"
+        else:
+            message = "run start command in"
+
+        with rootlog.nested(message):
             symbols = self.test_symbols()  # call eagerly
             exec(self.tests, symbols, None)
 

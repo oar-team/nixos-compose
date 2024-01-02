@@ -24,7 +24,10 @@ from ..driver.driver import Driver
     help="flavour, by default it's extracted from deployment file name",
 )
 @click.option(
-    "-t", "--test-script", is_flag=True, help="execute the 'embedded' testscript",
+    "-t",
+    "--test-script",
+    is_flag=True,
+    help="execute the 'embedded' testscript",
 )
 @click.argument("test-script-file", required=False)
 @pass_context

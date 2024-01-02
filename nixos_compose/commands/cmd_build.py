@@ -25,10 +25,16 @@ from ..setup import apply_setup
 )
 @click.option("--out-link", "-o", help="path of the symlink to the build result")
 @click.option(
-    "-f", "--flavour", type=click.STRING, help="Use particular flavour (name or path)",
+    "-f",
+    "--flavour",
+    type=click.STRING,
+    help="Use particular flavour (name or path)",
 )
 @click.option(
-    "-F", "--list-flavours", is_flag=True, help="List available flavour",
+    "-F",
+    "--list-flavours",
+    is_flag=True,
+    help="List available flavour",
 )
 # TOREMOVE
 # @click.option(
@@ -63,7 +69,10 @@ from ..setup import apply_setup
     help="List available combinaisons of compositions and flavours",
 )
 @click.option(
-    "-s", "--setup", type=click.STRING, help="Select setup variant",
+    "-s",
+    "--setup",
+    type=click.STRING,
+    help="Select setup variant",
 )
 @click.option(
     "-p",

@@ -66,7 +66,8 @@ def print_helper_list(helper_options):
 @click.argument("options", nargs=-1)
 def cli(ctx, options, list):
     """Specific and contextual helper information (e.g. g5k_script path for Grid'5000)
-    Warning: Experimental command, may be removed in the future or change without backward compatibility care."""
+    Warning: Experimental command, may be removed in the future or change without backward compatibility care.
+    """
 
     if options:
         print_helper(ctx, options)

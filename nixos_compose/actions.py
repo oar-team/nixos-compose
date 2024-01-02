@@ -369,25 +369,25 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
             for k, v in deployment.items()
         }
 
-    deployment_info = ctx.deployment_info
-
-    deployment_info["ssh_key.pub"] = sshkey_pub
-    deployment_info["deployment"] = deployment
+    deployment = {
+        "ssh_key.pub": sshkey_pub,
+        "deployment": deployment,
+    }
 
     if "all" in ctx.compose_info:
-        deployment_info["all"] = ctx.compose_info["all"]
+        deployment["all"] = ctx.compose_info["all"]
 
     if "compositions_info_path" in ctx.compose_info:
-        deployment_info["compositions_info_path"] = ctx.compose_info[
+        deployment["compositions_info_path"] = ctx.compose_info[
             "compositions_info_path"
         ]
 
     if ctx.composition_name:
-        deployment_info["composition"] = ctx.composition_name
+        deployment["composition"] = ctx.composition_name
 
     # Add user, used to determine nfs mount path on Grid'5000 by example
     # TODO: add option to override this (
-    deployment_info["user"] = os.environ["USER"]
+    deployment["user"] = os.environ["USER"]
 
     # for k in ["all", "flavour"]:
     #    if k in compose_info:
@@ -395,8 +395,10 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
 
     # If there is too much nodes httpd must used to tranfert deployment info,
     # due to kernel parameter size limit (deployment_info_b64 certainly will exceed it)
-    if len(deployment_info["deployment"]) > 4:
+    if len(deployment["deployment"]) > 4:
         ctx.use_httpd = True
+
+    json_deployment = json.dumps(deployment, indent=2)
 
     deploy_dir = op.join(ctx.envdir, "deploy")
     if not op.exists(deploy_dir):
@@ -407,9 +409,13 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     ctx.deployment_filename = op.join(
         deploy_dir, f"{ctx.composition_flavour_prefix}.json"
     )
-
     with open(ctx.deployment_filename, "w") as outfile:
-        outfile.write(json.dumps(deployment_info, indent=2))
+        outfile.write(json_deployment)
+
+    if "parameters" in ctx.deployment_info:
+        deployment["parameters"] = ctx.deployment_info["parameters"]
+
+    ctx.deployment_info = deployment
 
     return
 
