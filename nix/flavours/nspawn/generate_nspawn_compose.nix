@@ -40,7 +40,6 @@ let
     in {
       toplevel = "${builtConfig.toplevel}";
       init =  "${builtConfig.toplevel}/init";
-      hostname = roleName;
       volumes = extraVolumes;
       ports =
         if nspawnPorts ? "${roleName}" then nspawnPorts."${roleName}" else [ ];
