@@ -120,7 +120,7 @@ in
     })
     (mkIf cfg.baseBootCommands.enable {
       boot.postBootCommands = ''
-       for o in $(cat /proc/cmdline); do
+        for o in $(cat /proc/cmdline); do
           case $o in
                ip=*)
                    set -- $(IFS==; echo $o)
@@ -129,7 +129,7 @@ in
                    ${pkgs.iproute2}/bin/ip addr add $1/24 dev eth1
                    ;;
            esac
-       done
+        done
 
         ln -s /run/current-system/sw/bin/bash /bin/bash
         compositionName=""
@@ -188,7 +188,7 @@ in
         fi
 
         echo "nix-store: load db $nix_path_registration"
-        ${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
+        #${config.nix.package}/bin/nix-store --load-db < $nix_path_registration
 
         #echo "inetutils"
         #echo ${pkgs.inetutils}/bin
@@ -197,7 +197,9 @@ in
         # nixos-rebuild also requires a "system" profile and an
         # /etc/NIXOS tag.
         touch /etc/NIXOS
-        ${config.nix.package}/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system
+        # TODO can we remove it ?
+        #${config.nix.package}/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system
+
         ${
           if cfg.sharedDirsBootCommands != "" then
             cfg.sharedDirsBootCommands

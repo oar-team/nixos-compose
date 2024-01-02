@@ -8,6 +8,7 @@
 #: Maps flavour names to 'submodule::classname'.
 FLAVOUR_MAP = {
     "docker": "docker::DockerFlavour",
+    "nspawn": "nspawn::NspawnFlavour",
     "vm": "vm::VmFlavour",
     "vm-ramdisk": "vm::VmRamdiskFlavour",
     "g5k-nfs-store": "grid5000::G5kNfsStoreFlavour",
@@ -21,7 +22,6 @@ class ClassNotFound(ValueError):
 
 
 def get_flavour_by_name(name):
-
     if name in FLAVOUR_MAP:
         mod, cls = FLAVOUR_MAP[name].split("::")
 

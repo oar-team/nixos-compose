@@ -213,6 +213,10 @@ def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
 
 def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=None):
     roles_distribution = {}
+    # if isinstance(roles_info, list):
+    #     roles = roles_info
+    # else:
+    #     roles = roles_info.keys()
     for role in roles_info.keys():
         if role in roles_distribution_in:
             roles_distribution[role] = roles_distribution_in[role]
@@ -221,12 +225,15 @@ def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=
             and role in ctx.compose_info["roles_distribution"]
         ):
             hosts = ctx.compose_info["roles_distribution"][role]
-            if isinstance(hosts, list):
-                try:
-                    quantity = int(hosts)
-                    hosts = [f"{role}{i}" for i in range(1, quantity + 1)]
-                except ValueError:
-                    pass
+            if isinstance(hosts, int):
+                hosts = [f"{role}{i}" for i in range(1, hosts + 1)]
+            # TODO REMOVE after test
+            # if isinstance(hosts, list):
+            #     try:
+            #         quantity = int(hosts)
+            #         hosts = [f"{role}{i}" for i in range(1, quantity + 1)]
+            #     except ValueError:
+            #         pass
             roles_distribution[role] = hosts
         else:
             roles_distribution[role] = [role]
@@ -324,7 +331,11 @@ def populate_deployment_ips(ctx, roles_info, ips, roles_distribution):
             except IndexError as e:
                 ctx.elog(f"Not enough nodes are available for the deployment: {e}")
                 exit(1)
-            deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
+            # TODO Ugly need core refactoring to remove it
+            if hasattr(ctx.flavour, "host_info"):
+                deployment[ip] = ctx.flavour.host_info(role, hostname, v)
+            else:
+                deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
             i = i + 1
     return deployment
 
