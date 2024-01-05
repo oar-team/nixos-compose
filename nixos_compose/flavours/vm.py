@@ -26,7 +26,7 @@ class VmBasedFlavour(Flavour):
 
     vm = True
     tmp_dir = None
-    _vlan = None
+    vlan = None
 
     def __init__(self, ctx):
         super().__init__(ctx)
@@ -148,9 +148,9 @@ class VmBasedFlavour(Flavour):
 
         self.create_machines()
 
-    def vlan(self):
-        self._vlan = VLan(0, self.tmp_dir, ctx=self.ctx)
-        return self._vlan
+    def create_vlan(self):
+        self.vlan = VLan(0, self.tmp_dir, ctx=self.ctx)
+        return self.vlan
 
     def start_process_shell(self, machine):
         machine.start_process_shell(
