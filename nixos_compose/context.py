@@ -130,6 +130,12 @@ class Context(object):
                 " a new composition environment "
             )
 
+    def warning_valid_env(self):
+        if not os.path.isdir(self.envdir):
+            click.ClickException(
+                "Warning: missing nixos composition environment directory."
+            )
+
     def log(self, msg, *args, **kwargs):
         """Logs a message to stdout."""
         if args:

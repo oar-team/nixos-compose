@@ -18,6 +18,7 @@ from ..context import pass_context, on_finished, on_started
 from ..flavours import get_flavour_by_name
 
 from ..actions import (
+    read_deployment_info,
     read_test_script,
     read_hosts,
     translate_hosts2ip,
@@ -30,14 +31,66 @@ from ..driver.driver import Driver
 from ..httpd import HTTPDaemon
 from ..setup import apply_setup
 
-machines_file_towait = ""
+machine_file_towait = ""
 notifier = None
 
 
 class EventHandler(pyinotify.ProcessEvent):
     def process_IN_CREATE(self, event):
-        if event.pathname == machines_file_towait:
+        if event.pathname == machine_file_towait:
             notifier.loop.stop()
+
+
+def start(ctx, interactive, execute_test_script, port, machine_file=None):
+    if (  # TODO rework (ask flavour ?)
+        ctx.ip_addresses
+        and (ctx.flavour.name != "vm-ramdisk")
+        and (ctx.flavour.name != "vm")
+    ) or ctx.flavour.name == "nspawn":
+        if ctx.use_httpd:
+            ctx.vlog("Launch: httpd to distribute deployment.json")
+            ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
+
+        if hasattr(ctx.flavour, "generate_kexec_scripts"):
+            ctx.flavour.generate_kexec_scripts()
+
+        if ctx.push_path:
+            push_on_machines(ctx)
+
+        if ctx.use_httpd:
+            ctx.httpd.start(directory=ctx.envdir)
+
+        if not interactive:
+            ctx.flavour.launch(machine_file=machine_file)
+            sys.exit(0)
+
+    test_script = read_test_script(ctx, ctx.compose_info)
+
+    if not interactive and not execute_test_script:
+        test_script = "start_all()"
+
+    with Driver(
+        # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
+        ctx,
+        [],
+        [],
+        test_script,
+        False,
+    ) as driver:
+        if interactive:
+            ptpython.repl.embed(driver.test_symbols(), {})
+        elif execute_test_script:
+            tic = time.time()
+            driver.run_tests()
+            toc = time.time()
+            ctx.glog(f"test script finished in {(toc-tic):.2f}s")
+        else:
+            ctx.glog("just start ???")
+            driver.test_script()
+    if ctx.use_httpd:
+        ctx.httpd.stop()
+
+    ctx.glog("Started")
 
 
 # TODO define scope of dry_run, must you dry_run deployment file creation ?
@@ -54,12 +107,12 @@ class EventHandler(pyinotify.ProcessEvent):
 )
 @click.option(
     "-m",
-    "--machines-file",
+    "--machine-file",
     type=click.Path(resolve_path=True),
     help="file that contains remote machines names to (duplicates are considered as one).",
 )
 @click.option(
-    "-W", "--wait-machine-file", is_flag=True, help="wait machnes-file creation"
+    "-W", "--wait-machine-file", is_flag=True, help="wait machine-file creation"
 )
 @click.option(
     "-s",
@@ -174,6 +227,12 @@ class EventHandler(pyinotify.ProcessEvent):
     help="Json file contains parameters added to deployment file (for contextualization phase)",
 )
 @click.option(
+    "-d",
+    "--deployment-file",
+    type=click.STRING,
+    help="Deployement json file use for the deployment (skip generation) Warning parametrization not supported (upto now)",
+)
+@click.option(
     "--ip-range",
     type=click.STRING,
     default="",
@@ -183,11 +242,11 @@ class EventHandler(pyinotify.ProcessEvent):
 # )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
-@on_started(lambda ctx: ctx.assert_valid_env())
+@on_started(lambda ctx: ctx.warning_valid_env())
 def cli(
     ctx,
     interactive,
-    machines_file,
+    machine_file,
     wait_machine_file,
     ssh,
     sudo,
@@ -209,6 +268,7 @@ def cli(
     parameter,
     parameter_file,
     ip_range,
+    deployment_file
     # dry_run,
 ):
     """Start Nixos Composition."""
@@ -234,6 +294,19 @@ def cli(
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
     ctx.ip_range = ip_range
+
+    if deployment_file:
+        if not flavour:
+            ctx.elog("Option --flavour is required with --deployment-file option !")
+            sys.exit(2)
+        else:
+            ctx.flavour = get_flavour_by_name(flavour_name)(ctx)
+            read_deployment_info(ctx, deployment_file)
+
+    if deployment_file and (role_distribution or roles_distribution_file):
+        ctx.wlog(
+            "--role-distribution and --roles-distribution-file are ignored with --deployment-file option !"
+        )
 
     ctx.set_roles_distribution(role_distribution, roles_distribution_file)
 
@@ -274,6 +347,10 @@ def cli(
                 raise click.ClickException(f"Fail to parse parameter: {p}")
             ctx.deployment_info["parameters"][k] = v
 
+    if deployment_file:
+        start(ctx, interactive, execute_test_script, port)
+        sys.exit(0)
+
     build_path = op.join(ctx.envdir, "build")
 
     if not compose_info and not op.exists(build_path):
@@ -283,26 +360,26 @@ def cli(
 
     # Handle cases where machines list must be provided
     machines = []
-    if machines_file and not op.isfile(machines_file) and not wait_machine_file:
-        raise click.ClickException(f"{machines_file} file does not exist")
+    if machine_file and not op.isfile(machine_file) and not wait_machine_file:
+        raise click.ClickException(f"{machine_file} file does not exist")
 
-    if push_path and not machines_file:
-        raise click.ClickException("machines_file must be provide to use push_path")
+    if push_path and not machine_file:
+        raise click.ClickException("machine_file must be provide to use push_path")
 
     if wait_machine_file:
-        if not machines_file:
+        if not machine_file:
             raise click.ClickException(
-                "You need to provide --machines-file option with --wait"
+                "You need to provide --machine-file option with --wait"
             )
 
-        if not op.isfile(machines_file):
-            # ctx.log(f"Waiting {machines_file} file creation")
+        if not op.isfile(machine_file):
+            # ctx.log(f"Waiting {machine_file} file creation")
             # TODO: add quiet option
             if ctx.show_spinner:
-                ctx.spinner.start(f"Waiting for {machines_file} creation")
+                ctx.spinner.start(f"Waiting for {machine_file} creation")
 
-            if "nfs" == get_fs_type(machines_file):
-                while not op.isfile(machines_file):
+            if "nfs" == get_fs_type(machine_file):
+                while not op.isfile(machine_file):
                     time.sleep(0.1)
             else:
                 wm = pyinotify.WatchManager()  # Watch Manager
@@ -313,18 +390,18 @@ def cli(
                     wm, loop, default_proc_fun=EventHandler()
                 )
 
-                global machines_file_towait
-                machines_file_towait = machines_file
+                global machine_file_towait
+                machine_file_towait = machine_file
 
                 # TODO race condition remains possible ....
-                wm.add_watch(op.dirname(machines_file), pyinotify.CREATE)
+                wm.add_watch(op.dirname(machine_file), pyinotify.CREATE)
                 loop.run_forever()
                 notifier.stop()
 
             if ctx.show_spinner:
-                ctx.spinner.succeed(f"{machines_file} file created")
+                ctx.spinner.succeed(f"{machine_file} file created")
             else:
-                ctx.log(f"{machines_file} file created")
+                ctx.log(f"{machine_file} file created")
 
     # Determine composition and flavour name
     # First case composition is given not flavour name
@@ -408,10 +485,10 @@ def cli(
         if ctx.push_path is None:
             ctx.push_path = push_path
 
-    if machines_file:
-        machines = read_hosts(machines_file)
+    if machine_file:
+        machines = read_hosts(machine_file)
         if not machines:
-            ctx.elog(f"Machine file '{machines_file}' is empty")
+            ctx.elog(f"Machine file '{machine_file}' is empty")
             sys.exit(1)
 
     if machines:
@@ -420,52 +497,54 @@ def cli(
 
     ctx.flavour.generate_deployment_info(identity_file)
 
-    if (
-        ctx.ip_addresses
-        and (ctx.flavour.name != "vm-ramdisk")
-        and (ctx.flavour.name != "vm")
-    ):
-        if ctx.use_httpd:
-            ctx.vlog("Launch: httpd to distribute deployment.json")
-            ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
+    start(ctx, interactive, execute_test_script, port, machine_file)
 
-        if hasattr(ctx.flavour, "generate_kexec_scripts"):
-            ctx.flavour.generate_kexec_scripts()
+    # if (
+    #     ctx.ip_addresses
+    #     and (ctx.flavour.name != "vm-ramdisk")
+    #     and (ctx.flavour.name != "vm")
+    # ):
+    #     if ctx.use_httpd:
+    #         ctx.vlog("Launch: httpd to distribute deployment.json")
+    #         ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
 
-        if ctx.push_path:
-            push_on_machines(ctx)
+    #     if hasattr(ctx.flavour, "generate_kexec_scripts"):
+    #         ctx.flavour.generate_kexec_scripts()
 
-        if ctx.use_httpd:
-            ctx.httpd.start(directory=ctx.envdir)
+    #     if ctx.push_path:
+    #         push_on_machines(ctx)
 
-        if not interactive:
-            ctx.flavour.launch(machine_file=machines_file)
-            sys.exit(0)
+    #     if ctx.use_httpd:
+    #         ctx.httpd.start(directory=ctx.envdir)
 
-    test_script = read_test_script(ctx, ctx.compose_info)
+    #     if not interactive:
+    #         ctx.flavour.launch(machine_file=machine_file)
+    #         sys.exit(0)
 
-    if not interactive and not execute_test_script:
-        test_script = "start_all()"
+    # test_script = read_test_script(ctx, ctx.compose_info)
 
-    with Driver(
-        # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
-        ctx,
-        [],
-        [],
-        test_script,
-        False,
-    ) as driver:
-        if interactive:
-            ptpython.repl.embed(driver.test_symbols(), {})
-        elif execute_test_script:
-            tic = time.time()
-            driver.run_tests()
-            toc = time.time()
-            ctx.glog(f"test script finished in {(toc-tic):.2f}s")
-        else:
-            ctx.glog("just start ???")
-            driver.test_script()
-    if ctx.use_httpd:
-        ctx.httpd.stop()
+    # if not interactive and not execute_test_script:
+    #     test_script = "start_all()"
 
-    ctx.glog("Started")
+    # with Driver(
+    #     # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
+    #     ctx,
+    #     [],
+    #     [],
+    #     test_script,
+    #     False,
+    # ) as driver:
+    #     if interactive:
+    #         ptpython.repl.embed(driver.test_symbols(), {})
+    #     elif execute_test_script:
+    #         tic = time.time()
+    #         driver.run_tests()
+    #         toc = time.time()
+    #         ctx.glog(f"test script finished in {(toc-tic):.2f}s")
+    #     else:
+    #         ctx.glog("just start ???")
+    #         driver.test_script()
+    # if ctx.use_httpd:
+    #     ctx.httpd.stop()
+
+    # ctx.glog("Started")
