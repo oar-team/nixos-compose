@@ -103,6 +103,14 @@ def read_deployment_info(ctx, deployment_file=None):
     with open(ctx.deployment_filename, "r") as f:
         deployment_info = json.load(f)
     ctx.deployment_info = deployment_info
+    if "composition" in deployment_info:
+        composition_name = deployment_info["composition"]
+        if not ctx.composition_name:
+            ctx.composition_name = composition_name
+        elif ctx.composition_name != composition_name:
+            ctx.wlog(
+                "Composition from built ({ctx.composition_name}) is different from deployment ({composition_name})"
+            )
     return
 
 
@@ -114,6 +122,8 @@ def read_deployment_info_str(ctx, deployment_file=None):
 
 
 def read_test_script(ctx, compose_info_or_str):
+    if not compose_info_or_str:
+        return None
     if isinstance(compose_info_or_str, str):
         filename = compose_info_or_str
     elif "test_script" in compose_info_or_str:

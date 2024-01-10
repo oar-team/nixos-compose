@@ -15,12 +15,12 @@ varlib="/var/lib"
 USE_NXC_BRIDGE="true"
 NXC_BRIDGE="nxc-br0"
 NXC_BRIDGE_MAC="00:16:3e:00:00:00"
-NXC_ADDR="10.0.3.1"
+: "${NXC_ADDR=10.0.3.1}"
 NXC_NETMASK="255.255.255.0"
-NXC_NETWORK="10.0.3.0/24"
-NXC_DHCP_RANGE="10.0.3.2,10.0.3.254"
+: "${NXC_NETWORK=10.0.3.0/24}"
+: "${NXC_DHCP_CONFILE:-/dev/null}"
+: "${NXC_DHCP_RANGE=10.0.3.2,10.0.3.254}"
 NXC_DHCP_MAX="253"
-: "${NXC_DHCP_CONFILE:=/dev/null}"
 NXC_DHCP_PING="true"
 NXC_DOMAIN=""
 NXC_USE_NFT="true"
@@ -170,7 +170,7 @@ start() {
 
     # nxc's dnsmasq should be hermetic and not read `/etc/dnsmasq.conf` (which
     # it does by default if `--conf-file` is not present
-    NXC_DHCP_CONFILE_ARG="--conf-file=${NXC_DHCP_CONFILE:-/dev/null}"
+    NXC_DHCP_CONFILE_ARG="--conf-file=$NXC_DHCP_CONFILE"
 
     # https://lists.linuxcontainers.org/pipermail/lxc-devel/2014-October/010561.html
     for DNSMASQ_USER in nxc-dnsmasq dnsmasq nobody

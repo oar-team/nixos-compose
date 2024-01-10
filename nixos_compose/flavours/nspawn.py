@@ -3,6 +3,7 @@ import os.path as op
 import subprocess
 import click
 import ipaddress
+import socket
 
 from ..flavour import Flavour
 from ..actions import (
@@ -18,7 +19,7 @@ from ..driver.machine import Machine
 from typing import Tuple, Optional
 
 
-def nft_nixos_fw_rules(remove=False, add=False):
+def nft_nixos_fw_rules(ctx, remove=False, add=False):
     subprocess.call("sudo true", shell=True)
     check_process = ""
     try:
@@ -33,11 +34,13 @@ def nft_nixos_fw_rules(remove=False, add=False):
                 "ip",
                 "filter",
                 "nixos-fw",
-            ]
+            ],
+            stderr=subprocess.DEVNULL,
         )
 
     except subprocess.CalledProcessError as e:
-        print(f"{e.output} return code {e.returncode}")
+        ctx.wlog(f"nftable: ip chain filter not present, return code {e.returncode}")
+        # print(f"{e.output} return code {e.returncode}")
         return -1  # non present
 
     nxc_br0_rule = False
@@ -151,18 +154,18 @@ class NspawnFlavour(Flavour):
     def check(self, state="running"):
         print("TODO check")
         exit
-        check_process = subprocess.check_output(
-            [
-                "nspawn-compose",
-                "-f",
-                self.nspawn_compose_file,
-                "ps",
-                "--services",
-                "--filter",
-                f"status={state}",
-            ],
-        )
-        return len(check_process.decode().rstrip("\n").splitlines())
+        # check_process = subprocess.check_output(
+        #     [
+        #         "nspawn-compose",
+        #         "-f",
+        #         self.nspawn_compose_file,
+        #         "ps",
+        #         "--services",
+        #         "--filter",
+        #         f"status={state}",
+        #     ],
+        # )
+        # return len(check_process.decode().rstrip("\n").splitlines())
 
     def connect(self, machine):
         if machine.connected:
@@ -173,12 +176,18 @@ class NspawnFlavour(Flavour):
         ctx = self.ctx
         if not ctx.deployment_info:
             read_deployment_info(ctx)
+
+        nest_host = ""
+
+        if "nested" in ctx.deployment_info and ctx.deployment_info["nested"]:
+            nest_host = f"-{socket.gethostname()}"
+
         # prepare nxc-dnsmasq.conf
         artifact_dir = op.join(
             ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
         )
         os.makedirs(artifact_dir, mode=0o700, exist_ok=True)
-        nxc_dnsmasq_conf_file = op.join(artifact_dir, "nxc-dnsmasq.conf")
+        nxc_dnsmasq_conf_file = op.join(artifact_dir, f"nxc-dnsmasq{nest_host}.conf")
 
         with open(nxc_dnsmasq_conf_file, "w") as outfile:
             for ip, host_info in ctx.deployment_info["deployment"].items():
@@ -189,21 +198,36 @@ class NspawnFlavour(Flavour):
         machine_dir_script = _ROOT + "/nspawn/machine-dir.sh"
 
         env = os.environ
-        env["NXC_DHCP_CONFILE"] = nxc_dnsmasq_conf_file
+
         ctx.log("Prepare and launch nspawn container")
         ctx.log("Test sudo (root privilege rights required)")
         subprocess.call("sudo true", shell=True)
 
+        env["NXC_DHCP_CONFILE"] = nxc_dnsmasq_conf_file
+        preserve_env = "NXC_DHCP_CONFILE"
+
+        if "nested" in ctx.deployment_info and ctx.deployment_info["nested"]:
+            nested_network = ctx.deployment_info["network"]
+            net_addr, net_masq = nested_network.split("/")
+            if net_masq != "24":
+                ctx.elog("Netmask different from /24 is not supported")
+            a, b, c, _ = net_addr.split(".")
+            net_prefix = f"{a}.{b}.{c}"
+            os.environ["NXC_ADDR"] = f"{net_prefix}.1"
+            os.environ["NXC_NETWORK"] = nested_network
+            os.environ["NXC_DHCP_RANGE"] = f"{net_prefix}.2,{net_prefix}.254"
+            preserve_env += ",NXC_ADDR,NXC_NETWORK,NXC_DHCP_RANGE"
+
         ctx.log("Launch nxc-net script")
 
         subprocess.Popen(
-            ["sudo", "--preserve-env=NXC_DHCP_CONFILE", nxc_net_script, "start"],
+            ["sudo", f"--preserve-env={preserve_env}", nxc_net_script, "start"],
             env=env,
         )
 
         ctx.log("Check and adapt nftable nixos-fw chain if any")
 
-        nft_nixos_fw_rules(add=True)
+        nft_nixos_fw_rules(ctx, add=True)
 
         ctx.log("Prepare machines dirs")
         p_lst = []
@@ -219,6 +243,7 @@ class NspawnFlavour(Flavour):
                 stdout=subprocess.DEVNULL,
             )
             p_lst.append(p)
+
         for p in p_lst:
             p.wait()
 
@@ -327,7 +352,7 @@ class NspawnFlavour(Flavour):
 
         subprocess.Popen(["sudo", nxc_net_script, "stop"])
         ctx.log("Remove nftable chain nixos-fw if any")
-        nft_nixos_fw_rules(remove=True)
+        nft_nixos_fw_rules(ctx, remove=True)
 
     def shell_interact(self, machine) -> None:
         self.connect(machine)
