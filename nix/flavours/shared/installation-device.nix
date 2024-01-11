@@ -64,6 +64,7 @@ with lib;
     services.openssh = {
       enable = true;
       settings.PermitRootLogin = "yes";
+      startWhenNeeded = false;
     };
 
     # Enable wpa_supplicant, but don't start it by default.

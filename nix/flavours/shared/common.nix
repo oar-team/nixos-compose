@@ -11,7 +11,6 @@ with lib; {
   networking.firewall.enable = false;
 
   services.sshd.enable = true;
-  services.openssh.startWhenNeeded = false;
 
   networking.hostName = mkDefault "";
 
