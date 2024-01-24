@@ -26,7 +26,7 @@ from ..flavours import get_flavour_by_name
     "-i",
     "--identity-file",
     type=click.STRING,
-    help="path to the ssh public key to use to connect to the deployments",
+    help="path to the ssh public private used to connect to the deployments",
 )
 @click.option("-pc", "--pane-console", is_flag=True, help="Add a pane console")
 @click.argument("host", nargs=-1)
