@@ -149,8 +149,8 @@ class G5kKexecBasedFlavour(Flavour):
                 ]
             )
 
-    def ext_connect(self, user, node, execute=True):
-        return ssh_connect(self.ctx, user, node, execute)
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
 
 
 class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
@@ -255,5 +255,5 @@ class G5KImageFlavour(Flavour):
                 ]
             )
 
-    def ext_connect(self, user, node, execute=True):
-        return ssh_connect(self.ctx, user, node, execute)
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)

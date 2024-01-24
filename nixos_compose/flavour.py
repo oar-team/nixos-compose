@@ -26,3 +26,6 @@ class Flavour(object):
 
     def generate_deployment_info(self, ssh_pub_key_file=None):
         pass
+
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        pass

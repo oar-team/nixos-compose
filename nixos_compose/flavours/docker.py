@@ -266,7 +266,7 @@ class DockerFlavour(Flavour):
         self.connect(machine)
         self.ext_connect("root", machine.name)
 
-    def ext_connect(self, user, node, execute=True):
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
         if not self.docker_compose_file:
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
 

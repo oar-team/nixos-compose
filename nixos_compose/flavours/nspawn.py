@@ -358,7 +358,7 @@ class NspawnFlavour(Flavour):
         self.connect(machine)
         self.ext_connect("root", machine.name)
 
-    def ext_connect(self, user, node, execute=True):
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
         # subprocess.call("sudo true", shell=True)
         cmd = f"machinectl shell {user}@{node}"
         if execute:
