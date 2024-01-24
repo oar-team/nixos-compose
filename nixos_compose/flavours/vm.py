@@ -190,8 +190,8 @@ class VmBasedFlavour(Flavour):
         machine.monitor.close()
         machine.serial_thread.join()
 
-    def ext_connect(self, user, node, execute=True):
-        return ssh_connect(self.ctx, user, node, execute)
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
 
 
 class VmFlavour(VmBasedFlavour):
