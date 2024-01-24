@@ -1,4 +1,4 @@
-The command `nxc connect` opens one or more terminal sessions into the deployd machines. By default, it will connect to all nodes, but we can specify which ones to connect to.
+The command `nxc connect` opens one or more terminal sessions into the deployed machines. By default, it will connect to all nodes, but we can specify which ones to connect to.
 
 How can we connect to several machines at once? For this, we use a tmux (terminal multiplexer) session. Feel free to refer to the [tmux documentation](https://github.com/tmux/tmux/wiki) (or its [cheatsheet](https://tmuxcheatsheet.com/)), expecially for the shortcuts to navigate between the different tabs.
 
