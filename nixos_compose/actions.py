@@ -718,7 +718,7 @@ def get_ip_ssh_port(ctx, host):
 
 def ssh_connect(ctx, user, host, execute=True, ssh_key_file=None):
     ip, ssh_port = get_ip_ssh_port(ctx, host)
-    ssh_key_option = "" if ssh_key_file is None else "-i " + os.path.realpath(ssh_key_file)
+    ssh_key_option = "" if ssh_key_file is None else "-o IdentitiesOnly=yes -i " + os.path.realpath(ssh_key_file)
 
     ssh_cmd = (f"ssh {ssh_key_option} -o StrictHostKeyChecking=no -o LogLevel=ERROR"
                f" -l {user} -p {ssh_port} {ip}")
