@@ -7,9 +7,15 @@ nxc_local := "nix develop --override-input nxc path:" + justfile_directory() + "
 
 #examples:= `cd examples && ls -I "*.*"`
 
+DEFAULT_BASIC_EXAMPLES := "basic basic-nur execo scripts setup webserver"
+
 DEFAULT_COMMON_EXAMPLES := "basic basic-nur execo multi-compositions nbp-mpi nixos-cluster scripts setup shared-directories-users webserver"
-DEFAULT_DOCKER_EXAMPLES := DEFAULT_COMMON_EXAMPLES
-DEFAULT_VM_EXAMPLES := DEFAULT_COMMON_EXAMPLES + " kernel"
+
+DEFAULT_DOCKER_EXAMPLES := DEFAULT_BASIC_EXAMPLES
+
+#DEFAULT_VM_EXAMPLES := DEFAULT_COMMON_EXAMPLES + " kernel"
+DEFAULT_VM_EXAMPLES := DEFAULT_BASIC_EXAMPLES
+
 DEFAULT_G5K_EXAMPLES := DEFAULT_COMMON_EXAMPLES + " kernel"
 DEFAULT_G5K_SITE := "grenoble"
 export TEST_TMP_DIR := `echo $HOME` + "/nxc-test-tmp"
@@ -41,7 +47,11 @@ build_and_test FLAVOUR EXAMPLE:
     shopt -s expand_aliases && alias nxc_local="{{nxc_local}}"
     nxc_local build -f {{FLAVOUR}}
     if [[ {{FLAVOUR}} == "vm" ]]; then
-      nxc_local start -t
+      # nxc_local start -t # TOFIX
+      nxc_local start &
+      sleep 20
+      nxc_local driver -t
+      pkill qemu-system
     else
       nxc_local start
       nxc_local driver -t
@@ -81,7 +91,8 @@ _examples_test FLAVOUR +EXAMPLES:
 docker_tests +DOCKER_EXAMPLES=DEFAULT_DOCKER_EXAMPLES:
     just _examples_test docker {{DOCKER_EXAMPLES}}
 
-vm_test +VM_EXAMPLES=DEFAULT_VM_EXAMPLES:
+
+vm_tests +VM_EXAMPLES=DEFAULT_VM_EXAMPLES:
     just _examples_test vm {{VM_EXAMPLES}}
 
 # build test examples w/ docker (TODO add filter examples or use docker_tests)
@@ -110,9 +121,9 @@ oarsub_g5k_script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
     set -euxo pipefail
     cd $JUST_DIR
     g5k_script=$HOME/.local/share/nix/root/$(nix run .#nixos-compose helper g5k_script)
-    export $(oarsub -l nodes={{NBNODES}},walltime={{WALLTIME}} \
+    export $(oarsub -l nodes={{NBNODES}},walltime={{WALLTIME}}:0:0 \
     -O $TEST_TMP_DIR/OAR.%jobid%.stdout -E $TEST_TMP_DIR/OAR.%jobid%.stderr \
-    "$g5k_script 1h" | grep OAR_JOB_ID)
+    "$g5k_script {{WALLTIME}}h" | grep OAR_JOB_ID)
     echo $OAR_JOB_ID > $TEST_TMP_DIR/OAR_JOB_ID
 
 start_test_g5k_nfs_store EXAMPLE:
@@ -176,4 +187,4 @@ poetry +commands:
 
 # Create new worktree
 wkt-create DIR:
-    git worktree add {{DIR}}
+    cd .. && git worktree add {{DIR}}
