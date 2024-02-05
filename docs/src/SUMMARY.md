@@ -19,6 +19,10 @@
 - [connect](commands/connect.md)
 - [stop](commands/stop.md)
 
+# Working on nixos-compose
+
+- [A few pointers](code-pointers.md)
+
 # Zoo / Cookbook
 
 [Melissa](zoo/melissa.md)
