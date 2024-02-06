@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 import io
 import os
 import pty
@@ -18,7 +19,7 @@ class VLan:
     socket_dir: Path
 
     process: subprocess.Popen
-    slirpvde_process: subprocess.Popen
+    slirpvde_process: Optional[subprocess.Popen]
     pid: int
     fd: io.TextIOBase
 
@@ -29,6 +30,7 @@ class VLan:
         self.ctx = ctx
         self.nr = nr
         self.socket_dir = tmp_dir / f"vde{self.nr}.ctl"
+        self.slirpvde_process = None
 
         # TODO: don't side-effect environment here
         os.environ[f"QEMU_VDE_SOCKET_{self.nr}"] = str(self.socket_dir)
@@ -105,5 +107,5 @@ class VLan:
         rootlog.info(f"kill vlan (pid {self.pid})")
         self.fd.close()
         self.process.terminate()
-        if self.slirpvde_process:
+        if self.slirpvde_process is not None:
             self.slirpvde_process.terminate()
