@@ -51,17 +51,15 @@ class VLan:
             subprocess.call("sudo true", shell=True)
             vde_cmd = ["sudo"] + vde_cmd + ["-tap", "tap0"]
 
-        group_users = "users"
-        if ctx.platform and ctx.platform.group_users:
-            group_users = ctx.platform.group_users
         vde_cmd = vde_cmd + [
             "-s",
             self.socket_dir,
             "-mod",
             "0770",
-            "-group",
-            group_users,
         ]
+
+        if ctx.platform and ctx.platform.group_users:
+            vde_cmd = vde_cmd + [ "-group", ctx.platform.group_users ]
 
         self.process = subprocess.Popen(
             vde_cmd,
