@@ -144,8 +144,6 @@ with lib; {
   # misc
   key = "no-manual";
 
-  environment.noXlibs = mkDefault true;
-
   documentation.enable = mkDefault false;
 
   documentation.nixos.enable = mkDefault false;
