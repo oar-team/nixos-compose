@@ -66,9 +66,9 @@ nix develop nxc#nxcShellFull
 ```
 ~~~
 
-# Linked/project embeded `nxc`
+# Linked/project embedded `nxc`
 
-A project that is already using _NixOSCompose_ in its experiments process provides an easy access to a shell that gives access to the `nxc` tool and its runtime dependencies if needed. This is acheive thanks to Nix and flakes feature. By default a project has a line in its `flake.nix` similar to this :
+A project that is already using _NixOSCompose_ in its experiments process provides an easy access to a shell with the `nxc` tool and its runtime dependencies if needed. This is achieved thanks to Nix and flakes feature. By default, a project has a line in its `flake.nix` similar to this :
 
 ```nix
 devShell.${system} = nxc.devShells.${system}.nxcShellFull;

@@ -1,9 +1,9 @@
 tuto on pythoneri insert script bash ...
 
 
-Here we complete the quick start guide that was focused on the cli, we will go further in detail with how to write the composition file, how to import personal software and the different files of a _NixOSCompose_ project.
+Here we complete the quick start guide that was focused on the CLI, we will go further in detail with how to write the composition file, how to import personal software and the different files of a _NixOSCompose_ project.
 
-~ Here we will go through a complete workflow with the local test deployment with docker and a Grid5000 deployment of a nginx server and a test client.
+~ Here we will go through a complete workflow with the local test deployment with docker and a Grid5000 deployment of a Nginx server and a test client.
 
 - initilization
   - review of the files
