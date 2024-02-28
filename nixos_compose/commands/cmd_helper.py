@@ -4,6 +4,7 @@ import socket
 from ..context import pass_context
 from ..g5k import key_sleep_script, g5k_get_seed_store
 from ..actions import install_nix_static, get_ip_ssh_port
+from ..tools.nested_deployment import main as nested
 
 
 def print_helper(ctx, options):
@@ -36,6 +37,9 @@ def print_helper(ctx, options):
             g5k_get_seed_store(ctx, options[1])
         else:
             g5k_get_seed_store(ctx)
+    elif option == "nested":
+        nested(options[1:])
+
     else:
         ctx.elog(f"Helper: {option} does not exist")
         sys.exit(1)
@@ -51,7 +55,10 @@ def print_helper_list(helper_options):
     print(
         "ip_ssh_port <composition_hostname>: print hostname's ip address and ssh port"
     )
-    print("fqdn <composition_hostname>: print hostname's fully qualified domain name ")
+    print("fqdn <composition_hostname>: print hostname's fully qualified domain name")
+    print(
+        "nested [options]: various file generation for nested deployement (-h for options details"
+    )
 
 
 @click.command("helper")
@@ -66,7 +73,8 @@ def print_helper_list(helper_options):
 @click.argument("options", nargs=-1)
 def cli(ctx, options, list):
     """Specific and contextual helper information (e.g. g5k_script path for Grid'5000)
-    Warning: Experimental command, may be removed in the future or change without backward compatibility care."""
+    Warning: Experimental command, may be removed in the future or change without backward compatibility care.
+    """
 
     if options:
         print_helper(ctx, options)

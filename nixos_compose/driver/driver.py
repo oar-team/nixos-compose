@@ -33,8 +33,8 @@ class Driver:
         tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
         tmp_dir.mkdir(mode=0o700, exist_ok=True)
 
-        # if hasattr(ctx.flavour, "vlan"):
-        #    self.vlans = [ctx.flavour.vlan()]
+        # if hasattr(ctx.flavour, "create_vlan"):
+        #    self.vlans = [ctx.flavour.create_vlan()]
 
         ctx.flavour.driver_initialize(tmp_dir)
 
@@ -44,8 +44,9 @@ class Driver:
         else:
             rootlog.warning("No machine defined during driver init")
 
-        if hasattr(ctx.flavour, "vlan") and not ctx.no_start:
-            self.vlans = [ctx.flavour.vlan()]
+        # TODO move
+        if hasattr(ctx.flavour, "create_vlan") and not ctx.no_start:
+            self.vlans = [ctx.flavour.create_vlan()]
 
         # def cmd(scripts: List[str]) -> Iterator[NixStartScript]:
         #     for s in scripts:
@@ -131,7 +132,12 @@ class Driver:
 
     def test_script(self) -> None:
         """Run the test script"""
-        with rootlog.nested("run the test script"):
+        if self.ctx.execute_test_script:
+            message = "run the test script"
+        else:
+            message = "run start command in"
+
+        with rootlog.nested(message):
             symbols = self.test_symbols()  # call eagerly
             exec(self.tests, symbols, None)
 

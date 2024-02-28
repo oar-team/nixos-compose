@@ -40,10 +40,17 @@ NXC_NIX_PATH = op.abspath(op.join(op.dirname(__file__), "../../nix"))
     help="List description of flavours, in json format",
 )
 @click.option(
-    "-F", "--list-flavours", is_flag=True, help="List available flavour",
+    "-F",
+    "--list-flavours",
+    is_flag=True,
+    help="List available flavour",
 )
 @click.option(
-    "-t", "--template", default="basic", help="Use a template", show_default=True,
+    "-t",
+    "--template",
+    default="basic",
+    help="Use a template",
+    show_default=True,
 )
 @click.option(
     "--use-local-templates",

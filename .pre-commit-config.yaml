@@ -1,11 +1,11 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 19.10b0
+    rev: 23.11.0
     hooks:
       - id: black
 
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.3
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.1.0
     hooks:
       - id: flake8
         args:
@@ -14,7 +14,7 @@ repos:
           - "--exclude=.git,__pycache__,setup.py,nix,examples,examples/spark/spark_sample.py"
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+    rev: v4.5.0
     hooks:
       - id: trailing-whitespace
         exclude: ^tests/.*/fixtures/.*

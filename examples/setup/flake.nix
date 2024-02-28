@@ -2,7 +2,7 @@
   description = "nixos-compose - setup feature";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/22.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/23.05";
     nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
   };
 

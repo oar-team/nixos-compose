@@ -1,5 +1,6 @@
 The installation and usage of the _NixOSCompose_ differs in function of the state at which the project you are working on is. In the case of a new project you will want to install the `nxc` command line tool as it is described in [Local Installation](local.md#local-installationusage). If the project you are working on is already using because you are developing it or in the case of the rerun of an experiment conducted in the past you prefer to use the version of `nxc` link to the project, accessing/invoke this specific version of the tool is described in [Linked/project embeded `nxc`](local.md#linkedproject-embeded-nxc)
 
+The usage of _NixOSCompose_ is seperated two scenarii.
 
 # Requirements
 
@@ -65,9 +66,9 @@ nix develop nxc#nxcShellFull
 ```
 ~~~
 
-# Linked/project embedded `nxc`
+# Linked/project embeded `nxc`
 
-A project that is already using _NixOSCompose_ in its experiments process provides an easy access to a shell with the `nxc` tool and its runtime dependencies if needed. This is achieved thanks to Nix and flakes feature. By default, a project has a line in its `flake.nix` similar to this :
+A project that is already using _NixOSCompose_ in its experiments process provides an easy access to a shell that gives access to the `nxc` tool and its runtime dependencies if needed. This is acheive thanks to Nix and flakes feature. By default a project has a line in its `flake.nix` similar to this :
 
 ```nix
 devShell.${system} = nxc.devShells.${system}.nxcShellFull;

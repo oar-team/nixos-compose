@@ -91,7 +91,6 @@ def generate_scp_tasks(hosts, file_input, file_output, scp="scp", user=""):
 
 
 def exec_kataract_tasks(tasks_cmd, elog=elog, vlog=vlog):
-
     asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()
 

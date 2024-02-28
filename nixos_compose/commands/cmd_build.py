@@ -25,10 +25,16 @@ from ..setup import apply_setup
 )
 @click.option("--out-link", "-o", help="path of the symlink to the build result")
 @click.option(
-    "-f", "--flavour", type=click.STRING, help="Use particular flavour (name or path)",
+    "-f",
+    "--flavour",
+    type=click.STRING,
+    help="Use particular flavour (name or path)",
 )
 @click.option(
-    "-F", "--list-flavours", is_flag=True, help="List available flavour",
+    "-F",
+    "--list-flavours",
+    is_flag=True,
+    help="List available flavour",
 )
 # TOREMOVE
 # @click.option(
@@ -63,7 +69,10 @@ from ..setup import apply_setup
     help="List available combinaisons of compositions and flavours",
 )
 @click.option(
-    "-s", "--setup", type=click.STRING, help="Select setup variant",
+    "-s",
+    "--setup",
+    type=click.STRING,
+    help="Select setup variant",
 )
 @click.option(
     "-p",
@@ -77,6 +86,11 @@ from ..setup import apply_setup
     "--update-flake",
     is_flag=True,
     help="Update flake.lock equivalent to: nix flake update",
+)
+@click.option(
+    "--monitor",
+    is_flag=True,
+    help="Build with nix-output-monitor",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -96,6 +110,7 @@ def cli(
     update_flake,
     setup,
     setup_param,
+    monitor,
 ):
     """Build multi Nixos composition.
     Typically it performs the kind of following command:
@@ -137,7 +152,10 @@ def cli(
         ctx.elog("Not Found flake.nix file")
         sys.exit(1)
 
-    nix_cmd_base = get_nix_command(ctx)
+    if monitor:
+        nix_cmd_base = ["nom"]
+    else:
+        nix_cmd_base = get_nix_command(ctx)
 
     if update_flake:
         cmd = nix_cmd_base + ["flake", "update"]

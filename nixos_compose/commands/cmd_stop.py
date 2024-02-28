@@ -10,10 +10,16 @@ from ..flavours import get_flavour_by_name
 
 @click.command("stop")
 @click.option(
-    "-f", "--flavour", type=click.STRING, help="specify flavour",
+    "-f",
+    "--flavour",
+    type=click.STRING,
+    help="specify flavour",
 )
 @click.option(
-    "-d", "--deployment-file", type=click.STRING, help="specify deployment",
+    "-d",
+    "--deployment-file",
+    type=click.STRING,
+    help="specify deployment",
 )
 @pass_context
 def cli(ctx, flavour, deployment_file):
@@ -35,12 +41,13 @@ def cli(ctx, flavour, deployment_file):
             raise click.ClickException("Failed to find last deployment file")
 
         last_deploy_path = max(
-            deploy_paths, key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
+            deploy_paths,
+            key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
         )
 
         deployment_file = last_deploy_path
         ctx.log("Use last deployment file:")
-        ctx.glog(last_deploy_path)
+        ctx.glog(deployment_file)
 
         # ctx.composition_flavour_prefix = op.basename(last_deploy_path)
 

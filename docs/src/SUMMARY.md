@@ -24,10 +24,12 @@
 - [connect](commands/connect.md)
 - [stop](commands/stop.md)
 
-<!-- 
+# Working on nixos-compose
+
+- [A few pointers](code-pointers.md)
+
 # Zoo / Cookbook
 
 [Melissa](zoo/melissa.md)
-[K3S](zoo/k3s.md)
-[Hadoop](zoo/hadoop.md)
--->
+<!-- [K3S](zoo/k3s.md)
+[Hadoop](zoo/hadoop.md) -->

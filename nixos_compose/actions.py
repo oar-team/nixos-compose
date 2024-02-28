@@ -103,6 +103,14 @@ def read_deployment_info(ctx, deployment_file=None):
     with open(ctx.deployment_filename, "r") as f:
         deployment_info = json.load(f)
     ctx.deployment_info = deployment_info
+    if "composition" in deployment_info:
+        composition_name = deployment_info["composition"]
+        if not ctx.composition_name:
+            ctx.composition_name = composition_name
+        elif ctx.composition_name != composition_name:
+            ctx.wlog(
+                "Composition from built ({ctx.composition_name}) is different from deployment ({composition_name})"
+            )
     return
 
 
@@ -114,6 +122,8 @@ def read_deployment_info_str(ctx, deployment_file=None):
 
 
 def read_test_script(ctx, compose_info_or_str):
+    if not compose_info_or_str:
+        return None
     if isinstance(compose_info_or_str, str):
         filename = compose_info_or_str
     elif "test_script" in compose_info_or_str:
@@ -126,7 +136,6 @@ def read_test_script(ctx, compose_info_or_str):
 
 
 def read_compose_info(ctx):
-
     if not op.isfile(ctx.compose_info_file):
         raise click.ClickException(f"{ctx.compose_info_filename} does not exist")
     with open(ctx.compose_info_file, "r") as f:
@@ -213,8 +222,11 @@ def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
 
 
 def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=None):
-
     roles_distribution = {}
+    # if isinstance(roles_info, list):
+    #     roles = roles_info
+    # else:
+    #     roles = roles_info.keys()
     for role in roles_info.keys():
         if role in roles_distribution_in:
             roles_distribution[role] = roles_distribution_in[role]
@@ -223,12 +235,15 @@ def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=
             and role in ctx.compose_info["roles_distribution"]
         ):
             hosts = ctx.compose_info["roles_distribution"][role]
-            if type(hosts) != list:
-                try:
-                    quantity = int(hosts)
-                    hosts = [f"{role}{i}" for i in range(1, quantity + 1)]
-                except ValueError:
-                    pass
+            if isinstance(hosts, int):
+                hosts = [f"{role}{i}" for i in range(1, hosts + 1)]
+            # TODO REMOVE after test
+            # if isinstance(hosts, list):
+            #     try:
+            #         quantity = int(hosts)
+            #         hosts = [f"{role}{i}" for i in range(1, quantity + 1)]
+            #     except ValueError:
+            #         pass
             roles_distribution[role] = hosts
         else:
             roles_distribution[role] = [role]
@@ -326,7 +341,11 @@ def populate_deployment_ips(ctx, roles_info, ips, roles_distribution):
             except IndexError as e:
                 ctx.elog(f"Not enough nodes are available for the deployment: {e}")
                 exit(1)
-            deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
+            # TODO Ugly need core refactoring to remove it
+            if hasattr(ctx.flavour, "host_info"):
+                deployment[ip] = ctx.flavour.host_info(role, hostname, v)
+            else:
+                deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
             i = i + 1
     return deployment
 
@@ -359,6 +378,7 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
             }
             for k, v in deployment.items()
         }
+
     deployment = {
         "ssh_key.pub": sshkey_pub,
         "deployment": deployment,
@@ -402,7 +422,11 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
     with open(ctx.deployment_filename, "w") as outfile:
         outfile.write(json_deployment)
 
+    if "parameters" in ctx.deployment_info:
+        deployment["parameters"] = ctx.deployment_info["parameters"]
+
     ctx.deployment_info = deployment
+
     return
 
 
@@ -429,7 +453,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
         initrd_path = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
 
         kexec_args = "-l $KERNEL --initrd=$INITRD "
-        kexec_args += fr'--append="deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
+        kexec_args += rf'--append="deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
         script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
@@ -445,7 +469,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
             initrd_path = f"{base_path}/initrd_{role}"
             init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += fr'--append="init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
+            kexec_args += rf'--append="init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
             script_path = op.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
@@ -456,7 +480,6 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
 
 
 def generate_deploy_info_b64(ctx):
-
     deployment_info = {
         k: ctx.deployment_info[k]
         for k in [n for n in ctx.deployment_info.keys() if n != "deployment"]
@@ -549,7 +572,6 @@ def generate_deploy_info_b64(ctx):
 
 
 def launch_ssh_kexec(ctx, ip=None, debug=False):
-
     if ctx.show_spinner:
         ctx.spinner.start("Launching remote kexec(s)")
     else:
@@ -694,9 +716,12 @@ def get_ip_ssh_port(ctx, host):
     return (ip, ssh_port)
 
 
-def ssh_connect(ctx, user, host, execute=True):
+def ssh_connect(ctx, user, host, execute=True, ssh_key_file=None):
     ip, ssh_port = get_ip_ssh_port(ctx, host)
-    ssh_cmd = f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR -l {user} -p {ssh_port} {ip}"
+    ssh_key_option = "" if ssh_key_file is None else "-o IdentitiesOnly=yes -i " + os.path.realpath(ssh_key_file)
+
+    ssh_cmd = (f"ssh {ssh_key_option} -o StrictHostKeyChecking=no -o LogLevel=ERROR"
+               f" -l {user} -p {ssh_port} {ip}")
 
     if execute:
         return_code = subprocess.run(ssh_cmd, shell=True).returncode
@@ -711,7 +736,7 @@ def ssh_connect(ctx, user, host, execute=True):
 NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
 
 
-def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
+def connect_tmux(ctx, user, nodes, ssh_key_file, pane_console, geometry, window_name="nxc"):
     if not nodes:
         deploy = ctx.deployment_info["deployment"]
         node = (list(deploy.keys()))[0]
@@ -721,7 +746,7 @@ def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
         except ValueError:
             nodes = list(deploy.keys())
 
-    ssh_cmds = [ctx.flavour.ext_connect(user, node, execute=False) for node in nodes]
+    connect_cmds = [ctx.flavour.ext_connect(user, node, False, ssh_key_file) for node in nodes]
 
     console = 0
     if pane_console:
@@ -756,10 +781,10 @@ def connect_tmux(ctx, user, nodes, pane_console, geometry, window_name="nxc"):
     # prepare commands
     base_cmds = ["bash" for i in range(nb_panes)]
 
-    nb_ssh_cmds = len(ssh_cmds)
-    if (nb_ssh_cmds + console) > nb_panes:
-        ssh_cmds = ssh_cmds[: nb_panes - console]
-    cmds = base_cmds[: nb_panes - nb_ssh_cmds] + ssh_cmds
+    nb_connect_cmds = len(connect_cmds)
+    if (nb_connect_cmds + console) > nb_panes:
+        connect_cmds = connect_cmds[: nb_panes - console]
+    cmds = base_cmds[: nb_panes - nb_connect_cmds] + connect_cmds
 
     ctx.vlog(f"cmds: {cmds}")
 

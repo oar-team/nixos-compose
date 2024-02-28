@@ -11,7 +11,7 @@ with lib; {
   networking.firewall.enable = false;
 
   services.sshd.enable = true;
-  systemd.services.sshd.wantedBy = mkForce [ "multi-user.target" ];
+
   networking.hostName = mkDefault "";
 
   services.getty.autologinUser = mkDefault "root";
@@ -143,8 +143,6 @@ with lib; {
 
   # misc
   key = "no-manual";
-
-  environment.noXlibs = mkDefault true;
 
   documentation.enable = mkDefault false;
 

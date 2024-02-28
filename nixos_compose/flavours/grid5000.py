@@ -51,7 +51,9 @@ KADEPOY_ENV_DESC = """
 """
 
 
-def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
+def generate_kadeploy_envfile(
+    ctx, deploy=None, kernel_params="", kaenv_path=None, deploy_image_path=None
+):
     if not ctx.compose_info:
         read_compose_info(ctx)
 
@@ -59,7 +61,8 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
         ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
     )
     os.makedirs(base_path, mode=0o700, exist_ok=True)
-    kaenv_path = op.join(base_path, "nixos.yaml")
+    if kaenv_path is None:
+        kaenv_path = op.join(base_path, "nixos.yaml")
 
     if not deploy:
         if ctx.use_httpd:
@@ -82,8 +85,10 @@ def generate_kadeploy_envfile(ctx, deploy=None, kernel_params=""):
             image_name="NixOS",
             author=user,
             system=KADEPOY_ARCH[system],
-            file_image_url=f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
-            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params} {ctx.kernel_params}",
+            file_image_url=f"local://{deploy_image_path}"
+            if deploy_image_path
+            else f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
+            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params} {kernel_params}",
         )
         kaenv_file.write(kaenv)
 
@@ -92,13 +97,13 @@ class G5kKexecBasedFlavour(Flavour):
     def __init__(self, ctx):
         super().__init__(ctx)
 
-    def generate_deployment_info(self):
-        generate_deployment_info(self.ctx)
+    def generate_deployment_info(self, ssh_pub_key_file=None):
+        generate_deployment_info(self.ctx, ssh_pub_key_file)
 
     def generate_kexec_scripts(self):
         generate_kexec_scripts(self.ctx)
 
-    def launch(self):
+    def launch(self, machine_file=None):
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
@@ -144,8 +149,8 @@ class G5kKexecBasedFlavour(Flavour):
                 ]
             )
 
-    def ext_connect(self, user, node, execute=True):
-        return ssh_connect(self.ctx, user, node, execute)
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
 
 
 class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
@@ -186,17 +191,25 @@ class G5KImageFlavour(Flavour):
 
         self.name = "g5k-image"
 
-    def generate_deployment_info(self):
-        generate_deployment_info(self.ctx)
+    def generate_deployment_info(self, ssh_pub_key_file=None):
+        generate_deployment_info(self.ctx, ssh_pub_key_file)
 
-    def launch(self, machine_file=None):
-        generate_kadeploy_envfile(self.ctx)
+    def launch(self, machine_file=None, kaenv_path=None, deploy_image_path=None):
+        generate_kadeploy_envfile(
+            self.ctx, kaenv_path=kaenv_path, deploy_image_path=deploy_image_path
+        )
         image_path = realpath_from_store(
             self.ctx, self.ctx.deployment_info["all"]["image"]
         )
-        cmd_copy_image = f'cp {image_path} ~{os.environ["USER"]}/public/nixos.tar.xz && chmod 644 ~{os.environ["USER"]}/public/nixos.tar.xz'
+        if deploy_image_path is None:
+            user = os.environ["USER"]
+            deploy_image_path = f"~{user}/public/nixos.tar.xz"
+
+        cmd_copy_image = (
+            f"cp {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}"
+        )
         if machine_file or click.confirm(
-            f'Do you want to copy image to ~{os.environ["USER"]}/public/nixos.tar.xz ?'
+            f"Do you want to copy image to {deploy_image_path} ?"
         ):
             try:
                 subprocess.call(cmd_copy_image, shell=True)
@@ -208,14 +221,12 @@ class G5KImageFlavour(Flavour):
             self.ctx.envdir,
             f"artifact/{self.ctx.composition_name}/{self.ctx.flavour.name}",
         )
+        if kaenv_path is None:
+            kaenv_path = op.join(base_path, "nixos.yaml")
         if machine_file:
-            cmd_kadeploy = (
-                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f {machine_file}'
-            )
+            cmd_kadeploy = f"kadeploy3 -a {kaenv_path} -f {machine_file}"
         else:
-            cmd_kadeploy = (
-                f'kadeploy3 -a {op.join(base_path, "nixos.yaml")} -f $OAR_NODEFILE'
-            )
+            cmd_kadeploy = f"kadeploy3 -a {kaenv_path} -f $OAR_NODEFILE"
 
         if machine_file or click.confirm(
             "Do you want to kadeploy nixos.tar.xz image on nodes from $OAR_NODEFILE"
@@ -244,5 +255,5 @@ class G5KImageFlavour(Flavour):
                 ]
             )
 
-    def ext_connect(self, user, node, execute=True):
-        return ssh_connect(self.ctx, user, node, execute)
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)

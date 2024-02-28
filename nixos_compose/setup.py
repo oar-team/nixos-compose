@@ -16,7 +16,6 @@ def apply_setup(
     kernel_params,
     filename="setup.toml",
 ):
-
     update_setup_file = False
 
     setup_file = op.join(ctx.envdir, filename)

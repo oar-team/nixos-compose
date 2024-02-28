@@ -71,7 +71,7 @@ class Context(object):
         self.multiple_compositions = False
         self.compositions_info = None  # Rename to compositions_flavour ????
         self.deployment_filename: str = ""
-        self.deployment_info = None  # change to deployment ?
+        self.deployment_info = {}  # change to deployment ?
         self.deployment_info_b64 = ""  # change to depolyment_b64 ?
         self.ip_addresses = []
         self.host2ip_address = {}
@@ -93,7 +93,9 @@ class Context(object):
         self.sigwait = None
         self.kernel_params = None
         self.all_started: bool = False
-        self.no_start: bool = False  # use w/ driver CLI command which must not start machines
+        self.no_start: bool = (
+            False  # use w/ driver CLI command which must not start machines
+        )
         self.external_connect: bool = False
         self.vde_tap: bool = False  # use to add tap interface which allow external IP
         # access either done by port forwarding on local
@@ -126,6 +128,12 @@ class Context(object):
                 "Missing nixos composition environment directory."
                 " Run `nxc init` to create"
                 " a new composition environment "
+            )
+
+    def warning_valid_env(self):
+        if not os.path.isdir(self.envdir):
+            click.ClickException(
+                "Warning: missing nixos composition environment directory."
             )
 
     def log(self, msg, *args, **kwargs):

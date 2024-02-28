@@ -33,8 +33,8 @@ class VmBasedFlavour(Flavour):
         ctx.external_connect = True  # to force use of ssh on foo.execute(command)
         platform_detection(ctx)
 
-    def generate_deployment_info(self):
-        generate_deployment_info(self.ctx)
+    def generate_deployment_info(self, ssh_pub_key_file=None):
+        generate_deployment_info(self.ctx, ssh_pub_key_file)
 
     def create_machines(self):
         ctx = self.ctx
@@ -148,7 +148,7 @@ class VmBasedFlavour(Flavour):
 
         self.create_machines()
 
-    def vlan(self):
+    def create_vlan(self):
         self.vlan = VLan(0, self.tmp_dir, ctx=self.ctx)
         return self.vlan
 
@@ -190,8 +190,8 @@ class VmBasedFlavour(Flavour):
         machine.monitor.close()
         machine.serial_thread.join()
 
-    def ext_connect(self, user, node, execute=True):
-        return ssh_connect(self.ctx, user, node, execute)
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
 
 
 class VmFlavour(VmBasedFlavour):

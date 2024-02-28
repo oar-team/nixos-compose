@@ -33,7 +33,6 @@ class Grid5000Platform(Platform):
         self.nix_store = nix_store_location(ctx)
 
     def retrieve_machines(self, ctx):
-
         oar_job = None
         oar_job_id_str = None
         # oar_job_id_prev_str = None
