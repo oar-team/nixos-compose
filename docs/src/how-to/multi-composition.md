@@ -1,6 +1,6 @@
 # Multi-composition
 
-Sometimes you have to composition that shares a lot in common. For example, you
+Sometimes you have two or more compositions that have a lot in common. For example, you
 want to test a tool with different integration, or run performance tests on
 multiple similar tools, etc...
 
