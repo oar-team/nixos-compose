@@ -2,7 +2,7 @@ The installation and usage of the _NixOSCompose_ differs in function of the stat
 
 The usage of _NixOSCompose_ is seperated two scenarii.
 
-# Requierements
+# Requirements
 
 - Nix package manager with flake feature activated (see [NixOS website](https://nixos.org/download.html) and [NixOS wiki](https://nixos.wiki/wiki/Flakes#Installing_flakes))
 
@@ -28,7 +28,7 @@ The usage of _NixOSCompose_ is seperated two scenarii.
     ```
 ```
 
-## Configuration requierements
+## Configuration requirements
 
 On NixOS you need to enable the dockers functionnality, in our case there is a compatibility issue with cgroupv2 so it is needed to force cgroupv1 with the option `systemd.enableUnifiedCgroupHierarchy`.
 
@@ -92,41 +92,3 @@ Two shells availables :
     - tmux
     - qemu_kvm
 ```
-
-<!-- 
-
-2 scenarii are possible, either you are working on a new project or you are on one already using _NixOSCompose_, in this latter case and if the `flake.nix` still contains this following line
-If you are working on a project that already uses _NixOSCompose_ you should use the nxc provided with it, it will use the exact version of the tool used to build it, the one used for the project. It is recommended. Or you can use you own installation like described in part ##.
-
-_NixOSCompose_, thanks to Nix package manager, does not always need to be installed in a classical way. In the case where you are picking up a project which is already using _NixOSCompose_ it should not be necessary to an installation. If instead you are starting a new project you need to do 
-
-
-## 2 scenarios
-
-Depending on you usage you will not need to follow the same installation procedure. Starting a new project requires to initialize de project
-
-### 2 scenarii possible
-Either you are going to create a new project or you are using a project that was produced by NixOSCompose
-Shell Nix avec NXC disponible
-```
-nix shell
-```
-
-
-
-## 
-
-```
-git clone https://gitlab.inria.fr/nixos-compose/nixos-compose
-cd nixos-compose
-nix-shell
-ou 
-nix develop
-ou
-nix build
-```
-
-```
-nxc --help
-nxc --testBuild # ce serait interessé
-``` -->
