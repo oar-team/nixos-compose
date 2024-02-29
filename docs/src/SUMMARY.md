@@ -11,11 +11,16 @@
 - [Slow start](slow-start.md)
 - [Driver usage](driver-usage.md)
 
+# How-To
+
+- [Multi-composition](how-to/multi-composition.md)
+- [Import Flakes](how-to/import-flakes.md)
+
 # Commands
 
 - [init](commands/init.md)
 - [build](commands/build.md)
-- [start/deploy](commands/start.md)
+- [start](commands/start.md)
 - [connect](commands/connect.md)
 - [stop](commands/stop.md)
 
