@@ -1,4 +1,4 @@
-The installation and usage of _NixOSCompose_ differs in function of the state at which the project you are working on is. In the case of a new project you will want to install the `nxc` command line tool as it is described in [Local Installation](local.md#local-installationusage). If the project you are working on is already using _NixOSCompose_ because you are developing it or in the case of the re-run of an experiment conducted in the past, you will prefer to use the version of `nxc` link to the project, accessing/invoke this specific version of the tool is described in [Linked/project embeded `nxc`](local.md#linkedproject-embeded-nxc)
+The installation and usage of _NixOSCompose_ differs in function of the state at which the project you are working on is. In the case of a new project you will want to install the `nxc` command line tool as it is described in [Local Installation](local.md#local-installation). If the project you are working on is already using _NixOSCompose_ because you are developing it or in the case of the re-run of an experiment conducted in the past, you will prefer to use the version of `nxc` link to the project. Invoking `nxc` in an embedded way is described in [Linked/project embedded `nxc`](local.md#project-embedded-nxc)
 
 # Requirements
 
@@ -37,7 +37,7 @@ systemd.enableUnifiedCgroupHierarchy = false;
 ```
 
 
-# Local installation/usage
+# Local installation
 
 The following commands will drop you in a shell where the `nxc` command is available and all required runtime dependencies (docker-compose, vde2, tmux, qemu_kvm).
 
@@ -64,9 +64,9 @@ nix develop nxc#nxcShellFull
 ```
 ~~~
 
-# Linked/project embedded `nxc`
+# Project embedded `nxc`
 
-A project that is already using _NixOSCompose_ in its experiments process provides an easy access to a shell that gives access to the `nxc` tool and its runtime dependencies if needed. This is acheive thanks to Nix and flakes feature. By default a project has a line in its `flake.nix` similar to this :
+A project that is already using _NixOSCompose_ in its experiments process provides an easy access to a shell that gives access to the `nxc` tool and its runtime dependencies if needed. This is achieved thanks to Nix and its flakes feature. By default, a project has a line in its `flake.nix` similar to this :
 
 ```nix
 devShell.${system} = nxc.devShells.${system}.nxcShellFull;
