@@ -36,11 +36,12 @@ Here is how you can add a extra package using an overlay or add a NixOS module u
     # ...
 }
 ```
-> [!NOTE]
-> For more details on overlays, checkout the [Nixpkgs documentation on Overlays](https://nixos.org/manual/nixpkgs/stable/#sec-overlays-definition)
 
-You can now use your package or your module in your composition just like the
-ones present in nixpkgs, for example:
+```admonish note
+For more details on overlays, checkout the [Nixpkgs documentation on Overlays](https://nixos.org/manual/nixpkgs/stable/#sec-overlays-definition)
+```
+
+You can now use your package or your module in your composition just like the ones present in `nixpkgs`, for example:
 ```nix
 { pkgs }:
 {
