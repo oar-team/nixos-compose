@@ -16,7 +16,7 @@ Here is a simple example of a `composition.nix` file:
 ```
 Each `*.nix` file being a composition file itself. For example, the `oar.nix`
 might look like:
-```
+```nix
 { pkgs, ... }: {
   roles =
     let
