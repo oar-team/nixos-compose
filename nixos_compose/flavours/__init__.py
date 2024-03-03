@@ -35,17 +35,17 @@ def get_flavour_by_name(name):
         raise ClassNotFound(f"Could not find flavour class {cls} in flavour module.")
 
 
-def use_flavour_method_if_any(f):
-    def wrapper(*args, **kwargs):
-        attr_name = f.__name__
-        flavour = args[0].ctx.flavour
-        if hasattr(flavour, attr_name):
-            g = getattr(flavour, attr_name)
-            # isinstance isn't use to avoid circular dependencies
-            if args[0].__class__.__name__ == "Driver":
-                args = args[1:]
-            return g(*args, **kwargs)
-        else:
-            return f(*args, **kwargs)
+# def use_flavour_method_if_any(f):
+#     def wrapper(*args, **kwargs):
+#         attr_name = f.__name__
+#         flavour = args[0].ctx.flavour
+#         if hasattr(flavour, attr_name):
+#             g = getattr(flavour, attr_name)
+#             # isinstance isn't use to avoid circular dependencies
+#             if args[0].__class__.__name__ == "Driver":
+#                 args = args[1:]
+#             return g(*args, **kwargs)
+#         else:
+#             return f(*args, **kwargs)
 
-    return wrapper
+#     return wrapper
