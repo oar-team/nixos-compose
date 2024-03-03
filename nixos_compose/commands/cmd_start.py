@@ -27,7 +27,6 @@ from ..actions import (
     get_fs_type,
 )
 
-from ..driver.driver import Driver
 from ..httpd import HTTPDaemon
 from ..setup import apply_setup
 
@@ -66,10 +65,7 @@ def start(ctx, interactive, execute_test_script, port, machine_file=None):
 
     test_script = read_test_script(ctx, ctx.compose_info)
 
-    if not interactive and not execute_test_script:
-        test_script = "start_all()"
-
-    with Driver(
+    with ctx.flavour.init_driver(
         # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
         ctx,
         [],
@@ -85,8 +81,8 @@ def start(ctx, interactive, execute_test_script, port, machine_file=None):
             toc = time.time()
             ctx.glog(f"test script finished in {(toc-tic):.2f}s")
         else:
-            ctx.glog("just start ???")
-            driver.test_script()
+            driver.start_all()
+
     if ctx.use_httpd:
         ctx.httpd.stop()
 

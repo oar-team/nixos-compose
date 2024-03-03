@@ -75,8 +75,8 @@ class Context(object):
         self.deployment_info_b64 = ""  # change to depolyment_b64 ?
         self.ip_addresses = []
         self.host2ip_address = {}
-        self.ssh = ""
-        self.sudo = ""
+        self.ssh = ""  # Description , when an for what it is used ?
+        self.sudo = ""  # Description , when an for what it is used ?
         self.push_path = None
         self.interactive = False
         self.execute_test_script = False
@@ -96,7 +96,8 @@ class Context(object):
         self.no_start: bool = (
             False  # use w/ driver CLI command which must not start machines
         )
-        self.external_connect: bool = False
+        self.ssh_connection: bool = True  # Machines / nodes is
+        #  to force use of ssh on foo.execute(command)
         self.vde_tap: bool = False  # use to add tap interface which allow external IP
         # access either done by port forwarding on local
         # interface

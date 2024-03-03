@@ -17,7 +17,6 @@ import threading
 import time
 
 from .logger import rootlog
-from ..flavours import use_flavour_method_if_any
 
 CHAR_TO_KEY = {
     "A": "shift-a",
@@ -121,7 +120,6 @@ class VmStartCommand(StartCommand):
     def cmd(
         self,
         monitor_socket_path: Path,
-        shell_socket_path: Path,
         allow_reboot: bool = False,  # TODO: unused, legacy?
     ) -> str:
         display_opts = ""
@@ -140,7 +138,6 @@ class VmStartCommand(StartCommand):
             " -device virtio-rng-pci"
             " -serial stdio"
             f" -monitor unix:{monitor_socket_path}"
-            f" -chardev socket,id=shell,path={shell_socket_path}"
         )
         # TODO: qemu script already catpures this env variable, legacy?
         qemu_opts += " " + os.environ.get("QEMU_OPTS", "")
@@ -179,10 +176,9 @@ class VmStartCommand(StartCommand):
         state_dir: Path,
         shared_dir: Path,
         monitor_socket_path: Path,
-        shell_socket_path: Path,
     ) -> subprocess.Popen:
         return subprocess.Popen(
-            self.cmd(monitor_socket_path, shell_socket_path),
+            self.cmd(monitor_socket_path),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -229,7 +225,6 @@ class Machine:
     shared_dir: Path
     state_dir: Path
     monitor_path: Path
-    shell_path: Path
 
     start_command: StartCommand
     keep_vm_state: bool
@@ -238,15 +233,16 @@ class Machine:
     process: Optional[subprocess.Popen]
     pid: Optional[int]
     monitor: Optional[socket.socket]
-    shell: Optional[socket.socket]
+    shell: Optional[subprocess.Popen]
     serial_thread: Optional[threading.Thread]
-    process_shell: Optional[subprocess.Popen]
 
     booted: bool
     connected: bool
     # Store last serial console lines for use
     # of wait_for_console_text
     last_lines: Queue = Queue()
+    callbacks: List[Callable]
+
     ctx = None
 
     def __repr__(self) -> str:
@@ -264,6 +260,7 @@ class Machine:
         allow_reboot: bool = False,
         vm_id: str = "",
         init: str = "",
+        callbacks: Optional[List[Callable]] = None,
     ) -> None:
         self.ctx = ctx
         self.tmp_dir = tmp_dir
@@ -275,6 +272,7 @@ class Machine:
         self.ssh_port = ssh_port
         self.vm_id = vm_id
         self.init = init
+        self.callbacks = callbacks if callbacks is not None else []
 
         # set up directories (TODO only for vm ???)
         self.shared_dir = self.tmp_dir / "shared-xchg"
@@ -282,7 +280,6 @@ class Machine:
 
         self.state_dir = self.tmp_dir / f"vm-state-{self.name}"
         self.monitor_path = self.state_dir / "monitor"
-        self.shell_path = self.state_dir / "shell"
         if (not self.keep_vm_state) and self.state_dir.exists():
             self.cleanup_statedir()
         self.state_dir.mkdir(mode=0o700, exist_ok=True)
@@ -408,65 +405,53 @@ class Machine:
                     + "'{}' but it is in state ‘{}’".format(require_state, state)
                 )
 
-    def _next_newline_closed_block_from_shell(self) -> str:
-        assert self.shell
-        output_buffer = []
-        while True:
-            # This receives up to 4096 bytes from the socket
-            chunk = self.shell.recv(4096)
-            if not chunk:
-                # Probably a broken pipe, return the output we have
-                break
-            decoded = chunk.decode()
-            output_buffer += [decoded]
-            if decoded[-1] == "\n":
-                break
-        return "".join(output_buffer)
-
-    @use_flavour_method_if_any
     def execute(
-        self, command: str, check_return: bool = True, timeout: Optional[int] = 900
+        self,
+        command: str,
+        check_return: bool = True,
+        timeout: Optional[int] = 900,
     ) -> Tuple[int, str]:
-        # For now we use ssh for shell access (see: start in flavours/vm.py)
-        # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
-
-        if self.ctx.external_connect:
-            return self.execute_process_shell(command, check_return, timeout)
-
+        self.run_callbacks()
         self.connect()
-
-        # if timeout is not None:
-        #     command = "timeout {} sh -c {}".format(timeout, shlex.quote(command))
-
-        # out_command = f"( set -euo pipefail; {command} ) | (base64 --wrap 0; echo)\n"
-        # assert self.shell
-        # self.shell.send(out_command.encode())
-
-        # # Get the output
-        # output = base64.b64decode(self._next_newline_closed_block_from_shell())
-
-        # if not check_return:
-        #     return (-1, output.decode())
-
-        # # Get the return code
-        # self.shell.send("echo ${PIPESTATUS[0]}\n".encode())
-        # rc = int(self._next_newline_closed_block_from_shell().strip())
-
-        # return (rc, output.decode())
-
-    @use_flavour_method_if_any
-    def shell_interact(self) -> None:
-        """Allows you to interact with the guest shell
-        Should only be used during test development, not in the production test."""
-
-        self.connect()
-        self.log("Terminal is ready (there is no prompt):")
 
         assert self.shell
-        subprocess.run(
-            ["socat", "READLINE", f"FD:{self.shell.fileno()}"],
-            pass_fds=[self.shell.fileno()],
-        )
+
+        try:
+            (stdout, _stderr) = self.shell.communicate(
+                command.encode(), timeout=timeout
+            )
+        except subprocess.TimeoutExpired:
+            self.shell.kill()
+            return (-1, "")
+
+        status_code = self.shell.returncode
+
+        # If process gone we need to restart one for next command
+        # Need more investigation why we cannot reuse previous shell...
+        if self.shell.poll() is not None:
+            # print("need to restart process")
+            self.start()
+
+        if not check_return:
+            return (-1, stdout.decode())
+
+        return (status_code, stdout.decode())
+
+    # def shell_interact(self) -> None:
+    #     """Allows you to interact with the guest shell
+    #     Should only be used during test development, not in the production test."""
+
+    #     self.connect()
+    #     self.log("Terminal is ready (there is no prompt):")
+
+    #     assert self.shell
+    #     subprocess.run(
+    #         ["socat", "READLINE", f"FD:{self.shell.fileno()}"],
+    #         pass_fds=[self.shell.fileno()],
+    #     )
+
+    def shell_interact(self) -> None:
+        raise Exception("Not YET implemented for this flavour")
 
     def succeed(self, *commands: str, timeout: Optional[int] = None) -> str:
         """Execute each command and check that it succeeds."""
@@ -603,24 +588,27 @@ class Machine:
     def wait_for_job(self, jobname: str) -> None:
         self.wait_for_unit(jobname)
 
-    @use_flavour_method_if_any
     def connect(self) -> None:
         if self.connected:
             return
 
-        with self.nested("waiting for the VM to finish booting"):
-            self.start()
+        self.start()
+        assert self.shell
+        self.connected = True
 
-            assert self.shell
+        # with self.nested("waiting for the node to finish booting"):
+        #     self.start()
 
-            tic = time.time()
-            self.shell.recv(1024)
-            # TODO: Timeout
-            toc = time.time()
+        #     assert self.shell
 
-            self.log("connected to guest root shell")
-            self.log("(connecting took {:.2f} seconds)".format(toc - tic))
-            self.connected = True
+        #     tic = time.time()
+        #     self.shell.recv(1024)
+        #     # TODO: Timeout
+        #     toc = time.time()
+
+        #     self.log("connected to node root shell")
+        #     self.log("(connecting took {:.2f} seconds)".format(toc - tic))
+        #     self.connected = True
 
     def copy_from_host_via_shell(self, source: str, target: str) -> None:
         """Copy a file from the host into the guest by piping it over the
@@ -704,9 +692,10 @@ class Machine:
         time.sleep(0.01)
 
     def start(self) -> None:
-        self.ctx.flavour.start(self)
+        # self.ctx.flavour.start(self)
+        pass
 
-    def _start_vm(self) -> None:
+    def _start_vm(self) -> None:  # TODO move to vm flavour
         """Should work for vm-ramdisk (tested) and other qemu based (not tested)"""
         if self.booted:
             return
@@ -726,12 +715,10 @@ class Machine:
             return s
 
         monitor_socket = create_socket(clear(self.monitor_path))
-        shell_socket = create_socket(clear(self.shell_path))
         self.process = self.start_command.run(
             self.state_dir,
             self.shared_dir,
             self.monitor_path,
-            self.shell_path,
         )
 
         try:
@@ -753,7 +740,7 @@ class Machine:
 
         # For now we use ssh for shell access (see: start in flavours/vm.py)
         # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
-        self.shell, _ = shell_socket.accept()
+
         self.ctx.flavour.start_process_shell(self)
 
         # Store last serial console lines for use
@@ -802,50 +789,6 @@ class Machine:
         self.send_monitor_command("quit")
         self.wait_for_shutdown()
 
-    def wait_for_x(self) -> None:
-        """Wait until it is possible to connect to the X server.  Note that
-        testing the existence of /tmp/.X11-unix/X0 is insufficient.
-        """
-
-        def check_x(_: Any) -> bool:
-            cmd = (
-                "journalctl -b SYSLOG_IDENTIFIER=systemd | "
-                + 'grep "Reached target Current graphical"'
-            )
-            status, _ = self.execute(cmd)
-            if status != 0:
-                return False
-            status, _ = self.execute("[ -e /tmp/.X11-unix/X0 ]")
-            return status == 0
-
-        with self.nested("waiting for the X11 server"):
-            retry(check_x)
-
-    def get_window_names(self) -> List[str]:
-        return self.succeed(
-            r"xwininfo -root -tree | sed 's/.*0x[0-9a-f]* \"\([^\"]*\)\".*/\1/; t; d'"
-        ).splitlines()
-
-    def wait_for_window(self, regexp: str) -> None:
-        pattern = re.compile(regexp)
-
-        def window_is_visible(last_try: bool) -> bool:
-            names = self.get_window_names()
-            if last_try:
-                self.log(
-                    "Last chance to match {} on the window list,".format(regexp)
-                    + " which currently contains: "
-                    + ", ".join(names)
-                )
-            return any(pattern.search(name) for name in names)
-
-        with self.nested("waiting for a window to appear"):
-            retry(window_is_visible)
-
-    def sleep(self, secs: int) -> None:
-        # We want to sleep in *guest* time, not *host* time.
-        self.succeed(f"sleep {secs}")
-
     def forward_port(self, host_port: int = 8080, guest_port: int = 80) -> None:
         """Forward a TCP port on the host to a TCP port on the guest.
         Useful during interactive testing.
@@ -865,7 +808,7 @@ class Machine:
         """Make the machine reachable."""
         self.send_monitor_command("set_link virtio-net-pci.1 on")
 
-    @use_flavour_method_if_any
+    # TODO move VM (pid)
     def release(self) -> None:
         if self.pid is None:
             return
@@ -882,47 +825,9 @@ class Machine:
         self.monitor.close()
         self.serial_thread.join()
 
-    def start_process_shell(self, args):
-        # command examples:
-        # ['docker-compose', '-f', 'nxc/artifact/composition/docker/docker-compose.json', 'exec', '-T', ']
-        # ['ssh', '-t', '-o', 'StrictHostKeyChecking=no', '-l', 'root', '10.0.2.16']
-        self.process_shell = subprocess.Popen(
-            args,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+    def run_callbacks(self) -> None:
+        for callback in self.callbacks:
+            callback()
 
-    def execute_process_shell(
-        self,
-        command: str,
-        check_return: bool = True,
-        timeout: Optional[int] = 900,
-    ) -> Tuple[int, str]:
-        self.connect()
-
-        process_shell = self.process_shell
-
-        try:
-            (stdout, _stderr) = process_shell.communicate(
-                command.encode(), timeout=timeout
-            )
-        except subprocess.TimeoutExpired:
-            process_shell.kill()
-            return (-1, "")
-
-        status_code = process_shell.returncode
-
-        # If process gone we need to restart one for next command
-        # Need more investigation why we cannot reuse previous shell...
-        if self.process_shell.poll() is not None:
-            # print("need to restart process")
-            self.restart_process_shell()
-
-        if not check_return:
-            return (-1, stdout.decode())
-
-        return (status_code, stdout.decode())
-
-    def restart_process_shell(self):
-        self.start()
+    def direct_exec(self, user, name) -> None:
+        raise Exception("Not YET implemented for this flavour")

@@ -69,7 +69,9 @@ def cli(
         # TODO  add wait_ssh
         connect_tmux(ctx, user, host, identity_file, pane_console, geometry, "nxc")
     else:
-        ctx.flavour.ext_connect(user, host[0], ssh_key_file=identity_file)
+        ctx.flavour.init_driver(ctx).default_connect(
+            user, host[0], ssh_key_file=identity_file
+        )
 
         # if "docker-compose-file" in ctx.deployment_info:
         #    connect_docker(ctx, user, host[0])

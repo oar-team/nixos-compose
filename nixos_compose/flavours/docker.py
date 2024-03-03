@@ -9,9 +9,10 @@ from ..flavour import Flavour
 from ..actions import read_compose_info, realpath_from_store
 from ..driver.logger import rootlog
 from ..driver.machine import Machine
+from ..driver.driver import Driver
 from ..default_role import DefaultRole
 
-from typing import Tuple, Optional
+from typing import List
 
 
 def set_prefix_store_volumes(dc_json, prefix_store):
@@ -155,28 +156,92 @@ def generate_deployment_info_docker(ctx):
     return docker_compose_path
 
 
-class DockerFlavour(Flavour):
-    docker_compose_file = None
+class DockerMachine(Machine):
+    def __init__(
+        self,
+        ctx,
+        tmp_dir,
+        start_command,
+        name: str = "machine",
+        ip: str = "",
+        ssh_port: int = 22,
+        keep_vm_state: bool = False,
+        allow_reboot: bool = False,
+        vm_id: str = "",
+        init: str = "",
+    ) -> None:
+        super().__init__(
+            ctx,
+            tmp_dir,
+            start_command,
+            name,
+            ip,
+            ssh_port,
+            keep_vm_state,
+            allow_reboot,
+            vm_id,
+            init,
+        )
 
-    def __init__(self, ctx):
-        super().__init__(ctx)
+    def start(self):
+        assert self.name
+        assert DockerFlavour.docker_compose_file
 
-        self.name = "docker"
-        self.description = ""
-        # TOR self.docker_processes = {}
+        if self.booted:
+            return
 
-    def generate_deployment_info(self, ssh_pub_key_file=None):
-        self.docker_compose_file = generate_deployment_info_docker(self.ctx)
+        if not DockerDriver.containers_launched:
+            DockerFlavour.driver.launch_containers()
 
-    def driver_initialize(self, tmp_dir):
+        self.shell = subprocess.Popen(
+            [
+                "docker-compose",
+                "-f",
+                DockerFlavour.docker_compose_file,
+                "exec",
+                "-u",
+                "root",
+                "-T",
+                self.name,
+                "bash",
+                "-l",
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.connected = True
+        self.booted = True
+
+    def shell_interact(self) -> None:
+        self.connect()
+        DockerFlavour.driver.default_connect("root", self.name)
+
+    def release(self) -> None:
+        raise Exception("Not YET implemented for this flavour")
+
+
+class DockerDriver(Driver):
+    containers_launched: bool
+
+    def __init__(self, ctx, start_scripts, vlans, tests, keep_vm_state):
+        DockerDriver.containers_launched = False
+
+        tmp_dir = super().__init__(ctx, start_scripts, vlans, tests, keep_vm_state)
+
         assert self.ctx.deployment_info
-        if not self.docker_compose_file:
-            self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
+        DockerFlavour.docker_compose_file = self.ctx.deployment_info[
+            "docker-compose-file"
+        ]
+
+        # Replace to driver.__init__ ???
+        # tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
+        # tmp_dir.mkdir(mode=0o700, exist_ok=True)
 
         nodes_names = self.ctx.deployment_info["nodes"]
         for name in nodes_names:
             self.machines.append(
-                Machine(
+                DockerMachine(
                     self.ctx,
                     tmp_dir=tmp_dir,
                     start_command="",
@@ -189,7 +254,7 @@ class DockerFlavour(Flavour):
             [
                 "docker-compose",
                 "-f",
-                self.docker_compose_file,
+                DockerFlavour.docker_compose_file,
                 "ps",
                 "--services",
                 "--filter",
@@ -198,80 +263,56 @@ class DockerFlavour(Flavour):
         )
         return len(check_process.decode().rstrip("\n").splitlines())
 
-    def connect(self, machine):
-        if machine.connected:
-            return
-        self.start_all()
-
-    def start_all(self):
-        if not self.external_connect:
-            with rootlog.nested("starting docker-compose"):
+    def launch_containers(self):
+        if not DockerDriver.containers_launched:
+            with rootlog.nested("Starting docker-compose"):
                 subprocess.Popen(
-                    ["docker-compose", "-f", self.docker_compose_file, "up", "-d"]
+                    [
+                        "docker-compose",
+                        "-f",
+                        DockerFlavour.docker_compose_file,
+                        "up",
+                        "-d",
+                    ]
                 )
-
             self.wait_on_check()
 
-        for machine in self.machines:
-            if not machine.connected:
-                self.start(machine)
-                machine.connected = True
+            for machine in self.machines:
+                machine.booted = True
 
-    def start(self, machine):  # TODO MOVE to Connect ???
-        assert machine.name
-        assert self.docker_compose_file
+            DockerDriver.containers_launched = True
 
-        machine.start_process_shell(
-            [
-                "docker-compose",
-                "-f",
-                self.docker_compose_file,
-                "exec",
-                "-u",
-                "root",
-                "-T",
-                machine.name,
-                "bash",
-                "-l",
-            ]
-        )
+    def start_all(self):
+        if not DockerDriver.containers_launched:
+            self.launch_containers()
 
-    def execute(
-        self,
-        machine,
-        command: str,
-        check_return: bool = True,
-        timeout: Optional[int] = 900,
-    ) -> Tuple[int, str]:
-        return machine.execute_process_shell(command, check_return, timeout)
-
-    def restart(self, machine):
-        machine.restart_process_shell()
+        # No lazy process_shell creation
+        super().start_all()  # Will create a process_shell per machine
 
     def cleanup(self):
         # TODO handle stdout/stderr
-        if not self.docker_compose_file:
-            self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
+        if not DockerFlavour.docker_compose_file:
+            DockerFlavour.docker_compose_file = self.ctx.deployment_info[
+                "docker-compose-file"
+            ]
         subprocess.Popen(
             [
                 "docker-compose",
                 "-f",
-                self.docker_compose_file,
+                DockerFlavour.docker_compose_file,
                 "down",
                 "--remove-orphans",
             ]
         )
 
-    def shell_interact(self, machine) -> None:
-        self.connect(machine)
-        self.ext_connect("root", machine.name)
+    def default_connect(self, user, machine, execute=True, ssh_key_file=None):
+        if not DockerFlavour.docker_compose_file:
+            DockerFlavour.docker_compose_file = self.ctx.deployment_info[
+                "docker-compose-file"
+            ]
 
-    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
-        if not self.docker_compose_file:
-            self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
-
-        cmd = f"docker-compose -f {self.docker_compose_file} exec -u {user} {node} bash"
-        print(f"ext_connect {cmd}")
+        cmd = f"docker-compose -f {DockerFlavour.docker_compose_file} exec -u {user} {machine} bash"
+        # print(f"ext_connect {cmd}")
         if execute:
             return_code = subprocess.run(cmd, shell=True).returncode
 
@@ -280,3 +321,63 @@ class DockerFlavour(Flavour):
             return return_code
         else:
             return cmd
+
+
+class DockerFlavour(Flavour):
+    docker_compose_file = None
+    driver = None
+
+    def __init__(self, ctx):
+        super().__init__(ctx)
+
+        self.name = "docker"
+        self.description = ""
+        # TOR self.docker_processes = {}
+
+    def generate_deployment_info(self, ssh_pub_key_file=None):
+        DockerFlavour.docker_compose_file = generate_deployment_info_docker(self.ctx)
+
+    def init_driver(
+        self,
+        ctx,
+        start_scripts: List[str] = [],
+        vlans: List[int] = [],
+        tests: str = "",
+        keep_vm_state: bool = False,
+    ):
+        DockerFlavour.driver = DockerDriver(
+            ctx, start_scripts, vlans, tests, keep_vm_state
+        )
+        return DockerFlavour.driver
+
+    # def check(self, state="running"):
+    #     check_process = subprocess.check_output(
+    #         [
+    #             "docker-compose",
+    #             "-f",
+    #             self.docker_compose_file,
+    #             "ps",
+    #             "--services",
+    #             "--filter",
+    #             f"status={state}",
+    #         ],
+    #     )
+    #     return len(check_process.decode().rstrip("\n").splitlines())
+
+    # def connect(self, machine):
+    #     if machine.connected:
+    #         return
+    #     self.start_all()
+
+    # def execute(
+    #     self,
+    #     machine,
+    #     command: str,
+    #     check_return: bool = True,
+    #     timeout: Optional[int] = 900,
+    # ) -> Tuple[int, str]:
+    #     return machine.execute_process_shell(command, check_return, timeout)
+
+    # def shell_interact(self, machine) -> None:
+    #     self.connect(machine)
+    #     self.ext_connect("root", machine.name)
