@@ -44,9 +44,11 @@ for ((n = 0; n < ${#objects[*]}; n++)); do
     fi
 done
 
+
 mkdir -p etc/ssh root tmp var/log
 cp $registrationStorePath/nix-path-registration* nix/store/
-xargs -a $registrationStorePath/all-store-paths cp -na -t nix/store
+
+xargs -a $registrationStorePath/all-store-paths cp -a --update=none -t nix/store
 
 mkdir -p $out/tarball
 
