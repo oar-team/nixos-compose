@@ -100,11 +100,12 @@ def retry(fn: Callable, timeout: int = 900) -> None:
         raise Exception(f"action timed out after {timeout} seconds")
 
 
-class StartCommand:
+class StartCommand:  # TO REMOVE or MOVE to vm.py
     pass
 
 
-class VmStartCommand(StartCommand):
+#
+class VmStartCommand(StartCommand):  # TOMOVE to vm.py
     """The Base Start Command knows how to append the necesary
     runtime qemu options as determined by a particular test driver
     run. Any such start command is expected to happily receive and
@@ -120,7 +121,7 @@ class VmStartCommand(StartCommand):
     def cmd(
         self,
         monitor_socket_path: Path,
-        allow_reboot: bool = False,  # TODO: unused, legacy?
+        allow_reboot: bool = False,
     ) -> str:
         display_opts = ""
         display_available = any(x in os.environ for x in ["DISPLAY", "WAYLAND_DISPLAY"])
@@ -132,9 +133,8 @@ class VmStartCommand(StartCommand):
         qemu_opts += (
             ""
             if allow_reboot
-            else " -no-reboot"
-            " -device virtio-serial"
-            " -device virtconsole,chardev=shell"
+            else " -no-reboot" " -device virtio-serial"
+            # " -device virtconsole,chardev=shell"
             " -device virtio-rng-pci"
             " -serial stdio"
             f" -monitor unix:{monitor_socket_path}"
@@ -153,8 +153,8 @@ class VmStartCommand(StartCommand):
     ) -> dict:
         # We make a copy to not update the current environment
         kernel_params = ""
-        if self.flavour.ctx.kernel_params:
-            kernel_params = self.flavour.ctx.kernel_params
+        if self.driver.ctx.kernel_params:
+            kernel_params = self.driver.ctx.kernel_params
         env = dict(os.environ)
         env.update(
             {
@@ -163,9 +163,9 @@ class VmStartCommand(StartCommand):
                 "USE_TMPDIR": "1",
                 "QEMU_OPTS": self.qemu_opts,
                 "VM_ID": str(self.vm_id),
-                "QEMU_VDE_SOCKET": str(self.flavour.vlan.socket_dir),
-                "FLAVOUR": f"flavour={self.flavour.name}",
-                "SHARED_NXC_COMPOSITION_DIR": self.flavour.ctx.envdir,
+                "QEMU_VDE_SOCKET": str(self.driver.vlan.socket_dir),
+                "FLAVOUR": f"flavour={self.driver.ctx.flavour.name}",
+                "SHARED_NXC_COMPOSITION_DIR": self.driver.ctx.envdir,
                 "ADDITIONAL_KERNEL_PARAMS": str(kernel_params),
             }
         )
@@ -189,11 +189,11 @@ class VmStartCommand(StartCommand):
 
 
 class StartScript(VmStartCommand):
-    def __init__(self, script: str, vm_id: str, flavour):
+    def __init__(self, script: str, vm_id: str, driver):
         super().__init__()
         self._cmd = script
         self.vm_id = vm_id
-        self.flavour = flavour
+        self.driver = driver
 
 
 class NixStartScript(VmStartCommand):
@@ -692,80 +692,80 @@ class Machine:
         time.sleep(0.01)
 
     def start(self) -> None:
+        raise Exception("Not YET implemented for this flavour")
         # self.ctx.flavour.start(self)
-        pass
 
-    def _start_vm(self) -> None:  # TODO move to vm flavour
-        """Should work for vm-ramdisk (tested) and other qemu based (not tested)"""
-        if self.booted:
-            return
+    # def _start_vm(self) -> None:  # TODO move to vm flavour
+    #     """Should work for vm-ramdisk (tested) and other qemu based (not tested)"""
+    #     if self.booted:
+    #         return
 
-        self.log("starting vm")
+    #     self.log("starting vm")
 
-        def clear(path: Path) -> Path:
-            if path.exists():
-                path.unlink()
-            return path
+    #     def clear(path: Path) -> Path:
+    #         if path.exists():
+    #             path.unlink()
+    #         return path
 
-        def create_socket(path: Path) -> socket.socket:
-            s = socket.socket(family=socket.AF_UNIX, type=socket.SOCK_STREAM)
-            s.settimeout(1.0)
-            s.bind(str(path))
-            s.listen(1)
-            return s
+    #     def create_socket(path: Path) -> socket.socket:
+    #         s = socket.socket(family=socket.AF_UNIX, type=socket.SOCK_STREAM)
+    #         s.settimeout(1.0)
+    #         s.bind(str(path))
+    #         s.listen(1)
+    #         return s
 
-        monitor_socket = create_socket(clear(self.monitor_path))
-        self.process = self.start_command.run(
-            self.state_dir,
-            self.shared_dir,
-            self.monitor_path,
-        )
+    #     monitor_socket = create_socket(clear(self.monitor_path))
+    #     self.process = self.start_command.run(
+    #         self.state_dir,
+    #         self.shared_dir,
+    #         self.monitor_path,
+    #     )
 
-        try:
-            self.monitor, _ = monitor_socket.accept()
-        except socket.timeout:
-            self.ctx.elog("Time out reached on monitor socket accept (qemu)")
-            if self.process.poll():
-                self.ctx.elog(
-                    f"Qemu script exited with return code: {self.process.returncode}"
-                )
-                for line in self.process.stdout:
-                    self.ctx.elog(f"stdout: {line.decode()}")
-                for line in self.process.stderr:
-                    self.ctx.elog(f"stderr: {line.decode()}")
-                sys.exit(1)
-            else:
-                self.ctx.elog(f"Qemu seems stucks, pid: {self.process.pid}")
-                sys.exit(1)
+    #     try:
+    #         self.monitor, _ = monitor_socket.accept()
+    #     except socket.timeout:
+    #         self.ctx.elog("Time out reached on monitor socket accept (qemu)")
+    #         if self.process.poll():
+    #             self.ctx.elog(
+    #                 f"Qemu script exited with return code: {self.process.returncode}"
+    #             )
+    #             for line in self.process.stdout:
+    #                 self.ctx.elog(f"stdout: {line.decode()}")
+    #             for line in self.process.stderr:
+    #                 self.ctx.elog(f"stderr: {line.decode()}")
+    #             sys.exit(1)
+    #         else:
+    #             self.ctx.elog(f"Qemu seems stucks, pid: {self.process.pid}")
+    #             sys.exit(1)
 
-        # For now we use ssh for shell access (see: start in flavours/vm.py)
-        # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
+    #     # For now we use ssh for shell access (see: start in flavours/vm.py)
+    #     # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
 
-        self.ctx.flavour.start_process_shell(self)
+    #     self.ctx.flavour.start_process_shell(self)
 
-        # Store last serial console lines for use
-        # of wait_for_console_text
-        self.last_lines: Queue = Queue()
+    #     # Store last serial console lines for use
+    #     # of wait_for_console_text
+    #     self.last_lines: Queue = Queue()
 
-        def process_serial_output() -> None:
-            assert self.process
-            assert self.process.stdout
-            for _line in self.process.stdout:
-                # Ignore undecodable bytes that may occur in boot menus
-                line = _line.decode(errors="ignore").replace("\r", "").rstrip()
-                self.last_lines.put(line)
-                self.log_serial(line)
+    #     def process_serial_output() -> None:
+    #         assert self.process
+    #         assert self.process.stdout
+    #         for _line in self.process.stdout:
+    #             # Ignore undecodable bytes that may occur in boot menus
+    #             line = _line.decode(errors="ignore").replace("\r", "").rstrip()
+    #             self.last_lines.put(line)
+    #             self.log_serial(line)
 
-        self.serial_thread = threading.Thread(target=process_serial_output)
-        # self.serial_thread.daemon = True
-        self.serial_thread.start()
+    #     self.serial_thread = threading.Thread(target=process_serial_output)
+    #     # self.serial_thread.daemon = True
+    #     self.serial_thread.start()
 
-        self.wait_for_monitor_prompt()
+    #     self.wait_for_monitor_prompt()
 
-        self.pid = self.process.pid
-        self.booted = True
+    #     self.pid = self.process.pid
+    #     self.booted = True
 
-        self.log("QEMU running (pid {})".format(self.pid))
+    #     self.log("QEMU running (pid {})".format(self.pid))
 
     def cleanup_statedir(self) -> None:
         if self.ctx.flavour in ["vm", "vm-ramdisk"]:

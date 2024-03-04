@@ -93,14 +93,13 @@ class Context(object):
         self.sigwait = None
         self.kernel_params = None
         self.all_started: bool = False
-        self.no_start: bool = (
-            False  # use w/ driver CLI command which must not start machines
-        )
+        # use w/ driver CLI command which must not start machines
+        self.no_start: bool = False
+        # Machines / nodes is to force use of ssh on foo.execute(command)
         self.ssh_connection: bool = True  # Machines / nodes is
-        #  to force use of ssh on foo.execute(command)
-        self.vde_tap: bool = False  # use to add tap interface which allow external IP
-        # access either done by port forwarding on local
-        # interface
+        # use to add tap interface which allow external IP
+        # access either done by port forwarding on local interface
+        self.vde_tap: bool = False
         self.spinner = LazySpinner()
         self.show_spinner = True
 
