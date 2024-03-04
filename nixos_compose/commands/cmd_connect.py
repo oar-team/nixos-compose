@@ -64,6 +64,7 @@ def cli(
             )
 
     ctx.flavour = get_flavour_by_name(flavour)(ctx)
+    ctx.no_start = True
 
     if not host or len(host) > 1:
         # TODO  add wait_ssh

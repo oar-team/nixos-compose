@@ -143,7 +143,7 @@ class NspawnFlavour(Flavour):
         nodes_names = self.ctx.deployment_info["nodes"]
         for name in nodes_names:
             self.machines.append(
-                Machine(
+                Machine(  # TODO NspawnMachine
                     self.ctx,
                     tmp_dir=tmp_dir,
                     start_command="",

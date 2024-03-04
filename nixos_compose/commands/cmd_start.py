@@ -69,7 +69,6 @@ def start(ctx, interactive, execute_test_script, port, machine_file=None):
         # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
         ctx,
         [],
-        [],
         test_script,
         False,
     ) as driver:

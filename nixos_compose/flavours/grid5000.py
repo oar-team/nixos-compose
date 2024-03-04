@@ -116,7 +116,7 @@ class G5kKexecBasedFlavour(Flavour):
             deployment_nodes = self.ctx.deployment_info["deployment"]
             for ip, node in deployment_nodes.items():
                 self.machines.append(
-                    Machine(
+                    Machine(  # TODO G5kMachine
                         self.ctx,
                         ip=ip,
                         tmp_dir=tmp_dir,

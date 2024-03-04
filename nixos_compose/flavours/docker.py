@@ -224,10 +224,10 @@ class DockerMachine(Machine):
 class DockerDriver(Driver):
     containers_launched: bool
 
-    def __init__(self, ctx, start_scripts, vlans, tests, keep_vm_state):
+    def __init__(self, ctx, start_scripts, tests, keep_vm_state):
         DockerDriver.containers_launched = False
 
-        tmp_dir = super().__init__(ctx, start_scripts, vlans, tests, keep_vm_state)
+        tmp_dir = super().__init__(ctx, start_scripts, tests, keep_vm_state)
 
         assert self.ctx.deployment_info
         DockerFlavour.docker_compose_file = self.ctx.deployment_info[
@@ -341,43 +341,8 @@ class DockerFlavour(Flavour):
         self,
         ctx,
         start_scripts: List[str] = [],
-        vlans: List[int] = [],
         tests: str = "",
         keep_vm_state: bool = False,
     ):
-        DockerFlavour.driver = DockerDriver(
-            ctx, start_scripts, vlans, tests, keep_vm_state
-        )
+        DockerFlavour.driver = DockerDriver(ctx, start_scripts, tests, keep_vm_state)
         return DockerFlavour.driver
-
-    # def check(self, state="running"):
-    #     check_process = subprocess.check_output(
-    #         [
-    #             "docker-compose",
-    #             "-f",
-    #             self.docker_compose_file,
-    #             "ps",
-    #             "--services",
-    #             "--filter",
-    #             f"status={state}",
-    #         ],
-    #     )
-    #     return len(check_process.decode().rstrip("\n").splitlines())
-
-    # def connect(self, machine):
-    #     if machine.connected:
-    #         return
-    #     self.start_all()
-
-    # def execute(
-    #     self,
-    #     machine,
-    #     command: str,
-    #     check_return: bool = True,
-    #     timeout: Optional[int] = 900,
-    # ) -> Tuple[int, str]:
-    #     return machine.execute_process_shell(command, check_return, timeout)
-
-    # def shell_interact(self, machine) -> None:
-    #     self.connect(machine)
-    #     self.ext_connect("root", machine.name)

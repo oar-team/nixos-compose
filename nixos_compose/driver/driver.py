@@ -8,7 +8,6 @@ import time
 
 from .logger import rootlog
 from .machine import Machine, retry
-from .vlan import VLan
 
 
 class Driver:
@@ -16,7 +15,6 @@ class Driver:
     and runs the tests"""
 
     tests: str
-    vlans: List[VLan]
     machines: List[Machine] = []
     all_started: bool = False  # True if all machines are already started
 
@@ -24,31 +22,21 @@ class Driver:
         self,
         ctx,
         start_scripts: List[str] = [],
-        vlans: List[int] = [],
         tests: str = "",
         keep_vm_state: bool = False,
     ):
         self.ctx = ctx
         self.tests = tests
 
-        # TO MOVE
+        # TO MOVE ???
         tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
         tmp_dir.mkdir(mode=0o700, exist_ok=True)
-
-        # if hasattr(ctx.flavour, "create_vlan"):
-        #    self.vlans = [ctx.flavour.create_vlan()]
-
-        # ctx.flavour.driver_initialize(tmp_dir)
 
         # if hasattr(ctx.flavour, "machines") and ctx.flavour.machines:
         # if ctx.flavour.machines:
         #    self.machines = ctx.flavour.machines
         # else:
         #    rootlog.warning("No machine defined during driver init")
-
-        # TODO move
-        if hasattr(ctx.flavour, "create_vlan") and not ctx.no_start:
-            self.vlans = [ctx.flavour.create_vlan()]
 
         # def cmd(scripts: List[str]) -> Iterator[NixStartScript]:
         #     for s in scripts:
@@ -102,7 +90,6 @@ class Driver:
             start_all=self.start_all,
             test_script=self.test_script,
             machines=self.machines,
-            # vlans=self.vlans,
             driver=self,
             log=rootlog,
             os=os,
@@ -120,18 +107,13 @@ class Driver:
         if len(self.machines) == 1:
             (machine_symbols["machine"],) = self.machines
 
-        # vlan_symbols = {
-        #    f"vlan{v.nr}": self.vlans[idx] for idx, v in enumerate(self.vlans)
-        # }
         print(
             "additionally exposed symbols:\n    "
             + ", ".join(map(lambda m: m.name, self.machines))
             + ",\n    "
-            # + ", ".join(map(lambda v: f"vlan{v.nr}", self.vlans))
-            + ",\n    "
             + ", ".join(list(general_symbols.keys()))
         )
-        return {**general_symbols, **machine_symbols}  # , **vlan_symbols}
+        return {**general_symbols, **machine_symbols}
 
     def test_script(self) -> None:
         """Run the test script"""
