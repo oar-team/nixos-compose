@@ -39,7 +39,7 @@ class NixosComposeCLI(click.MultiCommand):
 @click.option("--debug", "-D", is_flag=True, default=False, help="Enable debugging")
 @click.version_option(version=version)
 @pass_context
-def cli(ctx, envdir, verbose, debug):
+def nxc(ctx, envdir, verbose, debug):
     """Generate and manage multi Nixos composition."""
     ctx.envdir = envdir
     if os.path.isfile("nxc.json"):
@@ -58,4 +58,4 @@ def cli(ctx, envdir, verbose, debug):
 
 
 def main(args=sys.argv[1:]):
-    cli(args)
+    nxc(*args)

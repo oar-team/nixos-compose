@@ -56,17 +56,13 @@ from ..setup import apply_setup
     "-C",
     "--composition-flavour",
     type=click.STRING,
-    help="Use to specify which composition and flavour combinaison to build when muliple compostions are describe at once (see -L options to list them).",
+    help="Use to specify which composition and flavour combination to build when multiple compositions are describe at once (see -L options to list them).",
 )
-# @click.option(
-#    "-c", "--composition", type=click.STRING,
-#    help="Use to specify which composition to built when muliple compostions are describe at once."
-# )
 @click.option(
     "-L",
     "--list-compositions-flavours",
     is_flag=True,
-    help="List available combinaisons of compositions and flavours",
+    help="List available combinations of compositions and flavours",
 )
 @click.option(
     "-s",
@@ -112,9 +108,20 @@ def cli(
     setup_param,
     monitor,
 ):
-    """Build multi Nixos composition.
-    Typically it performs the kind of following command:
-      nix build
+    """
+    Builds the composition.
+
+    It generates a `build` folder which stores symlinks to the closure associated to a composition. The file name of the symlink follows this structure  `[composition-name]::[flavour]`
+
+    ## Examples
+
+    - `nxc build -t vm`
+    
+        Build the `vm` flavor of your composition.
+
+    - `nxc build -C oar::g5k-nfs-store`
+    
+        Build the `oar` composition with the `g5k-nfs-store` flavor`.
     """
 
     def determine_flavour(ctx):
@@ -183,11 +190,6 @@ def cli(
         for k in flavours:
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
-
-    # if flavour:
-    #    if flavour not in flavours and not op.isfile(flavour):
-    #        ctx.elog(f'"{flavour}" is neither a supported flavour nor flavour_path')
-    # w        sys.exit(1)
 
     if not composition_file:
         composition_file = ctx.nxc["composition"]
