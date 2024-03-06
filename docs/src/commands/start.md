@@ -1,8 +1,46 @@
-This command is used to start a set of machines described in a deployment. It takes one positional argument in the yaml format to know how many instance of each role are expected. For instance the command `nxc start nodes.yaml`, with the file `nodes.yaml` written as this
+`nxc start [ROLE_DISTRIBUTION_FILE]`
 
-```yaml
-nfsServerNode: 1
-nfsClientNode: 2
-```
+Starts a set of nodes using the previous build. 
 
-would instanciate two nodes with the role `nfsClientNode` and one only with the role `nfsServerNode`. Of course, these roles need to have been described beforhand in a `composition.nix` file.
+## Arguments
+
+- `ROLE_DISTRIBUTION_FILE`
+    positional argument in YAML format to describe how many instance of each role are expected.
+    
+    
+## Example
+
+- `nxc start`
+
+   Start the last built composition.
+
+- `nxc start nodes.yaml`
+
+    With the file `nodes.yaml` written as this:
+
+    ```yaml
+    nfsServerNode: 1
+    nfsClientNode: 2
+    ```
+
+    Instantiates two nodes with the role `nfsClientNode` and one only with the role `nfsServerNode`. Of course, these roles have to be described beforehand in a `composition.nix` file.
+
+## Options
+
+- `-f, --flavour` _flavourName_
+
+    Choose the flavour to start.
+
+- `-C, --composition-flavour [composition+flavour ... NAME]`
+
+    Specifies which composition and flavour combination to start.
+
+- `-I, --interactive`
+
+    Drop into a python repl with driver functions
+
+-  `-r, --role-distribution KEY=VALUE`
+
+    Specify the number of nodes or nodes' name for a role (e.g. compute=2 or server=foo,bar ).
+
+This the full list of options using `--help`.
