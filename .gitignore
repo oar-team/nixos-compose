@@ -5,3 +5,5 @@ live*
 *.egg
 *.egg-info
 /docs/book/*
+.poetry
+.vscode

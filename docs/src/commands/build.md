@@ -1,51 +1,78 @@
-`nxc build` builds the composition. Generates a `build` folder which stores symlinks to the closure associated to a composition. The file name of the symlink follows this struture :
 
-```
-[[composition-name]]::[flavour]
+`nxc build`
 
-soon ??
-[[composition-name]::[system]]::[flavour]
+Builds the composition.
 
-```
-## The is non requiered argument *composition_file* to remove i think
-# Options
+It generates a `build` folder which stores symlinks to the closure associated to a composition. The file name of the symlink follows this structure  `[composition-name]::[flavour]`
 
-- `-f, --flavour` _flavourName_
+## Examples
 
-    Choose the flavour to build the composition.
+- `nxc build -t vm`
+
+    Build the `vm` flavor of your composition.
+
+- `nxc build -C oar::g5k-nfs-store`
+
+    Build the `oar` composition with the `g5k-nfs-store` flavor`.
+
+
+## Usage
+
+`Usage: nxc build [OPTIONS] [COMPOSITION_FILE]`
+
+## Options
+
+- `composition_file`
+
+
+- `--nix-flags`
+    add nix flags (aka options) to nix build command, --nix-flags "--impure"
+
+- `--out-link, -o`
+    path of the symlink to the build result
+
+- `-f, --flavour`
+    Use particular flavour (name or path)
 
 - `-F, --list-flavours`
-
-    Displays the list of flavours.
+    List available flavour
+    *Default:* `False`
 
 - `--show-trace`
-
-    Show Nix Trace in case of build error.
+    Show Nix trace
+    *Default:* `False`
 
 - `--dry-run`
-
-    Show what this command would do without doing it.
+    Show what this command would do without doing it
+    *Default:* `False`
 
 - `--dry-build`
+    Eval build expression and show store entry without building derivation
+    *Default:* `False`
 
-    Eval build expression and show store entry without building derivation.
+- `-C, --composition-flavour`
+    Use to specify which composition and flavour combination to build when multiple compositions are describe at once (see -L options to list them).
 
-- `-C, --composition-flavour [composition+flavour ... NAME]`
-
-    Use to specify which composition and flavour combinaison to built when muliple compostions are describe at once (see -L options to list them).
-
-- `-L, --list-composition-flavours`
-
-    List available combinaisons of compositions and flavours.
+- `-L, --list-compositions-flavours`
+    List available combinations of compositions and flavours
+    *Default:* `False`
 
 - `-s, --setup`
-
     Select setup variant
 
 - `-p, --setup-param`
-
     Override setup parameter
 
-- `-o, --out-link`
+- `-u, --update-flake`
+    Update flake.lock equivalent to: nix flake update
+    *Default:* `False`
 
-    Path of the symlink to the build result.
+- `--monitor`
+    Build with nix-output-monitor
+    *Default:* `False`
+
+- `--help`
+    Show this message and exit.
+    *Default:* `False`
+
+

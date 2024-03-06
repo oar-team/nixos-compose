@@ -10,7 +10,7 @@ In order to add this overlay, you have to edit the `flake.nix` file and add your
   };
 ```
 
-Here is how you can add a extra package using an overlay or add a NixOS module using the `extraConfigurations` parameter:
+Here is how you can add an extra package using an overlay or add a NixOS module using the `extraConfigurations` parameter:
 ```nix
   outputs = { self, nixpkgs, nxc, myFlake }:
     let
@@ -34,7 +34,6 @@ Here is how you can add a extra package using an overlay or add a NixOS module u
       };
     };
     # ...
-}
 ```
 
 ```admonish note

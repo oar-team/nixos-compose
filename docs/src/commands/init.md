@@ -1,16 +1,11 @@
 `nxc init` helps you starts a new project by creating the firsts required files.
 
-# Examples
-
-## Initilisation
+## Examples
 
 `nxc init -t basic --output-dir experiments`
-This command fetches on the git repository on _NixOS Compose_ 
-`nxc init -
+This command fetches the template `basic` from the `examples` directory of the  _NixOS Compose_ git repository
 
-TODO continue
-
-# Options
+## Options
 
 `--output-dir [path]`
 Defines where to initialize. default value is the current directory

@@ -28,7 +28,7 @@ The installation and usage of _NixOSCompose_ differs in function of the state at
 
 ## Configuration requirements
 
-On NixOS you need to enable the dockers functionnality, in our case there is a compatibility issue with cgroupv2 so it is needed to force cgroupv1 with the option `systemd.enableUnifiedCgroupHierarchy`.
+On NixOS you need to enable the Docker, in our case there is a compatibility issue with cgroupv2 so it is needed to force cgroupv1 with the option `systemd.enableUnifiedCgroupHierarchy`.
 
 ```nix
 # Docker enabled + cgroup v1
