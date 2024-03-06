@@ -1,6 +1,6 @@
 { pkgs, config, ... }: {
 
-  boot.initrd.network.enable = true;
+  #boot.initrd.network.enable = true;
   boot.initrd.extraUtilsCommands = ''
     copy_bin_and_libs ${pkgs.jq}/bin/jq
     cp -pv ${pkgs.glibc}/lib/libnss_files.so.2 $out/lib
@@ -10,6 +10,7 @@
 
   boot.initrd.postMountCommands = ''
        allowShell=1
+       #set -xv
        #echo Breakpoint reached && fail
        mkdir -p /mnt-root/etc/nxc
 
@@ -88,7 +89,7 @@
                    echo "hostname: $hostname"
 
                    init=""
-                   if  [ ! -z $composition ]; then
+                   if [ "''${composition+set}" = set ]; then
                       if [ -f /mnt-root/nix/store/compositions-info.json ]; then
                          echo "/mnt-root/nix/store/compositions-info.json"
                          init=$(jq -r ".\"$composition\".roles.\"$role\".init" /mnt-root/nix/store/compositions-info.json)
@@ -99,13 +100,16 @@
                       fi
                       echo "init: $init"
                    fi
-                   export stage2Init=$init
+                   export stage2Init="$init"
                    echo $role > /mnt-root/etc/nxc/role
-                   if  [ ! -z $hostname ]; then
-                       echo $hostname >> /mnt-root/etc/nxc/hostname
+
+                   if   [ "''${hostname+set}" = set ]; then
+                        echo "$hostname" > /mnt-root/etc/nxc/hostname
                    fi
+
                    ssh_key_pub=$(jq -r '."ssh_key.pub" // empty' $deployment_json)
-                   if [ ! -z "$ssh_key_pub" ]; then
+
+                   if [ "''${ssh_key_pub+set}" = set ]; then
                        mkdir -p /mnt-root/root/.ssh/
                        echo "$ssh_key_pub" >> /mnt-root/root/.ssh/authorized_keys
                    fi
@@ -115,7 +119,7 @@
 
                    echo "Retrieve all_compositions_registration_store_path"
                    registration_store_path=$(jq -r '."all" | ."all_compositions_registration_store_path" // empty' $deployment_json)
-                   if [ ! -z "$registration_store_path" ]; then
+                   if [ "''${registration_store_path}" = set ]; then
                      echo "Create link to $registration_store_path in /etc/nxc"
                      # link destination will valid after switch_root
                      ln -s "$registration_store_path" /mnt-root/etc/nxc/all_compositions_registration_store
