@@ -37,15 +37,15 @@ def cli(ctx, user, deployment_file, flavour, test_script_file, test_script):
     """
     Run the driver to execute the given script to interact with the deployed environment.
     The script is a python script similar to nixos-test script. See the [NixOS manual on nixos-tests](https://nixos.org/manual/nixos/unstable/#sec-writing-nixos-tests) for more details.
-    
+
     ```admonish warning
-    Be aware that unlike Nixos-test that only support virtual machines, `nxc` supports many flavors and VM specific features are not supported. 
+    Be aware that unlike Nixos-test that only support virtual machines, `nxc` supports many flavors and VM specific features are not supported.
     ```
-    
+
     ## Examples
-    
+
     - `nxc driver -t`
-      
+
        Run the script defined in the composition
     """
     read_deployment_info(ctx, deployment_file)

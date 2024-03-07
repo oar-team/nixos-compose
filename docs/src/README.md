@@ -3,7 +3,7 @@
 This documentation is being written on a project under development. Recent changes or mistakes can occur.
 ```
 
-*NixOSCompose* generates and deploys reproducible distributed environnement, with a focus on the software stack.
+*NixOSCompose* generates and deploys reproducible distributed environment, with a focus on the software stack.
 
 <!-- build and deploy config and software stack on different target platform with a focus on reproducibility -->
 <!-- parler environment + configuration (service, ssh key, ) ; deployable on different target platforms -->
