@@ -116,12 +116,12 @@ def cli(
     ## Examples
 
     - `nxc build -t vm`
-    
+
         Build the `vm` flavor of your composition.
 
     - `nxc build -C oar::g5k-nfs-store`
-    
-        Build the `oar` composition with the `g5k-nfs-store` flavor`.
+
+        Build the `oar` composition with the `g5k-nfs-store` flavor.
     """
 
     def determine_flavour(ctx):

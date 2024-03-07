@@ -272,9 +272,9 @@ def cli(
     # dry_run,
 ):
     """
-    Starts a set of nodes using the previous build. 
+    Starts a set of nodes using the previous build.
 
-    `ROLE_DISTRIBUTION_FILE` is and optional YAML file describing how many instance of each role are expected.
+    `ROLE_DISTRIBUTION_FILE` is and optional YAML file describing how many instances of each role are expected.
 
     ## Examples
 

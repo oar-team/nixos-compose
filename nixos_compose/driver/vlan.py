@@ -59,7 +59,7 @@ class VLan:
         ]
 
         if ctx.platform and ctx.platform.group_users:
-            vde_cmd = vde_cmd + [ "-group", ctx.platform.group_users ]
+            vde_cmd = vde_cmd + ["-group", ctx.platform.group_users]
 
         self.process = subprocess.Popen(
             vde_cmd,

@@ -33,20 +33,22 @@ from ..flavours import get_flavour_by_name
 @pass_context
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
-def cli(ctx, user, host, geometry, pane_console, deployment_file, flavour, identity_file):
+def cli(
+    ctx, user, host, geometry, pane_console, deployment_file, flavour, identity_file
+):
     """
     Opens one or more terminal sessions into the deployed nodes. By default, it will connect to all nodes, but we can specify which ones to connect to.
 
-    To connect to several machines at once. For this, we use a tmux (terminal multiplexer) session. Feel free to refer to the [tmux documentation](https://github.com/tmux/tmux/wiki) (or its [cheatsheet](https://tmuxcheatsheet.com/)), especially for the shortcuts to navigate between the different tabs.
-    
+    To connect to several machines at once `nxc` use a tmux (terminal multiplexer) session. Feel free to refer to the [tmux documentation](https://github.com/tmux/tmux/wiki) (or its [cheatsheet](https://tmuxcheatsheet.com/)), especially for the shortcuts to navigate between the different tabs.
+
     ## Examples
-    
+
     - `nxc connect`
-    
-        Open a Tmux session with on panel for each node.
-    
+
+        Open a Tmux session with one panel for each node.
+
     - `nxc connect server`
-    
+
         Connect to the `server` node. It runs on the current shell (Tmux is not used in this case)
     """
     read_deployment_info(ctx, deployment_file)
@@ -67,7 +69,7 @@ def cli(ctx, user, host, geometry, pane_console, deployment_file, flavour, ident
         # TODO  add wait_ssh
         connect_tmux(ctx, user, host, identity_file, pane_console, geometry, "nxc")
     else:
-        ctx.flavour.ext_connect(user, host[0], ssh_key_file = identity_file)
+        ctx.flavour.ext_connect(user, host[0], ssh_key_file=identity_file)
 
         # if "docker-compose-file" in ctx.deployment_info:
         #    connect_docker(ctx, user, host[0])
