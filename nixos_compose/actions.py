@@ -718,10 +718,16 @@ def get_ip_ssh_port(ctx, host):
 
 def ssh_connect(ctx, user, host, execute=True, ssh_key_file=None):
     ip, ssh_port = get_ip_ssh_port(ctx, host)
-    ssh_key_option = "" if ssh_key_file is None else "-o IdentitiesOnly=yes -i " + os.path.realpath(ssh_key_file)
+    ssh_key_option = (
+        ""
+        if ssh_key_file is None
+        else "-o IdentitiesOnly=yes -i " + os.path.realpath(ssh_key_file)
+    )
 
-    ssh_cmd = (f"ssh {ssh_key_option} -o StrictHostKeyChecking=no -o LogLevel=ERROR"
-               f" -l {user} -p {ssh_port} {ip}")
+    ssh_cmd = (
+        f"ssh {ssh_key_option} -o StrictHostKeyChecking=no -o LogLevel=ERROR"
+        f" -l {user} -p {ssh_port} {ip}"
+    )
 
     if execute:
         return_code = subprocess.run(ssh_cmd, shell=True).returncode
@@ -736,7 +742,9 @@ def ssh_connect(ctx, user, host, execute=True, ssh_key_file=None):
 NB_PANES_2_GEOMETRY = ["1", "1+1", "1+2", "2+2", "2+3", "3+3", "3+4", "4+4"]
 
 
-def connect_tmux(ctx, user, nodes, ssh_key_file, pane_console, geometry, window_name="nxc"):
+def connect_tmux(
+    ctx, user, nodes, ssh_key_file, pane_console, geometry, window_name="nxc"
+):
     if not nodes:
         deploy = ctx.deployment_info["deployment"]
         node = (list(deploy.keys()))[0]
@@ -746,7 +754,9 @@ def connect_tmux(ctx, user, nodes, ssh_key_file, pane_console, geometry, window_
         except ValueError:
             nodes = list(deploy.keys())
 
-    connect_cmds = [ctx.flavour.ext_connect(user, node, False, ssh_key_file) for node in nodes]
+    connect_cmds = [
+        ctx.flavour.ext_connect(user, node, False, ssh_key_file) for node in nodes
+    ]
 
     console = 0
     if pane_console:

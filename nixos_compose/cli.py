@@ -57,5 +57,5 @@ def nxc(ctx, envdir, verbose, debug):
     # ctx.update() not use
 
 
-def main(args=sys.argv[1:]):
-    nxc(*args)
+def main():
+    nxc()
