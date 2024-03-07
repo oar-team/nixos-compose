@@ -27,14 +27,27 @@ from ..driver.driver import Driver
     "-t",
     "--test-script",
     is_flag=True,
-    help="execute the 'embedded' testscript",
+    help="execute the 'embedded' testScript",
 )
 @click.argument("test-script-file", required=False)
 @pass_context
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(ctx, user, deployment_file, flavour, test_script_file, test_script):
-    """Start driver to intearct with deployed environment."""
+    """
+    Run the driver to execute the given script to interact with the deployed environment.
+    The script is a python script similar to nixos-test script. See the [NixOS manual on nixos-tests](https://nixos.org/manual/nixos/unstable/#sec-writing-nixos-tests) for more details.
+    
+    ```admonish warning
+    Be aware that unlike Nixos-test that only support virtual machines, `nxc` supports many flavors and VM specific features are not supported. 
+    ```
+    
+    ## Examples
+    
+    - `nxc driver -t`
+      
+       Run the script defined in the composition
+    """
     read_deployment_info(ctx, deployment_file)
 
     # determine flavour name
