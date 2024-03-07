@@ -9,7 +9,6 @@
     - [Grid5000](install/grid5000.md)
 - [Quick start](quick-start.md)
 - [Slow start](slow-start.md)
-- [Driver usage](driver-usage.md)
 
 # How-To
 
@@ -18,13 +17,18 @@
 
 # Commands
 
-- [init](commands/init.md)
-- [build](commands/build.md)
-- [start](commands/start.md)
-- [connect](commands/connect.md)
-- [stop](commands/stop.md)
+- [nxc]
+- [nxc init](references/commands/init.md)
+- [nxc build](references/commands/build.md)
+- [nxc start](references/commands/start.md)
+- [nxc connect](references/commands/connect.md)
+- [nxc driver](references/commands/driver.md)
+- [nxc stop](references/commands/stop.md)
+- [nxc clean](references/commands/clean.md)
+- [nxc helper](references/commands/helper.md)
 
 # Working on nixos-compose
 
 - [A few pointers](code-pointers.md)
+- [Developer doc](dev-doc.md)
 

@@ -40,7 +40,7 @@ class NixosComposeCLI(click.MultiCommand):
 @click.version_option(version=version)
 @pass_context
 def nxc(ctx, envdir, verbose, debug):
-    """Generate and manage multi Nixos composition."""
+    """Generate and manage Nixos-compositions."""
     ctx.envdir = envdir
     if os.path.isfile("nxc.json"):
         if os.path.islink("nxc.json"):
