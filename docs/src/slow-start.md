@@ -5,7 +5,7 @@ Here we complete the quick start guide that was focused on the CLI, we will go f
 
 ~ Here we will go through a complete workflow with the local test deployment with docker and a Grid5000 deployment of a Nginx server and a test client.
 
-- initilization
+- initialization
   - review of the files
   - launch/test
 - Edit the composition
@@ -23,7 +23,7 @@ nix flake new webserver -t nxc#webserver
 ```
 
 ~~~admonish info
-    To avoid writting the full path to the _NixOSCompose_ flake we are using the _Nix_ registries.
+    To avoid writing the full path to the _NixOSCompose_ flake we are using the _Nix_ registries.
     ```shell
     nix registry add nxc git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git
     ```
@@ -43,7 +43,7 @@ webserver/
 ## Description of the files
 
 ### `flake.nix`
-  A file that is key in the reproducibility of project. It defines all the dependencies of a project and what it is able to provide as ouputs
+  A file that is key in the reproducibility of project. It defines all the dependencies of a project and what it is able to provide as outputs
   You can learn a bit onto how a flake file works [here](https://nix-tutorial.gitlabpages.inria.fr/nix-tutorial/flakes.html).
 
   This file manages the dependencies and the outputs of a project. It has multiple fields :

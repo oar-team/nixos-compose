@@ -18,7 +18,7 @@ It generates a `build` folder which stores symlinks to the closure associated to
 
 ## Usage
 
-`Usage: nxc build [OPTIONS] [COMPOSITION_FILE]`
+`nxc build [OPTIONS] [COMPOSITION_FILE]`
 
 ## Options
 
@@ -74,5 +74,4 @@ It generates a `build` folder which stores symlinks to the closure associated to
 - `--help`
     Show this message and exit.
     *Default:* `False`
-
 

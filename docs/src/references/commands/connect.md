@@ -1,4 +1,5 @@
-`nxc connect` 
+
+`nxc connect`
 
 Opens one or more terminal sessions into the deployed nodes. By default, it will connect to all nodes, but we can specify which ones to connect to.
 
@@ -14,22 +15,37 @@ To connect to several machines at once. For this, we use a tmux (terminal multip
 
     Connect to the `server` node. It runs on the current shell (Tmux is not used in this case)
 
+
+## Usage
+
+`nxc connect [OPTIONS] [HOST]...`
+
 ## Options
 
+- `-l, --user`
+
+    *Default:* `root`
+
 - `-g, --geometry`
-
-    Tmux geometry, 2 splitting indications are supported: +/\*.
-
-    Examples: "1+3+2" (3 successive panes respectively horizontally spited by 1,3 and 2), "2\*3" (2 successive panes horizontally slitted by 3)
+    Tmux geometry, 2 splitting indications are supported: +/*, examples: "1+3+2" (3 adjacent panes respectively horizontally splited by 1,3 and 2), "2*3" (2 adjacent panes horizontally splitted by 3)
 
 - `-d, --deployment-file`
+    Deployment file, take the latest created in deploy directory by default
 
-    Deployment file. By default it takes the latest created in the `deploy` directory
+- `-f, --flavour`
+    flavour, by default it's extracted from deployment file name
+
+- `-i, --identity-file`
+    path to the ssh public private used to connect to the deployments
 
 - `-pc, --pane-console`
+    Add a pane console
+    *Default:* `False`
 
-    Add a regular shell pane to the tmux session.
+- `host`
 
-- `-i, --identity-file TEXT`
 
-    The path to the ssh (private) key to use to connect to the deployments. It has to be the counterpart of the key that would have been given to `nxc start` (albeit with the same command line argument).
+- `--help`
+    Show this message and exit.
+    *Default:* `False`
+

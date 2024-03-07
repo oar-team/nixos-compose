@@ -271,8 +271,29 @@ def cli(
     deployment_file
     # dry_run,
 ):
-    """Start Nixos Composition."""
-    # import pdb; pdb.set_trace()
+    """
+    Starts a set of nodes using the previous build. 
+
+    `ROLE_DISTRIBUTION_FILE` is and optional YAML file describing how many instance of each role are expected.
+
+    ## Examples
+
+    - `nxc start`
+
+       Start the last built composition.
+
+    - `nxc start role-distrib.yaml`
+
+        With the file `role-distrib.yaml` written as this:
+
+        ```yaml
+        nfsServerNode: 1
+        nfsClientNode: 2
+        ```
+
+        Instantiates two nodes with the role `nfsClientNode` and one only with the role `nfsServerNode`. Of course, these roles have to be described beforehand in a `composition.nix` file.
+
+    """
     flavour_name = flavour
     if test_script:
         execute_test_script = True
@@ -310,7 +331,7 @@ def cli(
 
     ctx.set_roles_distribution(role_distribution, roles_distribution_file)
 
-    # kernel_params can by setted through setup
+    # kernel_params can by set through setup
     if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
         _, _, _, _, kernel_params = apply_setup(
             ctx,
@@ -498,53 +519,3 @@ def cli(
     ctx.flavour.generate_deployment_info(identity_file)
 
     start(ctx, interactive, execute_test_script, port, machine_file)
-
-    # if (
-    #     ctx.ip_addresses
-    #     and (ctx.flavour.name != "vm-ramdisk")
-    #     and (ctx.flavour.name != "vm")
-    # ):
-    #     if ctx.use_httpd:
-    #         ctx.vlog("Launch: httpd to distribute deployment.json")
-    #         ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
-
-    #     if hasattr(ctx.flavour, "generate_kexec_scripts"):
-    #         ctx.flavour.generate_kexec_scripts()
-
-    #     if ctx.push_path:
-    #         push_on_machines(ctx)
-
-    #     if ctx.use_httpd:
-    #         ctx.httpd.start(directory=ctx.envdir)
-
-    #     if not interactive:
-    #         ctx.flavour.launch(machine_file=machine_file)
-    #         sys.exit(0)
-
-    # test_script = read_test_script(ctx, ctx.compose_info)
-
-    # if not interactive and not execute_test_script:
-    #     test_script = "start_all()"
-
-    # with Driver(
-    #     # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
-    #     ctx,
-    #     [],
-    #     [],
-    #     test_script,
-    #     False,
-    # ) as driver:
-    #     if interactive:
-    #         ptpython.repl.embed(driver.test_symbols(), {})
-    #     elif execute_test_script:
-    #         tic = time.time()
-    #         driver.run_tests()
-    #         toc = time.time()
-    #         ctx.glog(f"test script finished in {(toc-tic):.2f}s")
-    #     else:
-    #         ctx.glog("just start ???")
-    #         driver.test_script()
-    # if ctx.use_httpd:
-    #     ctx.httpd.stop()
-
-    # ctx.glog("Started")
