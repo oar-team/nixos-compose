@@ -20,5 +20,5 @@ class Flavour(object):
     def generate_deployment_info(self, ssh_pub_key_file=None):
         pass
 
-    def init_driver(self, ctx, start_scripts, tests, keep_vm_state):
+    def initialize_driver(self, ctx, start_scripts, tests, keep_vm_state):
         pass
