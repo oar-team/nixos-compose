@@ -130,7 +130,7 @@ class G5kMachine(Machine):
             return
 
         ssh_cmd = G5kBasedFlavour.driver.default_connect("root", self.name, False)
-        self.shell = subprocess.call(
+        self.shell = subprocess.Popen(
             ssh_cmd,
             shell=True,
             stdin=subprocess.PIPE,
@@ -156,7 +156,7 @@ class G5kDriver(Driver):
             deployment_nodes = self.ctx.deployment_info["deployment"]
             for ip, node in deployment_nodes.items():
                 self.machines.append(
-                    G5kMachine(  # TODO G5kMachine
+                    G5kMachine(
                         self.ctx,
                         ip=ip,
                         tmp_dir=tmp_dir,
@@ -165,12 +165,6 @@ class G5kDriver(Driver):
                         name=node["host"],
                     )
                 )
-
-    #         for machine in self.machines:
-    #             if not machine.connected:
-    #                 self.start(machine)
-    #             machine.connected = True
-    #         return
 
     def default_connect(self, user, node, execute=True, ssh_key_file=None):
         return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
@@ -207,50 +201,6 @@ class G5kKexecBasedFlavour(G5kBasedFlavour):
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
-
-    # def initialize_driver(self, tmp_dir):
-    #     self.tmp_dir = tmp_dir
-    #     ctx = self.ctx
-
-    #     if ctx.no_start:  #
-    #         deployment_nodes = self.ctx.deployment_info["deployment"]
-    #         for ip, node in deployment_nodes.items():
-    #             self.machines.append(
-    #                 Machine(  # TODO G5kMachine
-    #                     self.ctx,
-    #                     ip=ip,
-    #                     tmp_dir=tmp_dir,
-    #                     start_command="",
-    #                     keep_vm_state=False,
-    #                     name=node["host"],
-    #                 )
-    #             )
-
-    #         for machine in self.machines:
-    #             if not machine.connected:
-    #                 self.start(machine)
-    #             machine.connected = True
-    #         return
-
-    # def start(self, machine):
-    #     if not self.ctx.no_start:
-    #         print("Not Yet Implemented")
-    #         exit(1)
-    #     else:
-    #         machine.start_process_shell(
-    #             [
-    #                 "ssh",
-    #                 "-t",
-    #                 "-o",
-    #                 "StrictHostKeyChecking=no",
-    #                 "-l",
-    #                 "root",
-    #                 machine.ip,
-    #             ]
-    #         )
-
-    # def ext_connect(self, user, node, execute=True, ssh_key_file=None):
-    #     return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
 
 
 class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
@@ -337,23 +287,3 @@ class G5KImageFlavour(G5kBasedFlavour):
                 raise click.ClickException(f"Failed to execute kadeploy command: {ex}")
         else:
             print(f"You can kadeploy image with: {cmd_kadeploy}")
-
-    # def start(self, machine):
-    #     if not self.ctx.no_start:
-    #         print("Not Yet Implemented")
-    #         exit(1)
-    #     else:
-    #         machine.start_process_shell(
-    #             [
-    #                 "ssh",
-    #                 "-t",
-    #                 "-o",
-    #                 "StrictHostKeyChecking=no",
-    #                 "-l",
-    #                 "root",
-    #                 machine.ip,
-    #             ]
-    #         )
-
-    # def ext_connect(self, user, node, execute=True, ssh_key_file=None):
-    #     return ssh_connect(self.ctx, user, node, execute, ssh_key_file)

@@ -114,7 +114,7 @@ class VmMachine(Machine):
             # For now we use ssh for shell access (see: start in flavours/vm.py)
             # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
             ssh_cmd = VmFlavour.driver.default_connect("root", self.name, False)
-            self.shell = subprocess.call(
+            self.shell = subprocess.Popen(
                 ssh_cmd,
                 shell=True,
                 stdin=subprocess.PIPE,
@@ -163,7 +163,7 @@ class VmMachine(Machine):
         #     stderr=subprocess.PIPE,
         # )
         ssh_cmd = VmFlavour.driver.default_connect("root", self.name, False)
-        self.shell = subprocess.call(
+        self.shell = subprocess.Popen(
             ssh_cmd,
             shell=True,
             stdin=subprocess.PIPE,

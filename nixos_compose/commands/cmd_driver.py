@@ -90,10 +90,9 @@ def cli(ctx, user, deployment_file, flavour, test_script_file, test_script):
         ctx.elog(f"test script ({test_script_file}) is empty")
         sys.exit(1)
 
-    with ctx.flavour.driver(
+    with ctx.flavour.initialize_driver(
         # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
         ctx,
-        [],
         [],
         test_script_str,
         False,
