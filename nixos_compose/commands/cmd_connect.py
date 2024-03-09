@@ -70,7 +70,7 @@ def cli(
         # TODO  add wait_ssh
         connect_tmux(ctx, user, host, identity_file, pane_console, geometry, "nxc")
     else:
-        ctx.flavour.init_driver(ctx).default_connect(
+        ctx.flavour.initialize_driver(ctx).default_connect(
             user, host[0], ssh_key_file=identity_file
         )
 

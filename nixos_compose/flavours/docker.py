@@ -183,7 +183,7 @@ class DockerMachine(Machine):
             init,
         )
 
-    def start(self):
+    def start(self) -> None:
         assert self.name
         assert DockerFlavour.docker_compose_file
 
@@ -337,7 +337,7 @@ class DockerFlavour(Flavour):
     def generate_deployment_info(self, ssh_pub_key_file=None):
         DockerFlavour.docker_compose_file = generate_deployment_info_docker(self.ctx)
 
-    def init_driver(
+    def initialize_driver(
         self,
         ctx,
         start_scripts: List[str] = [],

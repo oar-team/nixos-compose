@@ -113,23 +113,30 @@ class VmMachine(Machine):
 
             # For now we use ssh for shell access (see: start in flavours/vm.py)
             # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
-
-            self.shell = subprocess.Popen(
-                [
-                    "ssh",
-                    "-t",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-l",
-                    "root",
-                    "-p",
-                    self.ssh_port,
-                    self.ip,
-                ],
+            ssh_cmd = VmFlavour.driver.default_connect("root", self.name, False)
+            self.shell = subprocess.call(
+                ssh_cmd,
+                shell=True,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
+            # self.shell = subprocess.Popen(
+            #     [
+            #         "ssh",
+            #         "-t",
+            #         "-o",
+            #         "StrictHostKeyChecking=no",
+            #         "-l",
+            #         "root",
+            #         "-p",
+            #         self.ssh_port,
+            #         self.ip,
+            #     ],
+            #     stdin=subprocess.PIPE,
+            #     stdout=subprocess.PIPE,
+            #     stderr=subprocess.PIPE,
+            # )
 
             self.pid = self.process.pid
             self.booted = True
@@ -139,18 +146,26 @@ class VmMachine(Machine):
         # For now we use ssh for shell access (see: start in flavours/vm.py)
         # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
 
-        self.shell = subprocess.Popen(
-            [
-                "ssh",
-                "-t",
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-l",
-                "root",
-                "-p",
-                self.ssh_port,
-                self.ip,
-            ],
+        # self.shell = subprocess.Popen(
+        #     [
+        #         "ssh",
+        #         "-t",
+        #         "-o",
+        #         "StrictHostKeyChecking=no",
+        #         "-l",
+        #         "root",
+        #         "-p",
+        #         self.ssh_port,
+        #         self.ip,
+        #     ],
+        #     stdin=subprocess.PIPE,
+        #     stdout=subprocess.PIPE,
+        #     stderr=subprocess.PIPE,
+        # )
+        ssh_cmd = VmFlavour.driver.default_connect("root", self.name, False)
+        self.shell = subprocess.call(
+            ssh_cmd,
+            shell=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -313,7 +328,7 @@ class VmBaseFlavour(Flavour):
     def generate_deployment_info(self, ssh_pub_key_file=None):
         generate_deployment_info(self.ctx, ssh_pub_key_file)
 
-    def init_driver(
+    def initialize_driver(
         self,
         ctx,
         start_scripts: List[str] = [],

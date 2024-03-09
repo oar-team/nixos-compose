@@ -65,7 +65,7 @@ def start(ctx, interactive, execute_test_script, port, machine_file=None):
 
     test_script = read_test_script(ctx, ctx.compose_info)
 
-    with ctx.flavour.init_driver(
+    with ctx.flavour.initialize_driver(
         # args.start_scripts, args.vlans, args.testscript.read_text(), args.keep_vm_state
         ctx,
         [],
