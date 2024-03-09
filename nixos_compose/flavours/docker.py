@@ -229,11 +229,6 @@ class DockerDriver(Driver):
 
         tmp_dir = super().__init__(ctx, start_scripts, tests, keep_vm_state)
 
-        assert self.ctx.deployment_info
-        DockerFlavour.docker_compose_file = self.ctx.deployment_info[
-            "docker-compose-file"
-        ]
-
         # Replace to driver.__init__ ???
         # tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
         # tmp_dir.mkdir(mode=0o700, exist_ok=True)
@@ -291,10 +286,7 @@ class DockerDriver(Driver):
 
     def cleanup(self):
         # TODO handle stdout/stderr
-        if not DockerFlavour.docker_compose_file:
-            DockerFlavour.docker_compose_file = self.ctx.deployment_info[
-                "docker-compose-file"
-            ]
+        assert DockerFlavour.docker_compose_file
         subprocess.Popen(
             [
                 "docker-compose",
@@ -306,11 +298,7 @@ class DockerDriver(Driver):
         )
 
     def default_connect(self, user, machine, execute=True, ssh_key_file=None):
-        if not DockerFlavour.docker_compose_file:
-            DockerFlavour.docker_compose_file = self.ctx.deployment_info[
-                "docker-compose-file"
-            ]
-
+        assert DockerFlavour.docker_compose_file
         cmd = f"docker-compose -f {DockerFlavour.docker_compose_file} exec -u {user} {machine} bash"
         # print(f"ext_connect {cmd}")
         if execute:
@@ -335,7 +323,7 @@ class DockerFlavour(Flavour):
         # TOR self.docker_processes = {}
 
     def generate_deployment_info(self, ssh_pub_key_file=None):
-        DockerFlavour.docker_compose_file = generate_deployment_info_docker(self.ctx)
+        generate_deployment_info_docker(self.ctx)
 
     def initialize_driver(
         self,
@@ -344,5 +332,9 @@ class DockerFlavour(Flavour):
         tests: str = "",
         keep_vm_state: bool = False,
     ):
+        assert self.ctx.deployment_info
+        DockerFlavour.docker_compose_file = self.ctx.deployment_info[
+            "docker-compose-file"
+        ]
         DockerFlavour.driver = DockerDriver(ctx, start_scripts, tests, keep_vm_state)
         return DockerFlavour.driver
