@@ -5,6 +5,8 @@ export NXC_BRANCH := `basename $PWD`
 
 nxc_local := "nix develop --override-input nxc path:" + justfile_directory() + " -c nxc"
 
+nix_flags := "--nix-flags \"--override-input nxc path:" + justfile_directory() + "\""
+
 #examples:= `cd examples && ls -I "*.*"`
 
 DEFAULT_BASIC_EXAMPLES := "basic basic-nur execo scripts setup webserver"
@@ -45,7 +47,7 @@ build_and_test FLAVOUR EXAMPLE:
     just _copy_prepare_example $tmpdir {{EXAMPLE}}
     cd $tmpdir
     shopt -s expand_aliases && alias nxc_local="{{nxc_local}}"
-    nxc_local build -f {{FLAVOUR}}
+    nxc_local build {{nix_flags}} -f {{FLAVOUR}}
     if [[ {{FLAVOUR}} == "vm" ]]; then
       # nxc_local start -t # TOFIX
       nxc_local start &
@@ -67,7 +69,7 @@ build FLAVOUR EXAMPLE:
     just _copy_prepare_example $tmpdir {{EXAMPLE}}
     cd $tmpdir
     shopt -s expand_aliases && alias nxc_local="{{nxc_local}}"
-    nxc_local build -f {{FLAVOUR}}
+    nxc_local build {{nix_flags}} -f {{FLAVOUR}}
 
 docker EXAMPLE:
     just build_and_test docker {{EXAMPLE}}
@@ -108,11 +110,12 @@ clean_nxc_test:
     @echo clean
     rm -f $TEST_TMP_DIR
 
-# Rsynch current worktree to G5K (remove reference to .bare in . git)
+# Rsynch current worktree to G5K
 rsync_g5k SITE=DEFAULT_G5K_SITE:
     #!/usr/bin/env bash
     set -euxo pipefail
     rsync -avz $JUST_DIR/.. --exclude '\#*' {{SITE}}.g5k:nxc-test-src
+    # change gitdir ref from absolute to relative path
     ssh grenoble.g5k "find nxc-test-src -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
 
 oarsub_g5k_script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
