@@ -2,8 +2,12 @@ import os
 import socket
 import threading
 from queue import Queue
+import re
 import subprocess
 import sys
+import shutil
+import tempfile
+import time
 
 from ..flavour import Flavour
 from ..actions import (
@@ -14,12 +18,186 @@ from ..actions import (
 )
 from ..driver.vlan import VLan
 from ..driver.logger import rootlog
-from ..driver.machine import Machine, StartScript
+from ..driver.machine import Machine, make_command, StartCommand
 from ..driver.driver import Driver
 from ..platform import platform_detection
 
 from pathlib import Path
 from typing import List
+
+CHAR_TO_KEY = {
+    "A": "shift-a",
+    "N": "shift-n",
+    "-": "0x0C",
+    "_": "shift-0x0C",
+    "B": "shift-b",
+    "O": "shift-o",
+    "=": "0x0D",
+    "+": "shift-0x0D",
+    "C": "shift-c",
+    "P": "shift-p",
+    "[": "0x1A",
+    "{": "shift-0x1A",
+    "D": "shift-d",
+    "Q": "shift-q",
+    "]": "0x1B",
+    "}": "shift-0x1B",
+    "E": "shift-e",
+    "R": "shift-r",
+    ";": "0x27",
+    ":": "shift-0x27",
+    "F": "shift-f",
+    "S": "shift-s",
+    "'": "0x28",
+    '"': "shift-0x28",
+    "G": "shift-g",
+    "T": "shift-t",
+    "`": "0x29",
+    "~": "shift-0x29",
+    "H": "shift-h",
+    "U": "shift-u",
+    "\\": "0x2B",
+    "|": "shift-0x2B",
+    "I": "shift-i",
+    "V": "shift-v",
+    ",": "0x33",
+    "<": "shift-0x33",
+    "J": "shift-j",
+    "W": "shift-w",
+    ".": "0x34",
+    ">": "shift-0x34",
+    "K": "shift-k",
+    "X": "shift-x",
+    "/": "0x35",
+    "?": "shift-0x35",
+    "L": "shift-l",
+    "Y": "shift-y",
+    " ": "spc",
+    "M": "shift-m",
+    "Z": "shift-z",
+    "\n": "ret",
+    "!": "shift-0x02",
+    "@": "shift-0x03",
+    "#": "shift-0x04",
+    "$": "shift-0x05",
+    "%": "shift-0x06",
+    "^": "shift-0x07",
+    "&": "shift-0x08",
+    "*": "shift-0x09",
+    "(": "shift-0x0A",
+    ")": "shift-0x0B",
+}
+
+
+class VmStartCommand(StartCommand):  # TOMOVE to vm.py
+    """The Base Start Command knows how to append the necesary
+    runtime qemu options as determined by a particular test driver
+    run. Any such start command is expected to happily receive and
+    append additional qemu args.
+    """
+
+    _cmd: str = ""
+    qemu_opts: str = ""
+
+    def __init__(self):
+        pass
+
+    def cmd(
+        self,
+        monitor_socket_path: Path,
+        allow_reboot: bool = False,
+    ) -> str:
+        display_opts = ""
+        display_available = any(x in os.environ for x in ["DISPLAY", "WAYLAND_DISPLAY"])
+        if not display_available:
+            display_opts += " -nographic"
+
+        # qemu options
+        qemu_opts = ""
+        qemu_opts += (
+            ""
+            if allow_reboot
+            else " -no-reboot" " -device virtio-serial"
+            # " -device virtconsole,chardev=shell"
+            " -device virtio-rng-pci"
+            " -serial stdio"
+            f" -monitor unix:{monitor_socket_path}"
+        )
+        # TODO: qemu script already catpures this env variable, legacy?
+        qemu_opts += " " + os.environ.get("QEMU_OPTS", "")
+
+        self.qemu_opts = qemu_opts
+
+        return f"{self._cmd}"
+
+    def build_environment(
+        self,
+        state_dir: Path,
+        shared_dir: Path,
+    ) -> dict:
+        # We make a copy to not update the current environment
+        kernel_params = ""
+        if self.driver.ctx.kernel_params:
+            kernel_params = self.driver.ctx.kernel_params
+        env = dict(os.environ)
+        env.update(
+            {
+                "TMPDIR": str(state_dir),
+                "SHARED_DIR": str(shared_dir),
+                "USE_TMPDIR": "1",
+                "QEMU_OPTS": self.qemu_opts,
+                "VM_ID": str(self.vm_id),
+                "QEMU_VDE_SOCKET": str(self.driver.vlan.socket_dir),
+                "FLAVOUR": f"flavour={self.driver.ctx.flavour.name}",
+                "SHARED_NXC_COMPOSITION_DIR": self.driver.ctx.envdir,
+                "ADDITIONAL_KERNEL_PARAMS": str(kernel_params),
+            }
+        )
+        return env
+
+    def run(
+        self,
+        state_dir: Path,
+        shared_dir: Path,
+        monitor_socket_path: Path,
+    ) -> subprocess.Popen:
+        return subprocess.Popen(
+            self.cmd(monitor_socket_path),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=True,
+            cwd=state_dir,
+            env=self.build_environment(state_dir, shared_dir),
+        )
+
+
+class StartScript(VmStartCommand):
+    def __init__(self, script: str, vm_id: str, driver):
+        super().__init__()
+        self._cmd = script
+        self.vm_id = vm_id
+        self.driver = driver
+
+
+class NixStartScript(VmStartCommand):
+    """A start script from nixos/modules/virtualiation/qemu-vm.nix
+    that also satisfies the requirement of the BaseStartCommand.
+    These Nix commands have the particular charactersitic that the
+    machine name can be extracted out of them via a regex match.
+    (Admittedly a _very_ implicit contract, evtl. TODO fix)
+    """
+
+    def __init__(self, script: str, vm_id: str):
+        self._cmd = script
+
+    @property
+    def machine_name(self) -> str:
+        match = re.search("run-(.+)-vm$", self._cmd)
+        name = "machine"
+        if match:
+            name = match.group(1)
+        return name
 
 
 class VmMachine(Machine):
@@ -187,8 +365,129 @@ class VmMachine(Machine):
         kill_proc_tree(self.pid, include_parent=False)
 
         self.process.terminate()
+        self.shell.terminate()
         self.monitor.close()
         self.serial_thread.join()
+
+    #
+    # Below VM specific (upto now) methods
+    #
+    def log_serial(self, msg: str) -> None:
+        rootlog.log_serial(msg, self.name)
+
+    def wait_for_monitor_prompt(self) -> str:
+        with self.nested("waiting for monitor prompt"):
+            assert self.monitor is not None
+            answer = ""
+            while True:
+                undecoded_answer = self.monitor.recv(1024)
+                if not undecoded_answer:
+                    break
+                answer += undecoded_answer.decode()
+                if answer.endswith("(qemu) "):
+                    break
+            return answer
+
+    def send_monitor_command(self, command: str) -> str:
+        with self.nested("sending monitor command: {}".format(command)):
+            message = ("{}\n".format(command)).encode()
+            assert self.monitor is not None
+            self.monitor.send(message)
+            return self.wait_for_monitor_prompt()
+
+    def wait_for_shutdown(self) -> None:
+        if not self.booted:
+            return
+
+        with self.nested("waiting for the VM to power off"):
+            sys.stdout.flush()
+            assert self.process
+            self.process.wait()
+
+            self.pid = None
+            self.booted = False
+            self.connected = False
+
+    def copy_from_host(self, source: str, target: str) -> None:
+        """Copy a file from the host into the guest via the `shared_dir` shared
+        among all the VMs (using a temporary directory).
+        """
+        host_src = Path(source)
+        vm_target = Path(target)
+        with tempfile.TemporaryDirectory(dir=self.shared_dir) as shared_td:
+            shared_temp = Path(shared_td)
+            host_intermediate = shared_temp / host_src.name
+            vm_shared_temp = Path("/tmp/shared") / shared_temp.name
+            vm_intermediate = vm_shared_temp / host_src.name
+
+            self.succeed(make_command(["mkdir", "-p", vm_shared_temp]))
+            if host_src.is_dir():
+                shutil.copytree(host_src, host_intermediate)
+            else:
+                shutil.copy(host_src, host_intermediate)
+            self.succeed(make_command(["mkdir", "-p", vm_target.parent]))
+            self.succeed(make_command(["cp", "-r", vm_intermediate, vm_target]))
+
+    def copy_from_vm(self, source: str, target_dir: str = "") -> None:
+        """Copy a file from the VM (specified by an in-VM source path) to a path
+        relative to `$out`. The file is copied via the `shared_dir` shared among
+        all the VMs (using a temporary directory).
+        """
+        # Compute the source, target, and intermediate shared file names
+        out_dir = Path(os.environ.get("out", os.getcwd()))
+        vm_src = Path(source)
+        with tempfile.TemporaryDirectory(dir=self.shared_dir) as shared_td:
+            shared_temp = Path(shared_td)
+            vm_shared_temp = Path("/tmp/shared") / shared_temp.name
+            vm_intermediate = vm_shared_temp / vm_src.name
+            intermediate = shared_temp / vm_src.name
+            # Copy the file to the shared directory inside VM
+            self.succeed(make_command(["mkdir", "-p", vm_shared_temp]))
+            self.succeed(make_command(["cp", "-r", vm_src, vm_intermediate]))
+            abs_target = out_dir / target_dir / vm_src.name
+            abs_target.parent.mkdir(exist_ok=True, parents=True)
+            # Copy the file from the shared directory outside VM
+            if intermediate.is_dir():
+                shutil.copytree(intermediate, abs_target)
+            else:
+                shutil.copy(intermediate, abs_target)
+
+    def send_key(self, key: str) -> None:
+        key = CHAR_TO_KEY.get(key, key)
+        self.send_monitor_command("sendkey {}".format(key))
+        time.sleep(0.01)
+
+    def cleanup_statedir(self) -> None:
+        shutil.rmtree(self.state_dir)
+        rootlog.log(f"deleting VM state directory {self.state_dir}")
+        rootlog.log("if you want to keep the VM state, pass --keep-vm-state")
+
+    def crash(self) -> None:
+        if not self.booted:
+            return
+
+        self.log("forced crash")
+        self.send_monitor_command("quit")
+        self.wait_for_shutdown()
+
+    def forward_port(self, host_port: int = 8080, guest_port: int = 80) -> None:
+        """Forward a TCP port on the host to a TCP port on the guest.
+        Useful during interactive testing.
+        """
+        self.send_monitor_command(
+            "hostfwd_add tcp::{}-:{}".format(host_port, guest_port)
+        )
+
+    def block(self) -> None:
+        """Make the machine unreachable by shutting down eth1 (the multicast
+        interface used to talk to the other VMs).  We keep eth0 up so that
+        the test driver can continue to talk to the machine.
+        """
+        self.send_monitor_command("set_link virtio-net-pci.1 off")
+
+    def unblock(self) -> None:
+        """Make the machine reachable."""
+        self.send_monitor_command("set_link virtio-net-pci.1 on")
 
 
 class VmDriver(Driver):
