@@ -96,7 +96,6 @@ def get_oar_job_nodes_nxc(
     print("generating deploy info")
     flavour.generate_deployment_info()
 
-    flavour.ctx.mode = {"name": "ssh", "vm": False, "shell": "ssh"}
     # flavour.ctx.ssh = f"OAR_JOB_ID={oar_job_id} oarsh"
     flavour.ctx.ssh = "ssh"
     flavour.ctx.sudo = "sudo-g5k"
