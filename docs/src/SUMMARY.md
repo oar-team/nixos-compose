@@ -17,7 +17,6 @@
 
 # Commands
 
-- [nxc]
 - [nxc init](references/commands/init.md)
 - [nxc build](references/commands/build.md)
 - [nxc start](references/commands/start.md)
@@ -31,4 +30,3 @@
 
 - [A few pointers](code-pointers.md)
 - [Developer doc](dev-doc.md)
-
