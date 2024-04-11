@@ -890,7 +890,7 @@ def get_nix_command(ctx):
 # get Nix-static
 def install_nix_static(
     ctx,
-    version="2.10.3",
+    version="2.20.5",
     archi="x86_64",
     local_bin_path=f"{os.environ['HOME']}/.local/bin",
 ):
