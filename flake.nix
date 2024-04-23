@@ -70,13 +70,13 @@
           defaultPackage = self.packages.${system}.${packageName};
 
           devShells = {
-            nxcShell = pkgs.mkShell {
+            nxcShellLite = pkgs.mkShell {
               buildInputs = [
                 self.defaultPackage.${system}
                 pkgs.tmux
               ];
             };
-            nxcShellFull = pkgs.mkShell {
+            nxcShell = pkgs.mkShell {
               buildInputs = [
                 self.packages.${system}.${packageName}
                 pkgs.docker-compose
