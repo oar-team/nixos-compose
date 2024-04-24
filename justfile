@@ -71,10 +71,10 @@ build FLAVOUR EXAMPLE:
     shopt -s expand_aliases && alias nxc_local="{{nxc_local}}"
     nxc_local build {{nix_flags}} -f {{FLAVOUR}}
 
-docker EXAMPLE:
+docker EXAMPLE="basic":
     just build_and_test docker {{EXAMPLE}}
 
-vm EXAMPLE:
+vm EXAMPLE="basic":
     just build_and_test vm {{EXAMPLE}}
 
 list_examples:
@@ -114,7 +114,7 @@ clean_nxc_test:
 rsync_g5k SITE=DEFAULT_G5K_SITE:
     #!/usr/bin/env bash
     set -euxo pipefail
-    rsync -avz $JUST_DIR/.. --exclude '\#*' {{SITE}}.g5k:nxc-test-src
+    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' {{SITE}}.g5k:nxc-test-src
     # change gitdir ref from absolute to relative path
     ssh grenoble.g5k "find nxc-test-src -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
 
@@ -123,7 +123,8 @@ oarsub_g5k_script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
     # TODO test if there is already active job
     set -euxo pipefail
     cd $JUST_DIR
-    g5k_script=$HOME/.local/share/nix/root/$(nix run .#nixos-compose helper g5k_script)
+    #g5k_script=$HOME/.local/share/nix/root/$(nix run .#nixos-compose helper g5k_script)
+    g5k_script=$(nxc helper g5k_script)
     export $(oarsub -l nodes={{NBNODES}},walltime={{WALLTIME}}:0:0 \
     -O $TEST_TMP_DIR/OAR.%jobid%.stdout -E $TEST_TMP_DIR/OAR.%jobid%.stderr \
     "$g5k_script {{WALLTIME}}h" | grep OAR_JOB_ID)
@@ -191,3 +192,43 @@ poetry +commands:
 # Create new worktree
 wkt-create DIR:
     cd .. && git worktree add {{DIR}}
+
+# Create new worktree to prepare the next xx.xx
+wkt-create-nixos-unstable DIR:
+    cd ../nixos-unstable && git worktree add {{DIR}}
+
+g5k-install-nxc-nix:
+    #!/usr/bin/env bash
+    pip install nixos-compose
+    nxc helper install-nix
+
+g5k-uninstall-nxc-nix:
+    #!/usr/bin/env bash
+    pip uninstall nixos-compose
+    chmod 777 -R ~/.local/share/nix
+    rm -rf ~/.local/share/nix
+
+g5k-install-just SITE:
+    ssh {{SITE}}.g5k "mkdir -p ~/.local/bin  &&curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin"
+
+build_and_test_from_installed FLAVOUR EXAMPLE="basic":
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    mkdir -p $TEST_TMP_DIR/{{FLAVOUR}}
+    tmpdir=$(mktemp -d $TEST_TMP_DIR/{{FLAVOUR}}/{{EXAMPLE}}.XXXXXX)
+    #prepare directory
+    echo $tmpdir
+    cd $tmpdir
+    nxc init -f {{FLAVOUR}} -t {{EXAMPLE}}
+    nxc build -f {{FLAVOUR}}
+    if [[ {{FLAVOUR}} == "vm" ]]; then
+      # nxc_local start -t # TOFIX
+      nxc start &
+      sleep 20
+      nxc driver -t
+      pkill qemu-system
+    else
+      nxc start
+      nxc driver -t
+      nxc stop
+    fi
