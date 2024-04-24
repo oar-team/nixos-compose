@@ -4,20 +4,17 @@ export NXC_BRANCH := `basename $PWD`
 # nxc command from local source version
 
 nxc_local := "nix develop --override-input nxc path:" + justfile_directory() + " -c nxc"
-
 nix_flags := "--nix-flags \"--override-input nxc path:" + justfile_directory() + "\""
 
 #examples:= `cd examples && ls -I "*.*"`
 
 DEFAULT_BASIC_EXAMPLES := "basic basic-nur execo scripts setup webserver"
-
 DEFAULT_COMMON_EXAMPLES := "basic basic-nur execo multi-compositions nbp-mpi nixos-cluster scripts setup shared-directories-users webserver"
-
 DEFAULT_DOCKER_EXAMPLES := DEFAULT_BASIC_EXAMPLES
 
 #DEFAULT_VM_EXAMPLES := DEFAULT_COMMON_EXAMPLES + " kernel"
-DEFAULT_VM_EXAMPLES := DEFAULT_BASIC_EXAMPLES
 
+DEFAULT_VM_EXAMPLES := DEFAULT_BASIC_EXAMPLES
 DEFAULT_G5K_EXAMPLES := DEFAULT_COMMON_EXAMPLES + " kernel"
 DEFAULT_G5K_SITE := "grenoble"
 export TEST_TMP_DIR := `echo $HOME` + "/nxc-test-tmp"
@@ -28,27 +25,28 @@ DEFAULT_EXAMPLE := "basic"
 alias b := build
 alias d := develop_with_poetry
 alias p := poetry
+
 default:
     @just --list
 
 _copy_prepare_example TMPDIR EXAMPLE:
     #!/usr/bin/env bash
     set -euxo pipefail
-    cp -a examples/{{EXAMPLE}}/* {{TMPDIR}}
-    cd {{TMPDIR}}
+    cp -a examples/{{ EXAMPLE }}/* {{ TMPDIR }}
+    cd {{ TMPDIR }}
     git init && git add *
 
 build_and_test FLAVOUR EXAMPLE:
     #!/usr/bin/env bash
     set -euxo pipefail
-    mkdir -p $TEST_TMP_DIR/{{FLAVOUR}}
-    tmpdir=$(mktemp -d $TEST_TMP_DIR/{{FLAVOUR}}/{{EXAMPLE}}.XXXXXX)
+    mkdir -p $TEST_TMP_DIR/{{ FLAVOUR }}
+    tmpdir=$(mktemp -d $TEST_TMP_DIR/{{ FLAVOUR }}/{{ EXAMPLE }}.XXXXXX)
     #prepare directory
-    just _copy_prepare_example $tmpdir {{EXAMPLE}}
+    just _copy_prepare_example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
-    shopt -s expand_aliases && alias nxc_local="{{nxc_local}}"
-    nxc_local build {{nix_flags}} -f {{FLAVOUR}}
-    if [[ {{FLAVOUR}} == "vm" ]]; then
+    shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    nxc_local build {{ nix_flags }} -f {{ FLAVOUR }}
+    if [[ {{ FLAVOUR }} == "vm" ]]; then
       # nxc_local start -t # TOFIX
       nxc_local start &
       sleep 20
@@ -63,19 +61,19 @@ build_and_test FLAVOUR EXAMPLE:
 build FLAVOUR EXAMPLE:
     #!/usr/bin/env bash
     set -euxo pipefail
-    mkdir -p $HOME/nxc-test-tmp/{{FLAVOUR}}
-    tmpdir=$(mktemp -d $TEST_TMP_DIR/{{FLAVOUR}}/{{EXAMPLE}}.XXXXXX)
+    mkdir -p $HOME/nxc-test-tmp/{{ FLAVOUR }}
+    tmpdir=$(mktemp -d $TEST_TMP_DIR/{{ FLAVOUR }}/{{ EXAMPLE }}.XXXXXX)
     #prepare directory
-    just _copy_prepare_example $tmpdir {{EXAMPLE}}
+    just _copy_prepare_example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
-    shopt -s expand_aliases && alias nxc_local="{{nxc_local}}"
-    nxc_local build {{nix_flags}} -f {{FLAVOUR}}
+    shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    nxc_local build {{ nix_flags }} -f {{ FLAVOUR }}
 
 docker EXAMPLE="basic":
-    just build_and_test docker {{EXAMPLE}}
+    just build_and_test docker {{ EXAMPLE }}
 
 vm EXAMPLE="basic":
-    just build_and_test vm {{EXAMPLE}}
+    just build_and_test vm {{ EXAMPLE }}
 
 list_examples:
     #!/usr/bin/env bash
@@ -84,18 +82,17 @@ list_examples:
 
 _examples_test FLAVOUR +EXAMPLES:
     #!/usr/bin/env bash
-    for example in {{EXAMPLES}} ; do
+    for example in {{ EXAMPLES }} ; do
       printf "###\n###  Example: $example\n###\n"
-      just {{FLAVOUR}} $example
+      just {{ FLAVOUR }} $example
     done
 
 # Build/test selected example with Docker flavour
 docker_tests +DOCKER_EXAMPLES=DEFAULT_DOCKER_EXAMPLES:
-    just _examples_test docker {{DOCKER_EXAMPLES}}
-
+    just _examples_test docker {{ DOCKER_EXAMPLES }}
 
 vm_tests +VM_EXAMPLES=DEFAULT_VM_EXAMPLES:
-    just _examples_test vm {{VM_EXAMPLES}}
+    just _examples_test vm {{ VM_EXAMPLES }}
 
 # build test examples w/ docker (TODO add filter examples or use docker_tests)
 docker_examples:
@@ -114,7 +111,7 @@ clean_nxc_test:
 rsync_g5k SITE=DEFAULT_G5K_SITE:
     #!/usr/bin/env bash
     set -euxo pipefail
-    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' {{SITE}}.g5k:nxc-test-src
+    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' {{ SITE }}.g5k:nxc-test-src
     # change gitdir ref from absolute to relative path
     ssh grenoble.g5k "find nxc-test-src -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
 
@@ -125,16 +122,16 @@ oarsub_g5k_script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
     cd $JUST_DIR
     #g5k_script=$HOME/.local/share/nix/root/$(nix run .#nixos-compose helper g5k_script)
     g5k_script=$(nxc helper g5k_script)
-    export $(oarsub -l nodes={{NBNODES}},walltime={{WALLTIME}}:0:0 \
+    export $(oarsub -l nodes={{ NBNODES }},walltime={{ WALLTIME }}:0:0 \
     -O $TEST_TMP_DIR/OAR.%jobid%.stdout -E $TEST_TMP_DIR/OAR.%jobid%.stderr \
-    "$g5k_script {{WALLTIME}}h" | grep OAR_JOB_ID)
+    "$g5k_script {{ WALLTIME }}h" | grep OAR_JOB_ID)
     echo $OAR_JOB_ID > $TEST_TMP_DIR/OAR_JOB_ID
 
 start_test_g5k_nfs_store EXAMPLE:
     #!/usr/bin/env bash
     # take the repo of the last built composition
     set -euxo pipefail
-    compo_dir=$(ls -rtd $TEST_TMP_DIR/g5k-nfs-store/{{EXAMPLE}}* | tail -n 1)
+    compo_dir=$(ls -rtd $TEST_TMP_DIR/g5k-nfs-store/{{ EXAMPLE }}* | tail -n 1)
     OAR_JOB_ID=$(cat $TEST_TMP_DIR/OAR_JOB_ID)
     if [ -z $OAR_JOB_ID ]; then
       echo "no OAR_JOB_ID, need to submit OAR job before (oarsub_g5k_script)"
@@ -157,17 +154,17 @@ g5k_nfs_store_test SITE=DEFAULT_G5K_SITE EXAMPLE=DEFAULT_EXAMPLE NBNODES=DEFAULT
     set -euxo pipefail
     hostname_fqdn=$(hostname --fqdn)
     if [[ $hostname_fqdn =~ "grid5000.fr" ]]; then
-       if [[ $hostname_fqdn =~ "{{SITE}}.grid5000.fr" ]]; then
-         just build g5k-nfs-store {{EXAMPLE}}
-         just start_test_g5k_nfs_store {{EXAMPLE}}
+       if [[ $hostname_fqdn =~ "{{ SITE }}.grid5000.fr" ]]; then
+         just build g5k-nfs-store {{ EXAMPLE }}
+         just start_test_g5k_nfs_store {{ EXAMPLE }}
          exit
        else
-         remote={{SITE}}
+         remote={{ SITE }}
        fi
     else
-       remote={{SITE}}.g5k
+       remote={{ SITE }}.g5k
     fi
-    echo $hostname_fqdn $remote {{SITE}}
+    echo $hostname_fqdn $remote {{ SITE }}
     ssh $remote "cd nxc-test-src/$NXC_BRANCH && just g5k_nfs_store_test"
 
 print_examples_nixpkgs_version:
@@ -175,7 +172,7 @@ print_examples_nixpkgs_version:
 
 # Set flakes nixpkgs (arg example: 23.11)
 set_flake_nixpkgs_version version: && print_examples_nixpkgs_version
-    @find . -type f -name 'flake.nix' -exec sed -i 's/github:NixOS\/nixpkgs\/.*/github:NixOS\/nixpkgs\/{{version}}";/g' {} +
+    @find . -type f -name 'flake.nix' -exec sed -i 's/github:NixOS\/nixpkgs\/.*/github:NixOS\/nixpkgs\/{{ version }}";/g' {} +
 
 # Prune containers
 docker_container_prune:
@@ -187,15 +184,15 @@ develop_with_poetry:
 
 # Launch poetry (from nixpkgs)
 poetry +commands:
-    nix run nixpkgs#poetry {{commands}}
+    nix run nixpkgs#poetry {{ commands }}
 
 # Create new worktree
 wkt-create DIR:
-    cd .. && git worktree add {{DIR}}
+    cd .. && git worktree add {{ DIR }}
 
 # Create new worktree to prepare the next xx.xx
 wkt-create-nixos-unstable DIR:
-    cd ../nixos-unstable && git worktree add {{DIR}}
+    cd ../nixos-unstable && git worktree add {{ DIR }}
 
 g5k-install-nxc-nix:
     #!/usr/bin/env bash
@@ -209,19 +206,19 @@ g5k-uninstall-nxc-nix:
     rm -rf ~/.local/share/nix
 
 g5k-install-just SITE:
-    ssh {{SITE}}.g5k "mkdir -p ~/.local/bin  &&curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin"
+    ssh {{ SITE }}.g5k "mkdir -p ~/.local/bin  &&curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin"
 
 build_and_test_from_installed FLAVOUR EXAMPLE="basic":
     #!/usr/bin/env bash
     set -euxo pipefail
-    mkdir -p $TEST_TMP_DIR/{{FLAVOUR}}
-    tmpdir=$(mktemp -d $TEST_TMP_DIR/{{FLAVOUR}}/{{EXAMPLE}}.XXXXXX)
+    mkdir -p $TEST_TMP_DIR/{{ FLAVOUR }}
+    tmpdir=$(mktemp -d $TEST_TMP_DIR/{{ FLAVOUR }}/{{ EXAMPLE }}.XXXXXX)
     #prepare directory
     echo $tmpdir
     cd $tmpdir
-    nxc init -f {{FLAVOUR}} -t {{EXAMPLE}}
-    nxc build -f {{FLAVOUR}}
-    if [[ {{FLAVOUR}} == "vm" ]]; then
+    nxc init -f {{ FLAVOUR }} -t {{ EXAMPLE }}
+    nxc build -f {{ FLAVOUR }}
+    if [[ {{ FLAVOUR }} == "vm" ]]; then
       # nxc_local start -t # TOFIX
       nxc start &
       sleep 20
@@ -235,7 +232,7 @@ build_and_test_from_installed FLAVOUR EXAMPLE="basic":
 
 publish-on-pypi:
     #!/usr/bin/env bash
-    if [[ {{NXC_BRANCH}} == "master" ]]; then
+    if [[ {{ NXC_BRANCH }} == "master" ]]; then
        echo "Publish must be done from an XX.XX branch" && exit 1
     else
        just poetry "publish --build -u __token__ -p $(cat ~/tokens/nxc)"
