@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nixos-compose"
-version = "0.5.4"
+version = "0.5.6"
 description = ""
 authors = ["Olivier Richard <olivier.richard@imag.fr>"]
 license = "MIT"
