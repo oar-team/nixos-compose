@@ -232,3 +232,11 @@ build_and_test_from_installed FLAVOUR EXAMPLE="basic":
       nxc driver -t
       nxc stop
     fi
+
+publish-on-pypi:
+    #!/usr/bin/env bash
+    if [[ {{NXC_BRANCH}} == "master" ]]; then
+       echo "Publish must be done from an XX.XX branch" && exit 1
+    else
+       just poetry "publish --build -u __token__ -p $(cat ~/tokens/nxc)"
+    fi
