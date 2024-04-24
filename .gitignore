@@ -7,3 +7,4 @@ live*
 /docs/book/*
 .poetry
 .vscode
+/dist
