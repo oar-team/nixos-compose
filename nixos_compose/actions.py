@@ -890,7 +890,6 @@ def get_nix_command(ctx):
 # get Nix-static
 def install_nix_static(
     ctx,
-    version="2.10.3",
     archi="x86_64",
     local_bin_path=f"{os.environ['HOME']}/.local/bin",
 ):
@@ -903,10 +902,19 @@ def install_nix_static(
         os.makedirs(local_bin_path)
     nix_path = op.join(local_bin_path, "nix")
 
-    urllib.request.urlretrieve(
-        f"https://gitlab.inria.fr/nixos-compose/nix-static/-/raw/main/bin/nix-{version}-{archi}-unknown-linux-musl",
-        nix_path,
-    )
+    remote_nix_filename = ""
+    with urllib.request.urlopen(
+        f"https://gitlab.inria.fr/nixos-compose/nix-static/-/raw/main/bin/nix-{archi}-linux-static"
+    ) as response:
+        remote_nix_filename = response.read().decode("utf-8")
+
+    ctx.log(f"Retrieving... {remote_nix_filename}")
+
+    with urllib.request.urlopen(
+        f"https://gitlab.inria.fr/nixos-compose/nix-static/-/raw/main/bin/{remote_nix_filename}"
+    ) as response:
+        with open(nix_path, "wb") as output_file:
+            shutil.copyfileobj(response, output_file)
 
     os.chmod(nix_path, 0o755)
 
