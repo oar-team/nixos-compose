@@ -18,6 +18,9 @@ from ..actions import (
     ssh_connect,
 )
 from ..driver.machine import Machine
+from ..driver.driver import Driver
+
+from typing import List
 
 # from ..driver.logger import rootlog
 
@@ -88,12 +91,103 @@ def generate_kadeploy_envfile(
             file_image_url=f"local://{deploy_image_path}"
             if deploy_image_path
             else f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
-            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params} {kernel_params}",
+            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params}",
         )
         kaenv_file.write(kaenv)
 
 
-class G5kKexecBasedFlavour(Flavour):
+class G5kMachine(Machine):
+    def __init__(
+        self,
+        ctx,
+        tmp_dir,
+        start_command,
+        name: str = "machine",
+        ip: str = "",
+        ssh_port: int = 22,
+        keep_vm_state: bool = False,
+        allow_reboot: bool = False,
+        vm_id: str = "",
+        init: str = "",
+    ) -> None:
+        super().__init__(
+            ctx,
+            tmp_dir,
+            start_command,
+            name,
+            ip,
+            ssh_port,
+            keep_vm_state,
+            allow_reboot,
+            vm_id,
+            init,
+        )
+
+    def start(self) -> None:
+        assert self.name
+        # if not self.ctx.no_start:
+        if self.booted:
+            return
+
+        ssh_cmd = G5kBasedFlavour.driver.default_connect("root", self.name, False)
+        self.shell = subprocess.Popen(
+            ssh_cmd,
+            shell=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.connected = True
+        self.booted = True
+
+    def shell_interact(self) -> None:
+        self.connect()
+        G5kBasedFlavour.driver.default_connect("root", self.name)
+
+    def release(self) -> None:  # TODO move to machine
+        raise Exception("Not YET implemented for this flavour")
+
+
+class G5kDriver(Driver):
+    def __init__(self, ctx, start_scripts, tests, keep_vm_state):
+        tmp_dir = super().__init__(ctx, start_scripts, tests, keep_vm_state)
+
+        if ctx.no_start:
+            deployment_nodes = self.ctx.deployment_info["deployment"]
+            for ip, node in deployment_nodes.items():
+                self.machines.append(
+                    G5kMachine(
+                        self.ctx,
+                        ip=ip,
+                        tmp_dir=tmp_dir,
+                        start_command="",
+                        keep_vm_state=False,
+                        name=node["host"],
+                    )
+                )
+
+    def default_connect(self, user, node, execute=True, ssh_key_file=None):
+        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
+
+
+class G5kBasedFlavour(Flavour):
+    driver = None
+
+    def __init__(self, ctx):
+        super().__init__(ctx)
+
+    def initialize_driver(
+        self,
+        ctx,
+        start_scripts: List[str] = [],
+        tests: str = "",
+        keep_vm_state: bool = False,
+    ):
+        G5kBasedFlavour.driver = G5kDriver(ctx, start_scripts, tests, keep_vm_state)
+        return G5kBasedFlavour.driver
+
+
+class G5kKexecBasedFlavour(G5kBasedFlavour):
     def __init__(self, ctx):
         super().__init__(ctx)
 
@@ -107,50 +201,6 @@ class G5kKexecBasedFlavour(Flavour):
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
-
-    def driver_initialize(self, tmp_dir):
-        self.tmp_dir = tmp_dir
-        ctx = self.ctx
-
-        if ctx.no_start:  #
-            deployment_nodes = self.ctx.deployment_info["deployment"]
-            for ip, node in deployment_nodes.items():
-                self.machines.append(
-                    Machine(
-                        self.ctx,
-                        ip=ip,
-                        tmp_dir=tmp_dir,
-                        start_command="",
-                        keep_vm_state=False,
-                        name=node["host"],
-                    )
-                )
-
-            for machine in self.machines:
-                if not machine.connected:
-                    self.start(machine)
-                machine.connected = True
-            return
-
-    def start(self, machine):
-        if not self.ctx.no_start:
-            print("Not Yet Implemented")
-            exit(1)
-        else:
-            machine.start_process_shell(
-                [
-                    "ssh",
-                    "-t",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-l",
-                    "root",
-                    machine.ip,
-                ]
-            )
-
-    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
-        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
 
 
 class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
@@ -185,7 +235,7 @@ class G5kRamdiskFlavour(G5kKexecBasedFlavour):
         self.name = "g5k-ramdisk"
 
 
-class G5KImageFlavour(Flavour):
+class G5KImageFlavour(G5kBasedFlavour):
     def __init__(self, ctx):
         super().__init__(ctx)
 
@@ -237,23 +287,3 @@ class G5KImageFlavour(Flavour):
                 raise click.ClickException(f"Failed to execute kadeploy command: {ex}")
         else:
             print(f"You can kadeploy image with: {cmd_kadeploy}")
-
-    def start(self, machine):
-        if not self.ctx.no_start:
-            print("Not Yet Implemented")
-            exit(1)
-        else:
-            machine.start_process_shell(
-                [
-                    "ssh",
-                    "-t",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-l",
-                    "root",
-                    machine.ip,
-                ]
-            )
-
-    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
-        return ssh_connect(self.ctx, user, node, execute, ssh_key_file)

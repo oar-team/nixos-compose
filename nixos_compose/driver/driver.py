@@ -4,11 +4,10 @@ from typing import Any, Dict, Iterator, List
 import os
 import tempfile
 import signal
+import time
 
 from .logger import rootlog
 from .machine import Machine, retry
-from .vlan import VLan
-from ..flavours import use_flavour_method_if_any
 
 
 class Driver:
@@ -16,37 +15,28 @@ class Driver:
     and runs the tests"""
 
     tests: str
-    vlans: List[VLan]
-    machines: List[Machine]
+    machines: List[Machine] = []
+    all_started: bool = False  # True if all machines are already started
 
     def __init__(
         self,
         ctx,
-        start_scripts: List[str],
-        vlans: List[int],
-        tests: str,
+        start_scripts: List[str] = [],
+        tests: str = "",
         keep_vm_state: bool = False,
     ):
         self.ctx = ctx
         self.tests = tests
 
+        # TO MOVE ???
         tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
         tmp_dir.mkdir(mode=0o700, exist_ok=True)
 
-        # if hasattr(ctx.flavour, "create_vlan"):
-        #    self.vlans = [ctx.flavour.create_vlan()]
-
-        ctx.flavour.driver_initialize(tmp_dir)
-
         # if hasattr(ctx.flavour, "machines") and ctx.flavour.machines:
-        if ctx.flavour.machines:
-            self.machines = ctx.flavour.machines
-        else:
-            rootlog.warning("No machine defined during driver init")
-
-        # TODO move
-        if hasattr(ctx.flavour, "create_vlan") and not ctx.no_start:
-            self.vlans = [ctx.flavour.create_vlan()]
+        # if ctx.flavour.machines:
+        #    self.machines = ctx.flavour.machines
+        # else:
+        #    rootlog.warning("No machine defined during driver init")
 
         # def cmd(scripts: List[str]) -> Iterator[NixStartScript]:
         #     for s in scripts:
@@ -62,6 +52,8 @@ class Driver:
         #     for cmd in cmd(start_scripts)
         # ]
 
+        return tmp_dir
+
     def __enter__(self) -> "Driver":
         return self
 
@@ -74,7 +66,6 @@ class Driver:
         else:
             self.cleanup()
 
-    @use_flavour_method_if_any
     def cleanup(self):
         with rootlog.nested("cleanup"):
             for machine in self.machines:
@@ -99,7 +90,6 @@ class Driver:
             start_all=self.start_all,
             test_script=self.test_script,
             machines=self.machines,
-            # vlans=self.vlans,
             driver=self,
             log=rootlog,
             os=os,
@@ -117,18 +107,13 @@ class Driver:
         if len(self.machines) == 1:
             (machine_symbols["machine"],) = self.machines
 
-        # vlan_symbols = {
-        #    f"vlan{v.nr}": self.vlans[idx] for idx, v in enumerate(self.vlans)
-        # }
         print(
             "additionally exposed symbols:\n    "
             + ", ".join(map(lambda m: m.name, self.machines))
             + ",\n    "
-            # + ", ".join(map(lambda v: f"vlan{v.nr}", self.vlans))
-            + ",\n    "
             + ", ".join(list(general_symbols.keys()))
         )
-        return {**general_symbols, **machine_symbols}  # , **vlan_symbols}
+        return {**general_symbols, **machine_symbols}
 
     def test_script(self) -> None:
         """Run the test script"""
@@ -149,16 +134,15 @@ class Driver:
             if machine.is_up():
                 machine.execute("sync")
 
-    @use_flavour_method_if_any
     def start_all(self) -> None:
         """Start all machines"""
-        with rootlog.nested("start all VMs"):
+        with rootlog.nested("start all machines"):
             for machine in self.machines:
                 machine.start()
 
     def join_all(self) -> None:
         """Wait for all machines to shut down"""
-        with rootlog.nested("wait for all VMs to finish"):
+        with rootlog.nested("wait for all machines to finish"):
             for machine in self.machines:
                 machine.wait_for_shutdown()
 
@@ -167,3 +151,17 @@ class Driver:
 
     def serial_stdout_off(self) -> None:
         rootlog._print_serial_logs = False
+
+    #####
+    def check(self, state="running"):
+        self.ctx.wlog(f"Check not implement for flavour: {self.name}")
+        return -1
+
+    def wait_on_check(self, state="running", mode="all", period=0.5, round=5):
+        for _ in range(round):
+            if mode == "all" and self.check(state) == len(self.machines):
+                return True
+            elif mode == "any" and self.check(state) > 0:
+                return
+            time.sleep(period)
+        return False

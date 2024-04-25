@@ -69,4 +69,4 @@ def cli(ctx, flavour, deployment_file):
 
     read_deployment_info(ctx, deployment_file)
 
-    ctx.flavour.cleanup()
+    ctx.flavour.initialize_driver(ctx).cleanup()
