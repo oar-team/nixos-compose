@@ -137,7 +137,7 @@ def read_test_script(ctx, compose_info_or_str):
 
 def read_compose_info(ctx):
     if not op.isfile(ctx.compose_info_file):
-        raise click.ClickException(f"{ctx.compose_info_filename} does not exist")
+        raise click.ClickException(f"{ctx.compose_info_file} does not exist")
     with open(ctx.compose_info_file, "r") as f:
         compose_info = json.load(f)
 
