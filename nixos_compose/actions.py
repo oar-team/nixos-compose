@@ -754,9 +754,8 @@ def connect_tmux(
         except ValueError:
             nodes = list(deploy.keys())
 
-    driver = ctx.flavour.initialize_driver(ctx)
     connect_cmds = [
-        driver.default_connect(user, node, False, ssh_key_file) for node in nodes
+        ctx.flavour.ext_connect(user, node, False, ssh_key_file) for node in nodes
     ]
 
     console = 0

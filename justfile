@@ -44,7 +44,11 @@ build_and_test FLAVOUR EXAMPLE:
     #prepare directory
     just _copy_prepare_example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
-    shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    if [[ $(hostname -d) == *"grid5000"* ]] ; then
+      shopt -s expand_aliases && alias nxc_local="nxc"
+    else
+      shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    fi
     nxc_local build {{ nix_flags }} -f {{ FLAVOUR }}
     if [[ {{ FLAVOUR }} == "vm" ]]; then
       # nxc_local start -t # TOFIX
@@ -66,7 +70,11 @@ build FLAVOUR EXAMPLE:
     #prepare directory
     just _copy_prepare_example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
-    shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    if [[ $(hostname -d) == *"grid5000"* ]] ; then
+      shopt -s expand_aliases && alias nxc_local="nxc"
+    else
+      shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    fi
     nxc_local build {{ nix_flags }} -f {{ FLAVOUR }}
 
 docker EXAMPLE="basic":
@@ -120,7 +128,7 @@ oarsub_g5k_script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
     # TODO test if there is already active job
     set -euxo pipefail
     cd $JUST_DIR
-    #g5k_script=$HOME/.local/share/nix/root/$(nix run .#nixos-compose helper g5k_script)
+    shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
     g5k_script=$(nxc helper g5k_script)
     export $(oarsub -l nodes={{ NBNODES }},walltime={{ WALLTIME }}:0:0 \
     -O $TEST_TMP_DIR/OAR.%jobid%.stdout -E $TEST_TMP_DIR/OAR.%jobid%.stderr \
@@ -131,6 +139,11 @@ start_test_g5k_nfs_store EXAMPLE:
     #!/usr/bin/env bash
     # take the repo of the last built composition
     set -euxo pipefail
+     if [[ $(hostname -d) == *"grid5000"* ]] ; then
+      shopt -s expand_aliases && alias nxc_local="nxc"
+    else
+      shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    fi
     compo_dir=$(ls -rtd $TEST_TMP_DIR/g5k-nfs-store/{{ EXAMPLE }}* | tail -n 1)
     OAR_JOB_ID=$(cat $TEST_TMP_DIR/OAR_JOB_ID)
     if [ -z $OAR_JOB_ID ]; then
@@ -237,3 +250,13 @@ publish-on-pypi:
     else
        just poetry "-- publish --build -u __token__ -p $(cat ~/tokens/nxc)"
     fi
+
+build-tgz:
+    just poetry build
+
+g5k-install-tgz SITE="grenoble":
+    #!/usr/bin/env bash
+    rsync -avz dist/ --delete --exclude '*.whl' {{ SITE }}.g5k:nxc-dist
+    lastest_tgz=$(ls -t dist -I '*.whl'| head -n 1)
+    echo "Install $lastest_tgz on {{ SITE }} site"
+    ssh {{ SITE }}.g5k "pip uninstall -y nixos-compose ; pip install nxc-dist/$lastest_tgz ; nxc --version"

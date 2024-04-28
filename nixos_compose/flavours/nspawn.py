@@ -9,15 +9,14 @@ from ..flavour import Flavour
 from ..actions import (
     read_compose_info,
     read_deployment_info,
+    generate_deployment_info,
 )
-from ..actions import generate_deployment_info as base_generate_deployment_info
 
 from ..driver.machine import Machine
-from ..driver.driver import Driver
 
 # from ..default_role import DefaultRole
 
-from typing import List
+from typing import Tuple, Optional
 
 
 def nft_nixos_fw_rules(ctx, remove=False, add=False):
@@ -97,113 +96,8 @@ def set_prefix_store_volumes(dc_json, prefix_store):
         dc_json["services"][service]["volumes"] = volumes_out
 
 
-class NspawnMachine(Machine):
-    def __init__(
-        self,
-        ctx,
-        tmp_dir,
-        start_command,
-        name: str = "machine",
-        ip: str = "",
-        ssh_port: int = 22,
-        keep_vm_state: bool = False,
-        allow_reboot: bool = False,
-        vm_id: str = "",
-        init: str = "",
-    ) -> None:
-        super().__init__(
-            ctx,
-            tmp_dir,
-            start_command,
-            name,
-            ip,
-            ssh_port,
-            keep_vm_state,
-            allow_reboot,
-            vm_id,
-            init,
-        )
-
-    def start(self) -> None:
-        assert self.name
-        pass
-
-    def shell_interact(self) -> None:
-        self.connect()
-        NspawnFlavour.driver.default_connect("root", self.name)
-
-
-class NspawnDriver(Driver):
-    containers_launched: bool
-
-    def __init__(self, ctx, start_scripts, tests, keep_vm_state):
-        tmp_dir = super().__init__(ctx, start_scripts, tests, keep_vm_state)
-
-        nodes_names = self.ctx.deployment_info["nodes"]
-        for name in nodes_names:
-            self.machines.append(
-                NspawnMachine(
-                    self.ctx,
-                    tmp_dir=tmp_dir,
-                    start_command="",
-                    name=name,
-                )
-            )
-
-    def cleanup(self):
-        ctx = self.ctx
-        if not ctx.deployment_info:
-            read_deployment_info(ctx)
-
-        _ROOT = os.path.abspath(os.path.dirname(__file__))
-        nxc_net_script = _ROOT + "/nspawn/nxc-net.sh"
-        machine_dir_script = _ROOT + "/nspawn/machine-dir.sh"
-
-        ctx.log("Stop and cleanup nspawn container(s)")
-        ctx.log("Test sudo (root privilege rights required)")
-        subprocess.call("sudo true", shell=True)
-
-        for _, host_info in ctx.deployment_info["deployment"].items():
-            subprocess.Popen(
-                [
-                    "sudo",
-                    "machinectl",
-                    "stop",
-                    host_info["host"],
-                ]
-            )
-
-        for _, host_info in ctx.deployment_info["deployment"].items():
-            subprocess.Popen(
-                [
-                    "sudo",
-                    machine_dir_script,
-                    "remove",
-                    host_info["host"],
-                ]
-            )
-        ctx.log("Stop nxc-net")
-
-        subprocess.Popen(["sudo", nxc_net_script, "stop"])
-        ctx.log("Remove nftable chain nixos-fw if any")
-        nft_nixos_fw_rules(ctx, remove=True)
-
-    def default_connect(self, user, node, execute=True, ssh_key_file=None):
-        # subprocess.call("sudo true", shell=True)
-        cmd = f"machinectl shell {user}@{node}"
-        if execute:
-            return_code = subprocess.run(cmd, shell=True).returncode
-
-            if return_code:
-                self.ctx.wlog(f"Machinectl exit code is not null: {return_code}")
-            return return_code
-        else:
-            return cmd
-
-
 class NspawnFlavour(Flavour):
     nspawn_compose_file = None
-    driver = None
 
     def __init__(self, ctx):
         super().__init__(ctx)
@@ -237,43 +131,46 @@ class NspawnFlavour(Flavour):
             read_compose_info(ctx)
         ctx.compose_info["roles"] = ctx.compose_info[ctx.composition_name]
 
-        base_generate_deployment_info(ctx, ssh_pub_key_file)
+        generate_deployment_info(ctx, ssh_pub_key_file)
 
-    def initialize_driver(
-        self,
-        ctx,
-        start_scripts: List[str] = [],
-        tests: str = "",
-        keep_vm_state: bool = False,
-    ):
+    def driver_initialize(self, tmp_dir):
+        print("TODO driver_initialize")
+        exit
         assert self.ctx.deployment_info
-        NspawnFlavour.nspawn_compose_file = self.ctx.deployment_info[
-            "nspawn-compose-file"
-        ]
-        NspawnFlavour.driver = NspawnDriver(ctx, start_scripts, tests, keep_vm_state)
+        if not self.nspawn_compose_file:
+            self.nspawn_compose_file = self.ctx.deployment_info["nspawn-compose-file"]
 
-        return NspawnFlavour.driver
+        nodes_names = self.ctx.deployment_info["nodes"]
+        for name in nodes_names:
+            self.machines.append(
+                Machine(
+                    self.ctx,
+                    tmp_dir=tmp_dir,
+                    start_command="",
+                    name=name,
+                )
+            )
 
-    # def check(self, state="running"):
-    #     print("TODO check")
-    #     exit
-    #     # check_process = subprocess.check_output(
-    #     #     [
-    #     #         "nspawn-compose",
-    #     #         "-f",
-    #     #         self.nspawn_compose_file,
-    #     #         "ps",
-    #     #         "--services",
-    #     #         "--filter",
-    #     #         f"status={state}",
-    #     #     ],
-    #     # )
-    #     # return len(check_process.decode().rstrip("\n").splitlines())
+    def check(self, state="running"):
+        print("TODO check")
+        exit
+        # check_process = subprocess.check_output(
+        #     [
+        #         "nspawn-compose",
+        #         "-f",
+        #         self.nspawn_compose_file,
+        #         "ps",
+        #         "--services",
+        #         "--filter",
+        #         f"status={state}",
+        #     ],
+        # )
+        # return len(check_process.decode().rstrip("\n").splitlines())
 
-    # def connect(self, machine):
-    #     if machine.connected:
-    #         return
-    #     self.start_all()
+    def connect(self, machine):
+        if machine.connected:
+            return
+        self.start_all()
 
     def launch(self, machine_file=None):
         ctx = self.ctx
@@ -368,107 +265,107 @@ class NspawnFlavour(Flavour):
         for p in p_lst:
             p.wait()
 
-    # def start_all(self):
-    #     print("TODO start_all")
-    #     exit
-    #     pass
-    #     # if not self.external_connect:
-    #     #     with rootlog.nested("starting nspawn-compose"):
-    #     #         subprocess.Popen(
-    #     #             ["nspawn-compose", "-f", self.nspawn_compose_file, "up", "-d"]
-    #     #         )
+    def start_all(self):
+        print("TODO start_all")
+        exit
+        pass
+        # if not self.external_connect:
+        #     with rootlog.nested("starting nspawn-compose"):
+        #         subprocess.Popen(
+        #             ["nspawn-compose", "-f", self.nspawn_compose_file, "up", "-d"]
+        #         )
 
-    #     #     self.wait_on_check()
+        #     self.wait_on_check()
 
-    #     # for machine in self.machines:
-    #     #     if not machine.connected:
-    #     #         self.start(machine)
-    #     #         machine.connected = True
+        # for machine in self.machines:
+        #     if not machine.connected:
+        #         self.start(machine)
+        #         machine.connected = True
 
-    # def start(self, machine):  # TODO MOVE to Connect ???
-    #     print("TODO start")
-    #     exit
-    #     pass
-    #     assert machine.name
-    #     assert self.nspawn_compose_file
+    def start(self, machine):  # TODO MOVE to Connect ???
+        print("TODO start")
+        exit
+        pass
+        assert machine.name
+        assert self.nspawn_compose_file
 
-    #     # machine.start_process_shell(
-    #     #     [
-    #     #         "nspawn-compose",
-    #     #         "-f",
-    #     #         self.nspawn_compose_file,
-    #     #         "exec",
-    #     #         "-u",
-    #     #         "root",
-    #     #         "-T",
-    #     #         machine.name,
-    #     #         "bash",
-    #     #         "-l",
-    #     #     ]
-    #     # )
+        # machine.start_process_shell(
+        #     [
+        #         "nspawn-compose",
+        #         "-f",
+        #         self.nspawn_compose_file,
+        #         "exec",
+        #         "-u",
+        #         "root",
+        #         "-T",
+        #         machine.name,
+        #         "bash",
+        #         "-l",
+        #     ]
+        # )
 
-    # def execute(
-    #     self,
-    #     machine,
-    #     command: str,
-    #     check_return: bool = True,
-    #     timeout: Optional[int] = 900,
-    # ) -> Tuple[int, str]:
-    #     return machine.execute_process_shell(command, check_return, timeout)
+    def execute(
+        self,
+        machine,
+        command: str,
+        check_return: bool = True,
+        timeout: Optional[int] = 900,
+    ) -> Tuple[int, str]:
+        return machine.execute_process_shell(command, check_return, timeout)
 
-    # def restart(self, machine):
-    #     machine.restart_process_shell()
+    def restart(self, machine):
+        machine.restart_process_shell()
 
-    # def cleanup(self):
-    #     ctx = self.ctx
-    #     if not ctx.deployment_info:
-    #         read_deployment_info(ctx)
+    def cleanup(self):
+        ctx = self.ctx
+        if not ctx.deployment_info:
+            read_deployment_info(ctx)
 
-    #     _ROOT = os.path.abspath(os.path.dirname(__file__))
-    #     nxc_net_script = _ROOT + "/nspawn/nxc-net.sh"
-    #     machine_dir_script = _ROOT + "/nspawn/machine-dir.sh"
+        _ROOT = os.path.abspath(os.path.dirname(__file__))
+        nxc_net_script = _ROOT + "/nspawn/nxc-net.sh"
+        machine_dir_script = _ROOT + "/nspawn/machine-dir.sh"
 
-    #     ctx.log("Stop and cleanup nspawn container(s)")
-    #     ctx.log("Test sudo (root privilege rights required)")
-    #     subprocess.call("sudo true", shell=True)
+        ctx.log("Stop and cleanup nspawn container(s)")
+        ctx.log("Test sudo (root privilege rights required)")
+        subprocess.call("sudo true", shell=True)
 
-    #     for _, host_info in ctx.deployment_info["deployment"].items():
-    #         subprocess.Popen(
-    #             [
-    #                 "sudo",
-    #                 "machinectl",
-    #                 "stop",
-    #                 host_info["host"],
-    #             ]
-    #         )
+        for _, host_info in ctx.deployment_info["deployment"].items():
+            subprocess.Popen(
+                [
+                    "sudo",
+                    "machinectl",
+                    "stop",
+                    host_info["host"],
+                ]
+            )
 
-    #     for _, host_info in ctx.deployment_info["deployment"].items():
-    #         subprocess.Popen(
-    #             [
-    #                 "sudo",
-    #                 machine_dir_script,
-    #                 "remove",
-    #                 host_info["host"],
-    #             ]
-    #         )
-    #     ctx.log("Stop nxc-net")
+        for _, host_info in ctx.deployment_info["deployment"].items():
+            subprocess.Popen(
+                [
+                    "sudo",
+                    machine_dir_script,
+                    "remove",
+                    host_info["host"],
+                ]
+            )
+        ctx.log("Stop nxc-net")
 
-    #     subprocess.Popen(["sudo", nxc_net_script, "stop"])
-    #     ctx.log("Remove nftable chain nixos-fw if any")
-    #     nft_nixos_fw_rules(ctx, remove=True)
+        subprocess.Popen(["sudo", nxc_net_script, "stop"])
+        ctx.log("Remove nftable chain nixos-fw if any")
+        nft_nixos_fw_rules(ctx, remove=True)
 
-    # def shell_interact(self, machine) -> None:
-    #     self.connect(machine)
-    #     self.ext_connect("root", machine.name)
+    def shell_interact(self, machine) -> None:
+        self.connect(machine)
+        self.ext_connect("root", machine.name)
 
-    # def ext_connect(self, user, node, execute=True, ssh_key_file=None):
-    #     # subprocess.call("sudo true", shell=True)
-    #     cmd = f"machinectl shell {user}@{node}"
-    #     if execute:
-    #         return_code = subprocess.run(cmd, shell=True).returncode
+    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+        # subprocess.call("sudo true", shell=True)
+        cmd = f"machinectl shell {user}@{node}"
+        if execute:
+            return_code = subprocess.run(cmd, shell=True).returncode
 
-    #         if return_code:
-    #             self.ctx.wlog(f"Machinectl exit code is not null: {return_code}")
-    #         return return_code
-    #     else:
-    #         return cmd
+            if return_code:
+                self.ctx.wlog(f"Machinectl exit code is not null: {return_code}")
+            return return_code
+        else:
+            return cmd
