@@ -498,13 +498,18 @@ def cli(
     else:
         ctx.compose_info_file = realpath_from_store(ctx, build_path)
 
-    if ctx.platform:
-        if reuse:
-            (ssh, sudo, push_path) = ctx.platform.subsequent_start_values
-        else:
-            (ssh, sudo, push_path) = ctx.platform.first_start_values
-        if ctx.push_path is None:
-            ctx.push_path = push_path
+    #
+    # ssh not used, subsequent_start_values and first_start_values not use w/
+    # nfs mount on g5k. If not need on other platform to REMOVE (see also platform.py
+    # Only depends of flavours or plaforms
+    #
+    # if ctx.platform:
+    #     if reuse:
+    #         (ssh, sudo, push_path) = ctx.platform.subsequent_start_values
+    #     else:
+    #         (ssh, sudo, push_path) = ctx.platform.first_start_values
+    #     if ctx.push_path is None:
+    #         ctx.push_path = push_path
 
     if machine_file:
         machines = read_hosts(machine_file)
