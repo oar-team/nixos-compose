@@ -95,6 +95,8 @@ def generate_kadeploy_envfile(
 
 class G5kKexecBasedFlavour(Flavour):
     def __init__(self, ctx):
+        if ctx.ssh == "":
+            ctx.ssh = "ssh -l root"
         super().__init__(ctx)
 
     def generate_deployment_info(self, ssh_pub_key_file=None):
