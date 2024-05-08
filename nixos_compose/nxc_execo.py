@@ -1,26 +1,13 @@
-# import execo
-# import execo_g5k
-# import execo_engine
-# from execo import Process, Host, Remote, SshProcess, Report
 from execo import Host
 from execo_g5k import get_oar_job_nodes
 
-#     get_oar_job_nodes,
-#     oarsub,
-#     oardel,
-#     OarSubmission,
-#     wait_oar_job_start,
-# )
-# from execo_engine import Engine
 import os
 import os.path as op
 
-# import time
-# import logging
 import tempfile
 from .context import Context
 from .actions import realpath_from_store, translate_hosts2ip
-from .flavours.grid5000 import G5kRamdiskFlavour, G5KImageFlavour, G5kNfsStoreFlavour
+from .flavours import get_flavour_by_name
 
 # from .g5k import key_sleep_script
 from .httpd import HTTPDaemon
@@ -44,7 +31,7 @@ def get_oar_job_nodes_nxc(
     oar_job_id,
     site,
     compose_info_file=None,
-    flavour_name="g5k-ramdisk",
+    flavour_name="g5k-nfs-store",
     composition_name="composition",
     roles_quantities={},
     port=0,
@@ -57,6 +44,7 @@ def get_oar_job_nodes_nxc(
     # TODO: kaberk
     ctx.composition_name = composition_name
     ctx.flavour_name = flavour_name
+    ctx.composition_flavour_prefix = f"{composition_name}::{flavour_name}"
     ctx.roles_distribution = roles_quantities
 
     ctx.envdir = None
@@ -71,6 +59,9 @@ def get_oar_job_nodes_nxc(
         )
         ctx.compose_info_file = realpath_from_store(ctx, simlink_build)
 
+    flavour = get_flavour_by_name(flavour_name)(ctx)
+    ctx.flavour = flavour
+
     # print(f"compose info file: {ctx.compose_info_file}")
 
     g5k_nodes = get_oar_job_nodes(oar_job_id, site)
@@ -82,25 +73,9 @@ def get_oar_job_nodes_nxc(
         ctx.httpd.start(directory=ctx.envdir)
     translate_hosts2ip(ctx, machines)
 
-    if flavour_name == "g5k-ramdisk":
-        flavour = G5kRamdiskFlavour(ctx)
-    elif flavour_name == "g5k-nfs-store":
-        flavour = G5kNfsStoreFlavour(ctx)
-    elif flavour_name == "g5k-image":
-        flavour = G5KImageFlavour(ctx)
-    else:
-        raise Exception(f"'{flavour_name}' is not an available flavour")
-    # ?!
-    flavour.ctx.flavour = flavour
-
-    print("generating deploy info")
     flavour.generate_deployment_info()
 
-    # flavour.ctx.ssh = f"OAR_JOB_ID={oar_job_id} oarsh"
-    flavour.ctx.ssh = "ssh"
-    flavour.ctx.sudo = "sudo-g5k"
-
-    flavour.ctx.log("Deploying")
+    ctx.log("Deploying")
     if hasattr(flavour, "generate_kexec_scripts"):
         flavour.generate_kexec_scripts()
         flavour.launch()
