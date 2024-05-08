@@ -201,11 +201,11 @@ poetry +commands:
 
 # Create new worktree
 wkt-create DIR:
-    cd .. && git worktree add {{ DIR }}
+    git worktree add ../{{ DIR }}
 
-# Create new worktree to prepare the next xx.xx
+# Create new worktree to prepare the next xx.xx-dev
 wkt-create-nixos-unstable DIR:
-    cd ../nixos-unstable && git worktree add {{ DIR }}
+    cd ../nixos-unstable && git worktree add ../{{ DIR }}
 
 g5k-install-nxc-nix:
     #!/usr/bin/env bash
