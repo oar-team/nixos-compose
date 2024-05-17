@@ -1,11 +1,12 @@
-from nixos_compose.nxc_execo import get_oar_job_nodes_nxc, build_nxc_execo
-
-from execo import Remote  # ,Process, SshProcess
-from execo_g5k import oardel, oarsub, OarSubmission  # , get_oar_job_nodes
-from execo_engine import Engine  # , logger, ParamSweeper, sweep
-
-# import sys
-import os
+from execo import Remote
+from execo_engine import Engine, logger
+from execo_g5k import (
+    OarSubmission,
+    oardel,
+    oarsub,
+    wait_oar_job_start,
+)
+from nixos_compose.nxc_execo import get_oar_job_nodes_nxc
 
 
 class MyEngine(Engine):
@@ -13,71 +14,120 @@ class MyEngine(Engine):
         super(MyEngine, self).__init__()
         parser = self.args_parser
         parser.add_argument("--nxc_build_file", help="Path to the NXC deploy file")
+        parser.add_argument("--walltime", help="Grid5000 booking walltime (in hours)")
         parser.add_argument(
-            "--build", action="store_true", help="Either to build the composition"
+            "--flavour", help="Nixos compose flavour", default="g5k-image"
         )
         parser.add_argument(
-            "--nxc_folder", default=f"{os.getcwd()}", help="Path to the nxc folder"
+            "--keep-job",
+            help="Do not delete the OAR job after execution, be it after an error or success",
+            action="store_true",
         )
-        self.nodes = {}
-        self.oar_job_id = -1
+        parser.add_argument(
+            "--job-id",
+            help="When provided, the given OAR job ID is used and no further booking is done",
+            type=int,
+        )
 
     def init(self):
-        nb_nodes = 2
-        site = "grenoble"
-        cluster = "dahu"
-
-        nxc_build_file = None
-        if self.args.build:
-            (nxc_build_file, _time, _size) = build_nxc_execo(
-                self.args.nxc_folder,
-                site,
-                cluster,
-                walltime=15 * 60,
-                extra_job_type=["day"],
-            )
-        elif self.args.nxc_build_file is not None:
-            nxc_build_file = self.args.nxc_build_file
-        else:
-            raise Exception("No compose info file ...")
-
-        print(nxc_build_file)
-        oar_job = reserve_nodes(nb_nodes, site, cluster, walltime=15 * 60)
-        self.oar_job_id, site = oar_job[0]
-        roles_quantities = {"foo": ["foo", "bar"]}
-        self.nodes = get_oar_job_nodes_nxc(
-            self.oar_job_id,
-            site,
-            compose_info_file=nxc_build_file,
-            roles_quantities=roles_quantities,
-        )
-        print(self.nodes)
+        pass
 
     def run(self):
-        my_command = 'echo "Hello from $(whoami) at $(hostname) ($(ip -4 addr | grep "/20" | awk \'{print $2;}\'))" > /tmp/hello'
-        hello_remote = Remote(
-            my_command, self.nodes["foo"], connection_params={"user": "root"}
-        )
-        hello_remote.run()
+        # Initialise some experiment parameters
+        site = "grenoble"
+        cluster = "dahu"
+        nxc_flavour = self.args.flavour
+        roles_distribution = {
+            "foo": ["foo", "bar"],
+        }
+        walltime_hours = float(self.args.walltime) if self.args.walltime else 1
+        # Local copies of experiment parameters
+        nb_nodes = 2
 
-        my_command2 = "cat /tmp/hello"
-        cat_remote = Remote(
-            my_command2, self.nodes["foo"], connection_params={"user": "root"}
-        )
-        cat_remote.run()
-        for process in cat_remote.processes:
-            print(process.stdout)
+        try:
+            # Book nodes on Grid 5000 unless the ID of an existing job has been provided
+            if self.args.job_id is None:
+                # Book nodes on Grid'5000
+                logger.info(f"Reserving {nb_nodes} node.s on {site}-{cluster}...")
+                oar_job = reserve_nodes(
+                    nb_nodes, site, cluster, "deploy", walltime=walltime_hours * 60 * 60
+                )
+                oar_job_id, site = oar_job[0]
+
+                logger.info(f"Waiting for job ID {oar_job_id} on {site} site...")
+                wait_oar_job_start(oar_job_id, site)
+            else:
+                oar_job_id = self.args.job_id
+
+            # Get the machines info, deploy
+            logger.info("Deploying ...")
+            nodes = get_oar_job_nodes_nxc(
+                oar_job_id,
+                site,
+                flavour_name=nxc_flavour,
+                compose_info_file=self.args.nxc_build_file,
+                # composition_name = "", # for multiple compositions case
+                roles_quantities=roles_distribution,
+            )
+            logger.info(f"... done. Nodes used for this experiment: {nodes}")
+
+            #
+            logger.debug("Execute on hello")
+
+            my_command = 'echo "Hello from $(whoami) at $(hostname) ($(ip -4 addr | grep "/20" | awk \'{print $2;}\'))" > /tmp/hello'
+            hello_remote = Remote(
+                my_command, nodes["foo"], connection_params={"user": "root"}
+            )
+            hello_remote.run()
+            # throw_on_problem( hello_remote)
+
+            my_command2 = "cat /tmp/hello"
+            cat_remote = Remote(
+                my_command2, nodes["foo"], connection_params={"user": "root"}
+            )
+            cat_remote.run()
+            for process in cat_remote.processes:
+                print(process.stdout)
+        except FailedProcessError as e:
+            logger.error(f"Failed at process {e}")
+        except KeyboardInterrupt:
+            logger.info("Stopping (received keyboard interrupt)")
+        finally:
+            if oar_job_id is not None and not self.args.keep_job:
+                logger.info(f"Giving back the resources (OAR job ID {oar_job_id})")
+                oardel([(oar_job_id, "site")])
 
 
-def reserve_nodes(nb_nodes, site, cluster, walltime=3600):
+class FailedProcessError(Exception):
+    """Exception raised when an Execo process failed (meaning its attribute finished_ok is False)"""
+
+    def __init__(self, process):
+        super(Exception, self).__init__()
+        self.process = process
+
+    def __str__(self):
+        return str(self.process)
+
+
+def throw_on_problem(process):
+    """Raise if the given process did not finish properly (meaning attribute finished_ok is False)"""
+    if not process.finished_ok:
+        raise FailedProcessError(process)
+
+
+def reserve_nodes(nb_nodes, site, cluster, job_type, walltime=3600):
+    """
+    :param walltime: the duration of the job, in seconds (or a datetime, or a string as expected by the oarsub program)
+    """
     jobs = oarsub(
         [
             (
                 OarSubmission(
-                    "{{cluster='{}'}}/nodes={}".format(cluster, nb_nodes),
-                    walltime,
-                    job_type=["allow_classic_ssh", "day"],
+                    resources="{{cluster='{}'}}/nodes={}".format(cluster, nb_nodes),
+                    walltime=walltime,
+                    job_type=[job_type],
                 ),
+                # additional_options = '-t exotic'),
                 site,
             )
         ]
