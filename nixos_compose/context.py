@@ -77,7 +77,6 @@ class Context(object):
         self.host2ip_address = {}
         self.ssh = ""
         self.sudo = ""
-        self.push_path = None
         self.interactive = False
         self.execute_test_script = False
         self.platform = None
