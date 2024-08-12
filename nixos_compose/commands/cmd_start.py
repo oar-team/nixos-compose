@@ -41,7 +41,7 @@ class EventHandler(pyinotify.ProcessEvent):
             notifier.loop.stop()
 
 
-def start(ctx, interactive, execute_test_script, port, machine_file=None):
+def start(ctx, interactive, execute_test_script, port, machine_file=None, push_path=None):
     if (  # TODO rework (ask flavour ?)
         ctx.ip_addresses
         and (ctx.flavour.name != "vm-ramdisk")
@@ -54,7 +54,7 @@ def start(ctx, interactive, execute_test_script, port, machine_file=None):
         if hasattr(ctx.flavour, "generate_kexec_scripts"):
             ctx.flavour.generate_kexec_scripts()
 
-        if ctx.push_path:
+        if push_path:
             push_on_machines(ctx)
 
         if ctx.use_httpd:
@@ -310,7 +310,6 @@ def cli(
 
     ctx.ssh = ssh
     ctx.sudo = sudo
-    ctx.push_path = push_path
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
@@ -369,7 +368,7 @@ def cli(
             ctx.deployment_info["parameters"][k] = v
 
     if deployment_file:
-        start(ctx, interactive, execute_test_script, port)
+        start(ctx, interactive, execute_test_script, port, push_path)
         sys.exit(0)
 
     build_path = op.join(ctx.envdir, "build")
@@ -385,7 +384,7 @@ def cli(
         raise click.ClickException(f"{machine_file} file does not exist")
 
     if push_path and not machine_file:
-        raise click.ClickException("machine_file must be provide to use push_path")
+        raise click.ClickException("machine_file must be provided to use push_path")
 
     if wait_machine_file:
         if not machine_file:
@@ -508,8 +507,6 @@ def cli(
     #         (ssh, sudo, push_path) = ctx.platform.subsequent_start_values
     #     else:
     #         (ssh, sudo, push_path) = ctx.platform.first_start_values
-    #     if ctx.push_path is None:
-    #         ctx.push_path = push_path
 
     if machine_file:
         machines = read_hosts(machine_file)
@@ -523,4 +520,4 @@ def cli(
 
     ctx.flavour.generate_deployment_info(identity_file)
 
-    start(ctx, interactive, execute_test_script, port, machine_file)
+    start(ctx, interactive, execute_test_script, port, machine_file, push_path)

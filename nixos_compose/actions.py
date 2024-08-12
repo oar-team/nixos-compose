@@ -571,16 +571,16 @@ def generate_deploy_info_b64(ctx):
 #
 
 
-def launch_ssh_kexec(ctx, ip=None, debug=False):
+def launch_ssh_kexec(ctx, ip=None, debug=False, push_path=None):
     if ctx.show_spinner:
         ctx.spinner.start("Launching remote kexec(s)")
     else:
         ctx.log("Launching remote kexec(s)")
 
     if "all" in ctx.deployment_info:
-        if ctx.push_path:
-            kexec_script = f"{ctx.push_path}/kexec.sh"
-            ki = f"KERNEL={ctx.push_path}kernel INITRD={ctx.push_path}initrd"
+        if push_path:
+            kexec_script = f"{push_path}/kexec.sh"
+            ki = f"KERNEL={push_path}kernel INITRD={push_path}initrd"
             user = "root@"
         else:
             base_path = op.join(
@@ -652,7 +652,7 @@ def wait_ssh_ports(ctx, ips=None):
         ctx.vlog("Deployment took {:.1f}s".format(ctx.elapsed_time()))
 
 
-def push_on_machines(ctx):
+def push_on_machines(ctx, push_path=None):
     if "all" not in ctx.deployment_info:
         raise Exception("Sorry, only all-in-one image version is supported up to now")
 
@@ -679,7 +679,7 @@ def push_on_machines(ctx):
     for file_input in [kernel, initrd, kexec_script]:
         ctx.vlog(f"push: {file_input}")
         tasks_cmd = generate_scp_tasks(
-            ctx.ip_addresses, file_input, ctx.push_path, scp="scp", user="root"
+            ctx.ip_addresses, file_input, push_path, scp="scp", user="root"
         )
         exec_kataract_tasks(tasks_cmd, elog=ctx.elog, vlog=ctx.vlog)
 
@@ -689,7 +689,7 @@ def push_on_machines(ctx):
     #     ctx.vlog("push kernel, initrd, kexec_script on hosts with kaput")
     #     joined_ip_addresses = ",".join(ctx.ip_addresses)
     #     for f in [kernel, initrd, kexec_script]:
-    #         kaput_cmd = f"kaput -l root -n {joined_ip_addresses} {f} {ctx.push_path}"
+    #         kaput_cmd = f"kaput -l root -n {joined_ip_addresses} {f} {push_path}"
     #         ctx.vlog(kaput_cmd)
     #         subprocess.call(kaput_cmd, shell=True)
     # else:
@@ -697,7 +697,7 @@ def push_on_machines(ctx):
     #         ctx.vlog(f"push kernel, initrd, kexec_script to {ip_address}")
     #         for f in [kernel, initrd, kexec_script]:
     #             subprocess.call(
-    #                 f"scp {f} root@{ip_address}:{ctx.push_path}", shell=True
+    #                 f"scp {f} root@{ip_address}:{push_path}", shell=True
     #             )
 
 
