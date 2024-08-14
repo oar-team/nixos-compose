@@ -5,7 +5,7 @@ Run the driver to execute the given script to interact with the deployed environ
 The script is a python script similar to nixos-test script. See the [NixOS manual on nixos-tests](https://nixos.org/manual/nixos/unstable/#sec-writing-nixos-tests) for more details.
 
 ```admonish warning
-Be aware that unlike Nixos-test that only support virtual machines, `nxc` supports many flavors and VM specific features are not supported.
+Be aware that unlike Nixos-test that only support virtual machines, `nxc` supports many flavours and VM specific features are not supported.
 ```
 
 ## Examples

@@ -9,11 +9,11 @@ It generates a `build` folder which stores symlinks to the closure associated to
 
 - `nxc build -t vm`
 
-    Build the `vm` flavor of your composition.
+    Build the `vm` flavour of your composition.
 
 - `nxc build -C oar::g5k-nfs-store`
 
-    Build the `oar` composition with the `g5k-nfs-store` flavor`.
+    Build the `oar` composition with the `g5k-nfs-store` flavour`.
 
 
 ## Usage
