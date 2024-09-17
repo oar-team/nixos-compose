@@ -75,7 +75,7 @@ webserver/
       defaultPackage.${system} =
         self.packages.${system}."composition::vm";
 
-      devShell.${system} = nxc.devShells.${system}.nxcShell;
+      devShell.${system} = nxc.devShells.${system}.nxcShellLite;
     };
   }
   ```
