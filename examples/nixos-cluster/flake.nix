@@ -22,6 +22,6 @@
       defaultPackage.${system} =
         self.packages.${system}."composition::vm";
 
-      devShell.${system} = nxc.devShells.${system}.nxcShellFull;
+      devShell.${system} = nxc.devShells.${system}.nxcShell;
     };
 }
