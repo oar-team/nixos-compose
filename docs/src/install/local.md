@@ -44,13 +44,13 @@ The following commands will drop you in a shell where the `nxc` command is avail
 ```shell
 git clone https://gitlab.inria.fr/nixos-compose/nixos-compose.git
 cd nixos-compose
-nix develop .#nxcShellFull
+nix develop .#nxcShell
 ```
 ## Alternative
 
 You can take advantage of the full potential of Nix's flakes. The following command will drop you in the same shell without having to clone the repository.
 ```shell
-nix develop https://gitlab.inria.fr/nixos-compose/nixos-compose.git#nxcShellFull
+nix develop https://gitlab.inria.fr/nixos-compose/nixos-compose.git#nxcShell
 ```
 
 ~~~admonish tip
@@ -60,7 +60,7 @@ nix registry add nxc git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git
 ```
 The command becomes :
 ```shell
-nix develop nxc#nxcShellFull
+nix develop nxc#nxcShell
 ```
 ~~~
 
@@ -69,21 +69,21 @@ nix develop nxc#nxcShellFull
 A project that is already using _NixOSCompose_ in its experiments process provides an easy access to a shell that gives access to the `nxc` tool and its runtime dependencies if needed. This is achieved thanks to Nix and its flakes feature. By default, a project has a line in its `flake.nix` similar to this :
 
 ```nix
-devShell.${system} = nxc.devShells.${system}.nxcShellFull;
+devShell.${system} = nxc.devShells.${system}.nxcShell;
 ```
 
 It exposes the shell of _NixOSCompose_ as in the previous section but with the specific revision thanks to the `flake.lock` file. The shell is accessible with the command `nix develop`. It is useful to explore what shells are available in the project, to list them you use `nix flake show`. Then to access the devShell of your choice use this command :
 
 ```shell
-nix develop .#nxcShellFull
+nix develop .#nxcShell
 ```
 
 ```admonish info
 Two shells availables :
-- `nxcShell`
+- `nxcShellLite`
     - python app `nxc`
 
-- `nxcShellFull`
+- `nxcShell`
     - python app `nxc`
     - docker-compose
     - vde2

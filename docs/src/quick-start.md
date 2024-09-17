@@ -40,7 +40,7 @@ For the following, we are using the `basic` template. It is a composition that d
     Using your locally installed _NixOSCompose_ the commands are the following.
     ```shell
     cd nixos-compose
-    nix develop .#nxcShell
+    nix develop .#nxcShellLite
     cd path/to/projectFolder
     nxc init -t basic
     ```
@@ -97,11 +97,11 @@ testScript = ''
 
 ## Local development and usage
 
-First enter the `nxc` shell. Here we choose `nxcShellFull` because it provides all necessary dependencies to run the composition locally (e.g. docker-compose).
+First enter the `nxc` shell. Here we choose `nxcShell` because it provides all necessary dependencies to run the composition locally (e.g. docker-compose).
 
 ```shell
 cd path/to/projectFolder
-nix develop .#nxcShellFull
+nix develop .#nxcShell
 ```
 
 ```admonest info
@@ -180,7 +180,7 @@ This phase requires the reservation of a node in interactive mode with `oarsub -
 Enter the `nix-shell` that provides the `nxc` command.
 ```shell
 cd path/to/project
-nix develop .#nxcShell
+nix develop .#nxcShellLite
 ```
 
 You can now to build the `g5k-ramdisk` flavour.
