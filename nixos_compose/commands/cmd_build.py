@@ -115,7 +115,7 @@ def cli(
 
     ## Examples
 
-    - `nxc build -t vm`
+    - `nxc build -f vm`
 
         Build the `vm` flavour of your composition.
 
