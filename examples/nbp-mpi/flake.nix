@@ -2,7 +2,7 @@
   description = "nixos-compose - ";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/23.11";
     nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
     nxc.inputs.nixpkgs.follows = "nixpkgs";
     NUR.url = "github:nix-community/NUR";
