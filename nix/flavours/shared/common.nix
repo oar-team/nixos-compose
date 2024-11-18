@@ -80,7 +80,7 @@ with lib; {
         fi
 
         # zero padding: 2 digits vm_id
-        VM_ID=$(printf "%02d\n" $VM_ID)
+        VM_ID_PADDED=$(printf "%02d\n" $VM_ID)
 
         if [ ! -S $QEMU_VDE_SOCKET/ctl ]; then
            if [ -z $TAP ]; then
@@ -129,7 +129,7 @@ with lib; {
         $QEMU -name $NAME -m $MEM -kernel $KERNEL -initrd $INITRD \
         -append "$APPEND" \
         -device virtio-rng-pci \
-        -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID \
+        -device virtio-net-pci,netdev=vlan1,mac=52:54:00:12:01:$VM_ID_PADDED \
         -netdev vde,id=vlan1,sock=$QEMU_VDE_SOCKET \
         -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::$(($HOSTFWDPORT+$VM_ID))-:22 \
         -virtfs local,path=$SHARED_DIR,security_model=none,mount_tag=shared \
