@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from execo import Remote
 from execo_engine import Engine, logger
 from execo_g5k import (
@@ -12,6 +13,7 @@ from nixos_compose.nxc_execo import get_oar_job_nodes_nxc
 class MyEngine(Engine):
     def __init__(self):
         super(MyEngine, self).__init__()
+        self.oar_job_id = None
         parser = self.args_parser
         parser.add_argument("--nxc_build_file", help="Path to the NXC deploy file")
         parser.add_argument("--walltime", help="Grid5000 booking walltime (in hours)")
@@ -37,12 +39,12 @@ class MyEngine(Engine):
         site = "grenoble"
         cluster = "dahu"
         nxc_flavour = self.args.flavour
+        nb_nodes = 2
         roles_distribution = {
             "foo": ["foo", "bar"],
         }
         walltime_hours = float(self.args.walltime) if self.args.walltime else 1
         # Local copies of experiment parameters
-        nb_nodes = 2
 
         try:
             # Book nodes on Grid 5000 unless the ID of an existing job has been provided
@@ -52,17 +54,17 @@ class MyEngine(Engine):
                 oar_job = reserve_nodes(
                     nb_nodes, site, cluster, "deploy", walltime=walltime_hours * 60 * 60
                 )
-                oar_job_id, site = oar_job[0]
+                self.oar_job_id, site = oar_job[0]
 
-                logger.info(f"Waiting for job ID {oar_job_id} on {site} site...")
-                wait_oar_job_start(oar_job_id, site)
+                logger.info(f"Waiting for job ID {self.oar_job_id} on {site} site...")
+                wait_oar_job_start(self.oar_job_id, site)
             else:
-                oar_job_id = self.args.job_id
+                self.oar_job_id = self.args.job_id
 
             # Get the machines info, deploy
             logger.info("Deploying ...")
-            nodes = get_oar_job_nodes_nxc(
-                oar_job_id,
+            nodes, roles = get_oar_job_nodes_nxc(
+                self.oar_job_id,
                 site,
                 flavour_name=nxc_flavour,
                 compose_info_file=self.args.nxc_build_file,
@@ -93,9 +95,9 @@ class MyEngine(Engine):
         except KeyboardInterrupt:
             logger.info("Stopping (received keyboard interrupt)")
         finally:
-            if oar_job_id is not None and not self.args.keep_job:
-                logger.info(f"Giving back the resources (OAR job ID {oar_job_id})")
-                oardel([(oar_job_id, "site")])
+            if self.oar_job_id is not None and not self.args.keep_job:
+                logger.info(f"Giving back the resources (OAR job ID {self.oar_job_id})")
+                oardel([(self.oar_job_id, "site")])
 
 
 class FailedProcessError(Exception):
