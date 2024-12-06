@@ -2,9 +2,10 @@
   description = "nixos-compose";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/23.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/24.05";
     flake-utils.url = "github:numtide/flake-utils";
-    kapack.url = "github:oar-team/nur-kapack";
+    #kapack.url = "github:oar-team/nur-kapack";
+    kapack.url = "/home/auguste/dev/nur-kapack/24.05";
     kapack.inputs.nixpkgs.follows = "nixpkgs";
   };
 
@@ -45,6 +46,7 @@
               pyyaml
               requests
               tomlkit
+              setuptools
             ] ++ [ pkgs.taktuk pkgs.nix-output-monitor ];
           };
 

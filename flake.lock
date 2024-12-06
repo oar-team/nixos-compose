@@ -44,31 +44,30 @@
         ]
       },
       "locked": {
+        "dirtyRev": "052fb35eb29228d9e4ea8afa09e9f0e390782cbd-dirty",
+        "dirtyShortRev": "052fb35-dirty",
         "lastModified": 1718633852,
-        "narHash": "sha256-KVeKDdab2wMYMo60mEQHz8Dus4ddhxJ1HPCXzUt9ei8=",
-        "owner": "oar-team",
-        "repo": "nur-kapack",
-        "rev": "052fb35eb29228d9e4ea8afa09e9f0e390782cbd",
-        "type": "github"
+        "narHash": "sha256-HKvBfSF4j8ONewA/H7pSYB1XiGUBaRRfXPvPdkRBMv4=",
+        "type": "git",
+        "url": "file:///home/auguste/dev/nur-kapack/24.05"
       },
       "original": {
-        "owner": "oar-team",
-        "repo": "nur-kapack",
-        "type": "github"
+        "type": "git",
+        "url": "file:///home/auguste/dev/nur-kapack/24.05"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1701282334,
-        "narHash": "sha256-MxCVrXY6v4QmfTwIysjjaX0XUhqBbxTWWB4HXtDYsdk=",
+        "lastModified": 1717179513,
+        "narHash": "sha256-vboIEwIQojofItm2xGCdZCzW96U85l9nDW3ifMuAIdM=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "057f9aecfb71c4437d2b27d3323df7f93c010b7e",
+        "rev": "63dacb46bf939521bdc93981b4cbb7ecb58427a0",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "23.11",
+        "ref": "24.05",
         "repo": "nixpkgs",
         "type": "github"
       }
