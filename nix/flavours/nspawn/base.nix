@@ -7,7 +7,6 @@ role:
   imports = [ "${modulesPath}/profiles/minimal.nix" ];
 
   boot.isContainer = true;
-  boot.specialFileSystems = lib.mkForce { };
 
   services.journald.console = "/dev/console";
 
