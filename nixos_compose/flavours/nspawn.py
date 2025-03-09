@@ -5,6 +5,7 @@ import click
 import ipaddress
 import socket
 
+
 from ..flavour import Flavour
 from ..actions import (
     read_compose_info,
@@ -213,9 +214,9 @@ class NspawnFlavour(Flavour):
                 ctx.elog("Netmask different from /24 is not supported")
             a, b, c, _ = net_addr.split(".")
             net_prefix = f"{a}.{b}.{c}"
-            os.environ["NXC_ADDR"] = f"{net_prefix}.1"
-            os.environ["NXC_NETWORK"] = nested_network
-            os.environ["NXC_DHCP_RANGE"] = f"{net_prefix}.2,{net_prefix}.254"
+            env["NXC_ADDR"] = f"{net_prefix}.1"
+            env["NXC_NETWORK"] = nested_network
+            env["NXC_DHCP_RANGE"] = f"{net_prefix}.2,{net_prefix}.254"
             preserve_env += ",NXC_ADDR,NXC_NETWORK,NXC_DHCP_RANGE"
 
         ctx.log("Launch nxc-net script")
@@ -229,8 +230,11 @@ class NspawnFlavour(Flavour):
 
         nft_nixos_fw_rules(ctx, add=True)
 
+        print(ctx.deployment_filename)
+
         ctx.log("Prepare machines dirs")
         p_lst = []
+
         for _, host_info in ctx.deployment_info["deployment"].items():
             p = subprocess.Popen(
                 [
@@ -239,6 +243,7 @@ class NspawnFlavour(Flavour):
                     "prepare",
                     host_info["host"],
                     host_info["toplevel"],
+                    ctx.deployment_filename,
                 ],
                 stdout=subprocess.DEVNULL,
             )
@@ -248,22 +253,32 @@ class NspawnFlavour(Flavour):
             p.wait()
 
         ctx.log("\nStart containers")
+
+        env["SYSTEMD_NSPAWN_UNIFIED_HIERARCHY"] = "1"
         p_lst = []
         for _, host_info in ctx.deployment_info["deployment"].items():
+            print(f"start  {host_info['host']}")
             subprocess.Popen(
                 [
                     "sudo",
+                    "--preserve-env=SYSTEMD_NSPAWN_UNIFIED_HIERARCHY",
                     "systemd-nspawn",
+                    # "--quiet",
+                    # TODO: could be interactive (instead of passive) for a debug mode
+                    # to see init process on have the same VM/Qemu behavior
+                    "--console=passive",
                     "-bD",
                     f"/var/lib/machines/{host_info['host']}",
                     "--network-bridge=nxc-br0",
                 ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                env=env,
             )
+            # time.sleep(10)
             p_lst.append(p)
         for p in p_lst:
             p.wait()
+
+        subprocess.call("reset; machinectl list", shell=True)
 
     def start_all(self):
         print("TODO start_all")
@@ -359,7 +374,6 @@ class NspawnFlavour(Flavour):
         self.ext_connect("root", machine.name)
 
     def ext_connect(self, user, node, execute=True, ssh_key_file=None):
-        # subprocess.call("sudo true", shell=True)
         cmd = f"machinectl shell {user}@{node}"
         if execute:
             return_code = subprocess.run(cmd, shell=True).returncode
