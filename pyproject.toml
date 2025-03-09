@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nixos-compose"
-version = "0.7.1"
+version = "0.6.0"
 description = ""
 authors = ["Olivier Richard <olivier.richard@imag.fr>"]
 license = "MIT"
@@ -24,7 +24,7 @@ psutil = "^5.9.0"
 PyYAML = "^6.0"
 execo = "^2.6.8"
 requests = "^2.27.1"
-tomlkit = "^0.11"
+tomlkit = ">=0.11"
 
 
 [tool.poetry.scripts]

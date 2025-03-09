@@ -105,16 +105,13 @@ def get_oar_job_nodes_nxc(
             temp_dir.cleanup()
 
     roles = {}
-    nodes = {}
     for ip_addr, node_info in flavour.ctx.deployment_info["deployment"].items():
         node_role = node_info["role"]
-        localhost = Host(ip_addr, user="root")
-        nodes[node_info["host"]] = localhost
         if node_role in roles:
-            roles[node_role].append(localhost)
+            roles[node_role].append(Host(ip_addr, user="root"))
         else:
-            roles[node_role] = [localhost]
+            roles[node_role] = [Host(ip_addr, user="root")]
 
     if ctx.use_httpd:
         ctx.httpd.stop()
-    return (nodes, roles)
+    return roles
