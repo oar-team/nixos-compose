@@ -35,6 +35,7 @@ def get_oar_job_nodes_nxc(
     composition_name="composition",
     roles_quantities={},
     port=0,
+    skip_deploy=False,
 ):
     """
     Brother of the "get_oar_job_nodes" function from execo
@@ -65,7 +66,7 @@ def get_oar_job_nodes_nxc(
     # print(f"compose info file: {ctx.compose_info_file}")
 
     g5k_nodes = get_oar_job_nodes(oar_job_id, site)
-    print(f"G5K nodes: {g5k_nodes}")
+    # print(f"G5K nodes: {g5k_nodes}")
     machines = [node.address for node in g5k_nodes]
     if len(machines) > 4:
         ctx.use_http = True
@@ -75,34 +76,35 @@ def get_oar_job_nodes_nxc(
 
     flavour.generate_deployment_info()
 
-    ctx.log("Deploying")
-    if hasattr(flavour, "generate_kexec_scripts"):
-        flavour.generate_kexec_scripts()
-        flavour.launch()
-    else:
-        user = os.environ["USER"]
-        tempfile.tempdir = f"/home/{user}/public"
-        tmp = tempfile.NamedTemporaryFile(delete=False)
-        tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)
-        temp_dir = tempfile.TemporaryDirectory()
-        try:
-            machines_str = "\n".join(machine for machine in machines)
-            # for machine in machines:
-            #     machines_str += f"{machine}\n"
-            tmp.write(machines_str.encode("utf-8"))
-            tmp.flush()
-            nxc_image_path = op.join(temp_dir.name, "nixos.tar.xz")
-            flavour.launch(
-                machine_file=tmp.name,
-                kaenv_path=tmp_kaenv.name,
-                deploy_image_path=nxc_image_path,
-            )
-        finally:
-            tmp.close()
-            os.unlink(tmp.name)
-            tmp_kaenv.close()
-            os.unlink(tmp_kaenv.name)
-            temp_dir.cleanup()
+    if not skip_deploy:
+        ctx.log("Deploying")
+        if hasattr(flavour, "generate_kexec_scripts"):
+            flavour.generate_kexec_scripts()
+            flavour.launch()
+        else:
+            user = os.environ["USER"]
+            tempfile.tempdir = f"/home/{user}/public"
+            tmp = tempfile.NamedTemporaryFile(delete=False)
+            tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)
+            temp_dir = tempfile.TemporaryDirectory()
+            try:
+                machines_str = "\n".join(machine for machine in machines)
+                # for machine in machines:
+                #     machines_str += f"{machine}\n"
+                tmp.write(machines_str.encode("utf-8"))
+                tmp.flush()
+                nxc_image_path = op.join(temp_dir.name, "nixos.tar.xz")
+                flavour.launch(
+                    machine_file=tmp.name,
+                    kaenv_path=tmp_kaenv.name,
+                    deploy_image_path=nxc_image_path,
+                )
+            finally:
+                tmp.close()
+                os.unlink(tmp.name)
+                tmp_kaenv.close()
+                os.unlink(tmp_kaenv.name)
+                temp_dir.cleanup()
 
     roles = {}
     nodes = {}
