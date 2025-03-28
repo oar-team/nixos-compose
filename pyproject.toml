@@ -1,5 +1,6 @@
 [tool.poetry]
-version = "0.7.1"
+name = "nixos-compose"
+version = "0.7.2"
 description = ""
 authors = ["Olivier Richard <olivier.richard@imag.fr>"]
 license = "MIT"
@@ -19,9 +20,9 @@ ptpython = "^3.0.7"
 click = ">=7.1.2"
 pyinotify = "^0.9.6"
 pexpect = "^4.8.0"
-psutil = "^5.9.0"
+psutil = ">=5.9.0"
 PyYAML = "^6.0"
-execo = "^2.6.8"
+execo = ">=2.6.8"
 requests = "^2.27.1"
 tomlkit = ">=0.11"
 
