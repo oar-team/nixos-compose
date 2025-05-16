@@ -6,7 +6,7 @@ with lib; {
     [ "ahci" "ehci_pci" "megaraid_sas" "sd_mod" "i40e" "mlx5_core" ];
   boot.kernelModules = [ "kvm-intel" ];
 
-  users.users.root.password = "nixos";
+  users.users.root.password = "";
 
   networking.firewall.enable = false;
 
