@@ -2,7 +2,7 @@
   description = "nixos-compose - basic setup with external NUR repo";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     NUR.url = "github:nix-community/NUR";
     nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
     #inputs.alice.url = "path:/home/some_path/nur-alice";
