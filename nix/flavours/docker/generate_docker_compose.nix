@@ -25,7 +25,6 @@ let
   tag = "latest";
   image = import ./generate_image.nix { inherit pkgs name tag; };
   dockerComposeConfig = {
-    version = "3.4";
     x-nxc = { inherit image; };
     #volumes = { nxc-shared = { external = false; }; };
     volumes = { nxc-shared = null; };
