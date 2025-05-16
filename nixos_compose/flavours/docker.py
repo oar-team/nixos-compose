@@ -33,6 +33,10 @@ def generate_docker_compose_file(ctx):
     docker_compose_content = {"services": {}}
     nodes_info = {}
 
+    artifact_dir = op.join(
+        ctx.envdir, f"artifact/{ctx.composition_name}/{ctx.flavour.name}"
+    )
+    os.makedirs(artifact_dir, mode=0o700, exist_ok=True)
     with open(base_docker_compose) as dc_file:
         dc_json = json.load(dc_file)
         if prefix_store:
@@ -54,11 +58,16 @@ def generate_docker_compose_file(ctx):
         deployment_file = op.join(
             ctx.envdir, f"deploy/{ctx.composition_flavour_prefix}.json"
         )
+
+        deployment_symlink = op.join(artifact_dir, "deployment.json")
+        if not os.path.islink(deployment_symlink):
+            os.symlink(deployment_file, deployment_symlink)
+
         for service in dc_json["services"].values():
             (service["volumes"]).append(
                 {
                     "type": "bind",
-                    "source": deployment_file,
+                    "source": deployment_symlink,
                     "target": "/etc/nxc/deployment.json",
                 }
             )
