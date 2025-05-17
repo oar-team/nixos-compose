@@ -44,27 +44,27 @@
         ]
       },
       "locked": {
-        "lastModified": 1733414265,
-        "narHash": "sha256-CFDMLbo11BFva74mtsBl0hEQOQyHsrd/6fOzJ8vUxzQ=",
+        "lastModified": 1747476189,
+        "narHash": "sha256-X3wUhcHbGxTl7Y/Ty/taKhsimbhLa0ImPuL40Np6dLk=",
         "owner": "oar-team",
         "repo": "nur-kapack",
-        "rev": "4c398cb11980ae8429ed51f14f079eff80205c0d",
+        "rev": "8db1fb776e49c356695535cfe1d76f2dcdf2c626",
         "type": "github"
       },
       "original": {
         "owner": "oar-team",
-        "ref": "24.11",
+        "ref": "master",
         "repo": "nur-kapack",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1743576891,
-        "narHash": "sha256-vXiKURtntURybE6FMNFAVpRPr8+e8KoLPrYs9TGuAKc=",
+        "lastModified": 1747335874,
+        "narHash": "sha256-IKKIXTSYJMmUtE+Kav5Rob8SgLPnfnq4Qu8LyT4gdqQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "44a69ed688786e98a101f02b712c313f1ade37ab",
+        "rev": "ba8b70ee098bc5654c459d6a95dfc498b91ff858",
         "type": "github"
       },
       "original": {
