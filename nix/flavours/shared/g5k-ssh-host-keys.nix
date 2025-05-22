@@ -2,10 +2,11 @@
 let
   g5k-ssh-host-keys = pkgs.stdenv.mkDerivation rec {
     name = "g5k-ssh-keys";
+    version = "v1.2025042314";
     src = pkgs.fetchgit {
       url = "https://gitlab.inria.fr/grid5000/g5k-postinstall";
-      rev = "2f55241e8ed7ba82e2582b019b99a7299e58305e";
-      sha256 = "KxfKjwm/vHE3vblRMe3dXZzZMGK+kq6uAybBbhyy3sU=";
+      rev = version;
+      sha256 = "sha256-7VFuNesh5vKovbBEyB8u2n1kzZrxhgDSaJfo5nUYSUE=";
     };
     installPhase = "mv ssh_host_keys $out/";
   };
