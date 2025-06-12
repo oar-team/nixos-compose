@@ -66,14 +66,17 @@ def get_oar_job_nodes_nxc(
 
     # print(f"compose info file: {ctx.compose_info_file}")
 
-    flavour.generate_deployment_info()
 
     if "g5k" in flavour_name:
         g5k_nodes = get_oar_job_nodes(oar_job_id, site)
         # print(f"G5K nodes: {g5k_nodes}")
         machines = [node.address for node in g5k_nodes]
         translate_hosts2ip(ctx, machines)
+
+        flavour.generate_deployment_info()
     elif flavour_name == "vm":
+        flavour.generate_deployment_info()
+
         # TODO use a tempfile.TemporaryDirectory ?
         tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
         tmp_dir.mkdir(mode=0o700, exist_ok=True)
