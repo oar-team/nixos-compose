@@ -3,10 +3,11 @@ from execo_g5k import get_oar_job_nodes
 
 import os
 import os.path as op
+from pathlib import Path
 
 import tempfile
 from .context import Context
-from .actions import realpath_from_store, translate_hosts2ip
+from .actions import realpath_from_store, translate_hosts2ip, wait_ssh_ports
 from .flavours import get_flavour_by_name
 
 # from .g5k import key_sleep_script
@@ -65,22 +66,40 @@ def get_oar_job_nodes_nxc(
 
     # print(f"compose info file: {ctx.compose_info_file}")
 
-    g5k_nodes = get_oar_job_nodes(oar_job_id, site)
-    # print(f"G5K nodes: {g5k_nodes}")
-    machines = [node.address for node in g5k_nodes]
+    flavour.generate_deployment_info()
+
+    if "g5k" in flavour_name:
+        g5k_nodes = get_oar_job_nodes(oar_job_id, site)
+        # print(f"G5K nodes: {g5k_nodes}")
+        machines = [node.address for node in g5k_nodes]
+        translate_hosts2ip(ctx, machines)
+    elif flavour_name == "vm":
+        # TODO use a tempfile.TemporaryDirectory ?
+        tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
+        tmp_dir.mkdir(mode=0o700, exist_ok=True)
+        flavour.driver_initialize(tmp_dir)
+        _vlan = flavour.create_vlan()
+        machines = list(map(lambda x: (x.ip, x.ssh_port), flavour.machines))
+        flavour.ctx.ip_addresses = list(map(lambda x: x[0], machines))
+    else:
+        raise Exception(f"Unsupported flavour '{flavour}' for the Execo-NXC integration")
+ 
     if len(machines) > 4:
         ctx.use_http = True
         ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
         ctx.httpd.start(directory=ctx.envdir)
-    translate_hosts2ip(ctx, machines)
 
-    flavour.generate_deployment_info()
+    # flavour.generate_deployment_info()
 
     if not skip_deploy:
         ctx.log("Deploying")
         if hasattr(flavour, "generate_kexec_scripts"):
             flavour.generate_kexec_scripts()
             flavour.launch()
+        elif flavour_name == "vm":
+            for machine in flavour.machines:
+                machine.start()
+            wait_ssh_ports(ctx)
         else:
             user = os.environ["USER"]
             tempfile.tempdir = f"/home/{user}/public"
@@ -110,7 +129,9 @@ def get_oar_job_nodes_nxc(
     nodes = {}
     for ip_addr, node_info in flavour.ctx.deployment_info["deployment"].items():
         node_role = node_info["role"]
-        localhost = Host(ip_addr, user="root")
+        port = 22 if flavour_name != "vm" else 22021 + int(node_info['vm_id'])
+        ip_addr_node = ip_addr if flavour_name != "vm" else "localhost"
+        localhost = Host(ip_addr_node, user="root", port=port)
         nodes[node_info["host"]] = localhost
         if node_role in roles:
             roles[node_role].append(localhost)

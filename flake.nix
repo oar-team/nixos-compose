@@ -78,11 +78,15 @@
             };
             nxcShell = pkgs.mkShell {
               buildInputs = [
-                self.packages.${system}.${packageName}
+                (pkgs.python3.withPackages (ps: [
+                    kapackpkgs.execo
+                    self.packages.${system}.${packageName}
+                ]))
                 pkgs.docker-compose
                 pkgs.qemu_kvm
                 pkgs.vde2
                 pkgs.tmux
+                pkgs.nmap
               ];
             };
             devDoc = pkgs.mkShell {
