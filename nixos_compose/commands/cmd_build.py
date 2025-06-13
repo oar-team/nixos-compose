@@ -214,6 +214,10 @@ def cli(
     if show_trace:
         build_cmd += ["--show-trace"]
 
+    if flavour and composition_flavour:
+        if len(composition_flavour.split("::"))==1:
+            composition_flavour= composition_flavour+"::"+flavour
+
     if not out_link:
         build_path = op.join(ctx.envdir, "build")
         if not op.exists(build_path):
@@ -221,12 +225,16 @@ def cli(
             ctx.log("   " + create + "  " + build_path)
             os.mkdir(build_path)
 
+        if composition_flavour:
+            if flavour and flavour != composition_flavour.split("::")[-1]:
+                raise ValueError("the value of flavour  does not match  the ones of composition_favour")
+            
+            ctx.composition_flavour_prefix = composition_flavour
+            ctx.flavour_name = composition_flavour[-1]
+            
         if not flavour:
             flavour = determine_flavour(ctx)
-
-        if composition_flavour:
-            ctx.composition_flavour_prefix = composition_flavour
-            ctx.flavour_name = composition_flavour.split("::")[-1]
+   
         else:
             composition_name = (os.path.basename(composition_file)).split(".")[0]
             ctx.composition_name = composition_name
