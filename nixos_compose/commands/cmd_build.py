@@ -6,9 +6,10 @@ import click
 import json
 
 from ..actions import get_nix_command, realpath_from_store
-from ..context import pass_context, on_started, on_finished
+from ..context import pass_context, on_started, on_finished 
 from ..platform import platform_detection
 from ..setup import apply_setup
+from ..flavour import base_flavours
 
 # FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
 # FLAVOURS = os.listdir(FLAVOURS_PATH)
@@ -35,6 +36,12 @@ from ..setup import apply_setup
     "--list-flavours",
     is_flag=True,
     help="List available flavour",
+)
+@click.option(
+    "-Fb",
+    "--list-base-flavours",
+    is_flag=True,
+    help="List available base flavour",
 )
 # TOREMOVE
 # @click.option(
@@ -98,6 +105,7 @@ def cli(
     out_link,
     flavour,
     list_flavours,
+    list_base_flavours,
     show_trace,
     dry_run,
     dry_build,
@@ -189,6 +197,12 @@ def cli(
         ctx.log("Flavours List:")
         for k in flavours:
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
+        sys.exit(0)
+
+    if list_base_flavours:
+        flavours = get_base_flavours()
+        for flavour in flavours:
+            click.echo(f"{flavour["name"]: <18}: {flavour["description"]}")
         sys.exit(0)
 
     if not composition_file:
@@ -315,3 +329,6 @@ def get_flavours(nix_cmd_base, ctx):
             output_json = realpath_from_store(ctx, output_json)
 
     return json.load(open(output_json, "r"))
+
+def get_base_flavours():
+    return base_flavours

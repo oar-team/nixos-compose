@@ -29,3 +29,56 @@ class Flavour(object):
 
     def ext_connect(self, user, node, execute=True, ssh_key_file=None):
         pass
+
+
+base_flavours = [
+    {
+        "name": "docker",
+        "description": "Docker-Compose based",
+        "image": {}
+    },
+    {
+        "name": "g5k-image",
+        "description": "Flavour for Grid'5000 platform",
+        "image": {
+            "distribution": "all-in-one",
+            "type": "tarball"
+        }
+    },
+    {
+        "name": "g5k-nfs-store",
+        "description": "Flavour for Grid'5000 platform",
+        "image": {
+            "distribution": "all-in-one",
+            "type": "remote-store"
+        }
+    },
+    {
+        "name": "g5k-ramdisk",
+        "description": "Flavour for Grid'5000 platform",
+        "image": {
+            "distribution": "all-in-one",
+            "type": "ramdisk"
+        }
+    },
+    {
+        "name": "nspawn",
+        "description": "Systemd-nspawn",
+        "image": {}
+    },
+    {
+        "name": "vm",
+        "description": "vm",
+        "image": {
+            "distribution": "all-in-one"
+        }
+    },
+    {
+        "name": "vm-ramdisk",
+        "description": "Plain vm ramdisk (all-in-memory), need lot of ram !",
+        "image": {
+            "distribution": "all-in-one",
+            "type": "ramdisk"
+        }
+    }
+]
