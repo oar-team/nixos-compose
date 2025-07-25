@@ -69,14 +69,14 @@ def realpath_from_store(ctx, path, include_prefix_store=False):
 ##
 # Generate/manipulate/copy deploy, compose files
 #
-def get_deployment_file(ctx, deployment_file):
+def get_deployment_file(ctx, deployment_file, flavour, tag):
     def exit_is_not_file(f):
         if not op.isfile(f):
             ctx.elog(f"{f} is not a file, deployment_file option must be provided")
             sys.exit(1)
 
+    deploy_dir = op.join(ctx.envdir, "deploy")
     if not deployment_file:
-        deploy_dir = op.join(ctx.envdir, "deploy")
         if not op.isdir(deploy_dir):
             ctx.elog("Failed to find deploy directory, is composition started ?")
             sys.exit(1)
@@ -84,22 +84,38 @@ def get_deployment_file(ctx, deployment_file):
         exit_is_not_file(deployment_file)
         return deployment_file
     else:
-        base_deployment_file = deployment_file
-        if op.exists(deployment_file):
-            exit_is_not_file(deployment_file)
+        if tag:
+            if flavour:
+                search_path = f"{deploy_dir}/*::{flavour}::{tag}.json"
+            else:
+                search_path = f"{deploy_dir}/*::{tag}.json"
+
+            deployment_paths = glob.glob(search_path)
+            if not deployment_paths:
+                raise click.ClickException("Failed to find last deployment")
+
+            deployment_file = max(
+                deployment_paths,
+                key=lambda x: os.stat(x, follow_symlinks=False).st_ctime,
+            )
             return deployment_file
         else:
-            deployment_file = op.join(op.join(ctx.envdir, "deploy"), deployment_file)
+            base_deployment_file = deployment_file
             if op.exists(deployment_file):
                 exit_is_not_file(deployment_file)
                 return deployment_file
             else:
-                ctx.elog(f"{base_deployment_file} not found")
-                sys.exit(1)
+                deployment_file = op.join(op.join(ctx.envdir, "deploy"), deployment_file)
+                if op.exists(deployment_file):
+                    exit_is_not_file(deployment_file)
+                    return deployment_file
+                else:
+                    ctx.elog(f"{base_deployment_file} not found")
+                    sys.exit(1)
 
 
-def read_deployment_info(ctx, deployment_file=None):
-    ctx.deployment_filename = get_deployment_file(ctx, deployment_file)
+def read_deployment_info(ctx, deployment_file=None, flavour=None, tag=None):
+    ctx.deployment_filename = get_deployment_file(ctx, deployment_file, flavour, tag)
     with open(ctx.deployment_filename, "r") as f:
         deployment_info = json.load(f)
     ctx.deployment_info = deployment_info

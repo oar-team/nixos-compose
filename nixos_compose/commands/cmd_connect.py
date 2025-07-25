@@ -28,13 +28,18 @@ from ..flavours import get_flavour_by_name
     type=click.STRING,
     help="path to the ssh public private used to connect to the deployments",
 )
+@click.option(
+    "-a",
+    "--tag",
+    help="tagname of the deployment we want to connect on",
+)
 @click.option("-pc", "--pane-console", is_flag=True, help="Add a pane console")
 @click.argument("host", nargs=-1)
 @pass_context
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
-    ctx, user, host, geometry, pane_console, deployment_file, flavour, identity_file
+    ctx, user, host, geometry, pane_console, deployment_file, flavour, identity_file, tag
 ):
     """
     Opens one or more terminal sessions into the deployed nodes. By default, it will connect to all nodes, but we can specify which ones to connect to.
@@ -51,11 +56,11 @@ def cli(
 
         Connect to the `server` node. It runs on the current shell (Tmux is not used in this case)
     """
-    read_deployment_info(ctx, deployment_file)
+    read_deployment_info(ctx, deployment_file, flavour, tag)
 
     # determine flavour name
     if not flavour:
-        match = re.match(r"^.*::(.+)\..*$", ctx.deployment_filename)
+        match = re.match(r"^.*?::([^:]+?)(?:::|\.).*$", ctx.deployment_filename)
         if match:
             flavour = match.group(1)
         else:

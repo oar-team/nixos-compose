@@ -238,6 +238,12 @@ def start(ctx, interactive, execute_test_script, port, machine_file=None, push_p
     default="",
     help="IP range (for now only usable with nspawn flavour)",
 )
+@click.option(
+    "-a",
+    "--tag",
+    type=click.STRING,
+    help="tagname of the deployment",
+)
 #     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
 # )
 @pass_context
@@ -268,7 +274,8 @@ def cli(
     parameter,
     parameter_file,
     ip_range,
-    deployment_file
+    deployment_file,
+    tagname
     # dry_run,
 ):
     """
@@ -443,7 +450,7 @@ def cli(
 
             ctx.flavour = get_flavour_by_name(flavour_name)(ctx)
             ctx.composition_name = composition_name
-            ctx.composition_flavour_prefix = composition
+            ctx.composition_flavour_prefix = (composition +"::"+ tagname) if tagname else composition
             ctx.composition_basename_file = composition_name
         else:
             raise Exception(
@@ -469,7 +476,7 @@ def cli(
         ctx.glog(last_build_path)
 
         build_path = last_build_path
-        ctx.composition_flavour_prefix = op.basename(last_build_path)
+        ctx.composition_flavour_prefix = (op.basename(last_build_path) +"::"+ tagname) if tagname else str(op.basename(last_build_path))        
 
         splitted_basename = ctx.composition_flavour_prefix.split("::")
 
@@ -491,7 +498,7 @@ def cli(
     if (composition is None) and flavour_name and compose_info:
         ctx.flavour = get_flavour_by_name(flavour_name)(ctx)
         ctx.compose_info_file = realpath_from_store(ctx, compose_info)
-        ctx.composition_flavour_prefix = op.basename(compose_info)
+        ctx.composition_flavour_prefix = (op.basename(compose_info) +"::"+ tagname) if tagname else op.basename(compose_info)
         ctx.composition_name = "composition"
         ctx.composition_basename_file = ctx.composition_name
     else:
@@ -519,5 +526,4 @@ def cli(
         print(ctx.ip_addresses, ctx.host2ip_address)
 
     ctx.flavour.generate_deployment_info(identity_file)
-
     start(ctx, interactive, execute_test_script, port, machine_file, push_path)
