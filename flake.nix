@@ -98,6 +98,28 @@
               # inputsFrom = builtins.attrValues self.packages.${system};
               inputsFrom = [ self.packages.${system}.${packageName} ];
             };
+
+            poetry-python311 = let
+              overlays = [
+                (final: prev: {
+                  poetry = prev.poetry.override { python3 = prev.python311; };
+                })
+              ];
+              pkgs_python311 = import nixpkgs {
+                inherit system overlays;
+              };
+            in
+              pkgs_python311.mkShell {
+               buildInputs = with pkgs_python311; [
+                 python311
+                 poetry
+               ];
+               shellHook = ''
+                echo "Python version: $(python --version)"
+                echo "Python used by poetry : $(poetry run python --version)"
+               '';
+            };
+
           };
 
         }) //
