@@ -1,14 +1,13 @@
 import os
 import os.path as op
-import sys
-import pkg_resources
+import importlib.metadata
 
 import click
 
 from .context import pass_context, CONTEXT_SETTINGS
 
 click.disable_unicode_literals_warning = True
-version = pkg_resources.get_distribution("nixos-compose").version
+version = importlib.metadata.version("nixos-compose")
 
 
 class NixosComposeCLI(click.MultiCommand):
