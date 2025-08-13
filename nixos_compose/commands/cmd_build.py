@@ -6,7 +6,7 @@ import click
 import json
 
 from ..actions import get_nix_command, realpath_from_store
-from ..context import pass_context, on_started, on_finished 
+from ..context import pass_context, on_started, on_finished
 from ..platform import platform_detection
 from ..setup import apply_setup
 from ..flavour import base_flavours
@@ -202,7 +202,7 @@ def cli(
     if list_base_flavours:
         flavours = get_base_flavours()
         for flavour in flavours:
-            click.echo(f"{flavour["name"]: <18}: {flavour["description"]}")
+            click.echo(f"{flavour['name']: <18}: {flavour['description']}")
         sys.exit(0)
 
     if not composition_file:
@@ -229,8 +229,8 @@ def cli(
         build_cmd += ["--show-trace"]
 
     if flavour and composition_flavour:
-        if len(composition_flavour.split("::"))==1:
-            composition_flavour= composition_flavour+"::"+flavour
+        if len(composition_flavour.split("::")) == 1:
+            composition_flavour = composition_flavour + "::" + flavour
 
     if not out_link:
         build_path = op.join(ctx.envdir, "build")
@@ -241,17 +241,18 @@ def cli(
 
         if composition_flavour:
             if flavour and flavour != composition_flavour.split("::")[-1]:
-                raise ValueError("the value of flavour  does not match  the ones of composition_favour")
-            
+                raise ValueError(
+                    "the value of flavour  does not match  the ones of composition_favour"
+                )
+
             ctx.composition_flavour_prefix = composition_flavour
             ctx.flavour_name = composition_flavour[-1]
-            
-        if not flavour:
-            flavour = determine_flavour(ctx)
-   
+
         else:
             composition_name = (os.path.basename(composition_file)).split(".")[0]
             ctx.composition_name = composition_name
+            if not flavour:
+                flavour = determine_flavour(ctx)
             ctx.flavour_name = flavour
             ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
 
@@ -329,6 +330,7 @@ def get_flavours(nix_cmd_base, ctx):
             output_json = realpath_from_store(ctx, output_json)
 
     return json.load(open(output_json, "r"))
+
 
 def get_base_flavours():
     return base_flavours
