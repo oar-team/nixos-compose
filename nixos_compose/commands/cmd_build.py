@@ -6,7 +6,7 @@ import click
 import json
 
 from ..actions import get_nix_command, realpath_from_store
-from ..context import pass_context, on_started, on_finished
+from ..context import pass_context, on_started, on_finished 
 from ..platform import platform_detection
 from ..setup import apply_setup
 from ..flavour import base_flavours
@@ -29,6 +29,7 @@ from ..flavour import base_flavours
     "-f",
     "--flavour",
     type=click.STRING,
+    multiple=True,
     help="Use particular flavour (name or path)",
 )
 @click.option(
@@ -116,195 +117,232 @@ def cli(
     setup_param,
     monitor,
 ):
-    """
-    Builds the composition.
+    
+    def cli_for_flavour(
+        ctx,
+        composition_file,
+        nix_flags,
+        out_link,
+        flavour,
+        list_flavours,
+        list_base_flavours,
+        show_trace,
+        dry_run,
+        dry_build,
+        composition_flavour,
+        list_compositions_flavours,
+        update_flake,
+        setup,
+        setup_param,
+        monitor,
+    ):
+        """
+        Builds the composition.
 
-    It generates a `build` folder which stores symlinks to the closure associated to a composition. The file name of the symlink follows this structure  `[composition-name]::[flavour]`
+        It generates a `build` folder which stores symlinks to the closure associated to a composition. The file name of the symlink follows this structure  `[composition-name]::[flavour]`
 
-    ## Examples
+        ## Examples
 
-    - `nxc build -f vm`
+        - `nxc build -f vm`
 
         Build the `vm` flavour of your composition.
 
-    - `nxc build -C oar::g5k-nfs-store`
+        - `nxc build -C oar::g5k-nfs-store`
 
         Build the `oar` composition with the `g5k-nfs-store` flavour.
-    """
+        """
 
-    def determine_flavour(ctx):
-        if "default_flavour" in ctx.nxc and ctx.nxc["default_flavour"]:
-            flavour = ctx.nxc["default_flavour"]
-        else:
-            platform_detection(ctx)
-            if ctx.platform:
-                flavour = ctx.platform.default_flavour
+        def determine_flavour(ctx):
+            if "default_flavour" in ctx.nxc and ctx.nxc["default_flavour"]:
+                flavour = ctx.nxc["default_flavour"]
             else:
-                flavour = "default"
-        ctx.vlog(f"Seleced flavour: {flavour}")
-        return flavour
+                platform_detection(ctx)
+                if ctx.platform:
+                    flavour = ctx.platform.default_flavour
+                else:
+                    flavour = "default"
+            ctx.vlog(f"Seleced flavour: {flavour}")
+            return flavour
 
-    if setup and not op.exists(op.join(ctx.envdir, "setup.toml")):
-        ctx.elog("setup option is given but setup.toml is not found")
-        sys.exit(1)
+        if setup and not op.exists(op.join(ctx.envdir, "setup.toml")):
+            ctx.elog("setup option is given but setup.toml is not found")
+            sys.exit(1)
 
-    if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
-        nix_flags, composition_file, composition_flavour, flavour, _ = apply_setup(
-            ctx,
-            setup,
-            nix_flags,
-            composition_file,
-            composition_flavour,
-            flavour,
-            setup_param,
-            None,
-        )
-
-    build_cmd = []
-
-    # Do we are in flake context
-    if not op.exists(op.join(ctx.envdir, "flake.nix")):
-        ctx.elog("Not Found flake.nix file")
-        sys.exit(1)
-
-    if monitor:
-        nix_cmd_base = ["nom"]
-    else:
-        nix_cmd_base = get_nix_command(ctx)
-
-    if update_flake:
-        cmd = nix_cmd_base + ["flake", "update"]
-        if ctx.show_spinner:
-            ctx.spinner.start("Updating flake.lock")
-            ret = subprocess.call(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=ctx.envdir,
+        if setup or op.exists(op.join(ctx.envdir, "setup.toml")):
+            nix_flags, composition_file, composition_flavour, flavour, _ = apply_setup(
+                ctx,
+                setup,
+                nix_flags,
+                composition_file,
+                composition_flavour,
+                flavour,
+                setup_param,
+                None,
             )
-            if ret:
-                ctx.spinner.stop()
-                ctx.elog("Updating flake.lock is failed")
-                sys.exit(1)
-            else:
-                ctx.spinner.succeed("Updating flake.lock is done")
 
-    description_flavours = get_flavours(nix_cmd_base, ctx)
+        build_cmd = []
 
-    flavours = list(description_flavours.keys())
+        # Do we are in flake context
+        if not op.exists(op.join(ctx.envdir, "flake.nix")):
+            ctx.elog("Not Found flake.nix file")
+            sys.exit(1)
 
-    if list_flavours:
-        ctx.log("Flavours List:")
-        for k in flavours:
-            click.echo(f"{k: <18}: {description_flavours[k]['description']}")
-        sys.exit(0)
-
-    if list_base_flavours:
-        flavours = get_base_flavours()
-        for flavour in flavours:
-            click.echo(f"{flavour['name']: <18}: {flavour['description']}")
-        sys.exit(0)
-
-    if not composition_file:
-        composition_file = ctx.nxc["composition"]
-
-    if list_compositions_flavours:
-        cmd = nix_cmd_base + ["flake", "show", "--json"]
-        raw_compositions_flavours = json.loads(
-            subprocess.check_output(cmd, cwd=ctx.envdir).decode()
-        )
-        for compo_flavour in filter(
-            lambda x: x not in ["flavoursJson", "showFlavours"],
-            raw_compositions_flavours["packages"]["x86_64-linux"].keys(),
-        ):
-            print(compo_flavour)
-        print(
-            click.style("Default", fg="green")
-            + ": "
-            + raw_compositions_flavours["defaultPackage"]["x86_64-linux"]["name"]
-        )
-        sys.exit(0)
-
-    if show_trace:
-        build_cmd += ["--show-trace"]
-
-    if flavour and composition_flavour:
-        if len(composition_flavour.split("::")) == 1:
-            composition_flavour = composition_flavour + "::" + flavour
-
-    if not out_link:
-        build_path = op.join(ctx.envdir, "build")
-        if not op.exists(build_path):
-            create = click.style("   create", fg="green")
-            ctx.log("   " + create + "  " + build_path)
-            os.mkdir(build_path)
-
-        if composition_flavour:
-            if flavour and flavour != composition_flavour.split("::")[-1]:
-                raise ValueError(
-                    "the value of flavour  does not match  the ones of composition_favour"
-                )
-
-            ctx.composition_flavour_prefix = composition_flavour
-            ctx.flavour_name = composition_flavour[-1]
-
+        if monitor:
+            nix_cmd_base = ["nom"]
         else:
-            composition_name = (os.path.basename(composition_file)).split(".")[0]
-            ctx.composition_name = composition_name
+            nix_cmd_base = get_nix_command(ctx)
+
+        if update_flake:
+            cmd = nix_cmd_base + ["flake", "update"]
+            if ctx.show_spinner:
+                ctx.spinner.start("Updating flake.lock")
+                ret = subprocess.call(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    cwd=ctx.envdir,
+                )
+                if ret:
+                    ctx.spinner.stop()
+                    ctx.elog("Updating flake.lock is failed")
+                    sys.exit(1)
+                else:
+                    ctx.spinner.succeed("Updating flake.lock is done")
+
+        description_flavours = get_flavours(nix_cmd_base, ctx)
+
+        flavours = list(description_flavours.keys())
+
+        if list_flavours:
+            ctx.log("Flavours List:")
+            for k in flavours:
+                click.echo(f"{k: <18}: {description_flavours[k]['description']}")
+            sys.exit(0)
+
+        if list_base_flavours:
+            flavours = get_base_flavours()
+            for flavour in flavours:
+                click.echo(f"{flavour["name"]: <18}: {flavour["description"]}")
+            sys.exit(0)
+
+        if not composition_file:
+            composition_file = ctx.nxc["composition"]
+
+        if list_compositions_flavours:
+            cmd = nix_cmd_base + ["flake", "show", "--json"]
+            raw_compositions_flavours = json.loads(
+                subprocess.check_output(cmd, cwd=ctx.envdir).decode()
+            )
+            for compo_flavour in filter(
+                lambda x: x not in ["flavoursJson", "showFlavours"],
+                raw_compositions_flavours["packages"]["x86_64-linux"].keys(),
+            ):
+                print(compo_flavour)
+            print(
+                click.style("Default", fg="green")
+                + ": "
+                + raw_compositions_flavours["defaultPackage"]["x86_64-linux"]["name"]
+            )
+            sys.exit(0)
+
+        if show_trace:
+            build_cmd += ["--show-trace"]
+
+        if flavour and composition_flavour:
+            if len(composition_flavour.split("::"))==1:
+                composition_flavour= composition_flavour+"::"+flavour
+
+        if not out_link:
+            build_path = op.join(ctx.envdir, "build")
+            if not op.exists(build_path):
+                create = click.style("   create", fg="green")
+                ctx.log("   " + create + "  " + build_path)
+                os.mkdir(build_path)
+
+            if composition_flavour:
+                if flavour and flavour != composition_flavour.split("::")[-1]:
+                    raise ValueError("the value of flavour  does not match  the ones of composition_favour")
+                
+                ctx.composition_flavour_prefix = composition_flavour
+                ctx.flavour_name = composition_flavour[-1]
+                
             if not flavour:
                 flavour = determine_flavour(ctx)
-            ctx.flavour_name = flavour
-            ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
+    
+            else:
+                composition_name = (os.path.basename(composition_file)).split(".")[0]
+                ctx.composition_name = composition_name
+                ctx.flavour_name = flavour
+                ctx.composition_flavour_prefix = f"{composition_name}::{flavour}"
 
-        out_link = op.join(build_path, ctx.composition_flavour_prefix)
+            out_link = op.join(build_path, ctx.composition_flavour_prefix)
 
-    if not flavour:
-        flavour = determine_flavour(ctx)
+        if not flavour:
+            flavour = determine_flavour(ctx)
 
-    if dry_build:
-        build_cmd = nix_cmd_base + ["eval"] + build_cmd + ["--raw"]
-    else:
-        build_cmd = nix_cmd_base + ["build"] + build_cmd
-        if out_link:
-            build_cmd += ["-o", out_link]
+        if dry_build:
+            build_cmd = nix_cmd_base + ["eval"] + build_cmd + ["--raw"]
+        else:
+            build_cmd = nix_cmd_base + ["build"] + build_cmd
+            if out_link:
+                build_cmd += ["-o", out_link]
 
-    if not composition_flavour and flavour:
-        composition_flavour = f"composition::{flavour}"
-    if flavour:
-        build_cmd += [f".#packages.x86_64-linux.{composition_flavour}"]
+        if not composition_flavour and flavour:
+            composition_flavour = f"composition::{flavour}"
+        if flavour:
+            build_cmd += [f".#packages.x86_64-linux.{composition_flavour}"]
 
-    # add additional nix flags if any
-    if nix_flags:
-        build_cmd += nix_flags.split()
+        # add additional nix flags if any
+        if nix_flags:
+            build_cmd += nix_flags.split()
 
-    if not dry_run:
-        ctx.glog("Starting Build")
-        ctx.vlog(build_cmd)
-        returncode = subprocess.call(build_cmd, cwd=ctx.envdir)
-        if returncode:
-            ctx.elog(f"Build return code: {returncode}")
-            sys.exit(returncode)
+        if not dry_run:
+            ctx.glog("Starting Build")
+            ctx.vlog(build_cmd)
+            returncode = subprocess.call(build_cmd, cwd=ctx.envdir)
+            if returncode:
+                ctx.elog(f"Build return code: {returncode}")
+                sys.exit(returncode)
 
-        # Loading the docker image"
-        if flavour == "docker" and not dry_build:
-            out_link = realpath_from_store(ctx, out_link)
-            with open(out_link, "r") as compose_info_json:
-                content = json.load(compose_info_json)
-                docker_image = realpath_from_store(ctx, content["image"])
-                docker_load_command = f"docker load < {docker_image}"
-                returncode = subprocess.call(docker_load_command, shell=True)
-                if returncode:
-                    ctx.elog(f"Build return code: {returncode}")
-                    sys.exit(returncode)
-            ctx.glog("Docker Image loaded")
+            # Loading the docker image"
+            if flavour == "docker" and not dry_build:
+                out_link = realpath_from_store(ctx, out_link)
+                with open(out_link, "r") as compose_info_json:
+                    content = json.load(compose_info_json)
+                    docker_image = realpath_from_store(ctx, content["image"])
+                    docker_load_command = f"docker load < {docker_image}"
+                    returncode = subprocess.call(docker_load_command, shell=True)
+                    if returncode:
+                        ctx.elog(f"Build return code: {returncode}")
+                        sys.exit(returncode)
+                ctx.glog("Docker Image loaded")
 
-        ctx.glog("\nBuild completed")
-    else:
-        ctx.log("Dry-run:")
-        ctx.log(f"   working directory:          {ctx.envdir}")
-        ctx.log(f"   composition flavour prefix: {ctx.composition_flavour_prefix}")
-        ctx.log(f"   build command:              {' '.join(build_cmd)}")
+            ctx.glog("\nBuild completed")
+        else:
+            ctx.log("Dry-run:")
+            ctx.log(f"   working directory:          {ctx.envdir}")
+            ctx.log(f"   composition flavour prefix: {ctx.composition_flavour_prefix}")
+            ctx.log(f"   build command:              {' '.join(build_cmd)}")
 
+    for flv in flavour:
+        cli_for_flavour(
+            ctx,
+            composition_file,
+            nix_flags,
+            out_link,
+            flv,
+            list_flavours,
+            list_base_flavours,
+            show_trace,
+            dry_run,
+            dry_build,
+            composition_flavour,
+            list_compositions_flavours,
+            update_flake,
+            setup,
+            setup_param,
+            monitor,
+        )
 
 def get_flavours(nix_cmd_base, ctx):
     """
@@ -330,7 +368,6 @@ def get_flavours(nix_cmd_base, ctx):
             output_json = realpath_from_store(ctx, output_json)
 
     return json.load(open(output_json, "r"))
-
 
 def get_base_flavours():
     return base_flavours
