@@ -44,11 +44,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1750939132,
-        "narHash": "sha256-IPcKLZZ+ZNOVTyKieQyioJKOne2k7p9Nqh5Om5Er/dE=",
+        "lastModified": 1755609899,
+        "narHash": "sha256-mz95FNV5xIeQKqrMJbL+4bLRwHo0GMCAR1ql8WGmvj0=",
         "owner": "oar-team",
         "repo": "nur-kapack",
-        "rev": "556406449690c41d3864c35e08bafd8fc4d36f67",
+        "rev": "b1cb37c88270ac75ee2ce7b78781366db0145175",
         "type": "github"
       },
       "original": {
@@ -60,16 +60,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1751274312,
-        "narHash": "sha256-/bVBlRpECLVzjV19t5KMdMFWSwKLtb5RyXdjz3LJT+g=",
+        "lastModified": 1748026580,
+        "narHash": "sha256-rWtXrcIzU5wm/C8F9LWvUfBGu5U5E7cFzPYT1pHIJaQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "50ab793786d9de88ee30ec4e4c24fb4236fc2674",
+        "rev": "11cb3517b3af6af300dd6c055aeda73c9bf52c48",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-24.11",
+        "ref": "25.05",
         "repo": "nixpkgs",
         "type": "github"
       }
