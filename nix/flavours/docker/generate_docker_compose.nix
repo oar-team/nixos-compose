@@ -52,6 +52,8 @@ let
       };
       builtConfig = pkgs.nixos config;
     in {
+      privileged = true;
+      cgroup = "host";
       cap_add = [ "SYS_ADMIN" "SYS_NICE" ];
       command = [ "${builtConfig.toplevel}/init" ];
       environment = {
