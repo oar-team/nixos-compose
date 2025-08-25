@@ -196,7 +196,8 @@ class DockerFlavour(Flavour):
     def check(self, state="running"):
         check_process = subprocess.check_output(
             [
-                "docker-compose",
+                "docker",
+                "compose",
                 "-f",
                 self.docker_compose_file,
                 "ps",
@@ -214,9 +215,9 @@ class DockerFlavour(Flavour):
 
     def start_all(self):
         if not self.external_connect:
-            with rootlog.nested("starting docker-compose"):
+            with rootlog.nested("starting docker compose"):
                 subprocess.Popen(
-                    ["docker-compose", "-f", self.docker_compose_file, "up", "-d"]
+                    ["docker", "compose", "-f", self.docker_compose_file, "up", "-d"]
                 )
 
             self.wait_on_check()
@@ -232,7 +233,8 @@ class DockerFlavour(Flavour):
 
         machine.start_process_shell(
             [
-                "docker-compose",
+                "docker",
+                "compose",
                 "-f",
                 self.docker_compose_file,
                 "exec",
@@ -263,7 +265,8 @@ class DockerFlavour(Flavour):
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
         subprocess.Popen(
             [
-                "docker-compose",
+                "docker",
+                "compose",
                 "-f",
                 self.docker_compose_file,
                 "down",
@@ -279,7 +282,7 @@ class DockerFlavour(Flavour):
         if not self.docker_compose_file:
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
 
-        cmd = f"docker-compose -f {self.docker_compose_file} exec -u {user} {node} bash"
+        cmd = f"docker compose -f {self.docker_compose_file} exec -u {user} {node} bash"
         print(f"ext_connect {cmd}")
         if execute:
             return_code = subprocess.run(cmd, shell=True).returncode

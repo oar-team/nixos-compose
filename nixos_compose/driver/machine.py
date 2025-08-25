@@ -884,7 +884,7 @@ class Machine:
 
     def start_process_shell(self, args):
         # command examples:
-        # ['docker-compose', '-f', 'nxc/artifact/composition/docker/docker-compose.json', 'exec', '-T', ']
+        # ['docker', 'compose', '-f', 'nxc/artifact/composition/docker/docker-compose.json', 'exec', '-T', ']
         # ['ssh', '-t', '-o', 'StrictHostKeyChecking=no', '-l', 'root', '10.0.2.16']
         self.process_shell = subprocess.Popen(
             args,

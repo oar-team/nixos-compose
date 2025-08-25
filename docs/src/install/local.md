@@ -39,7 +39,7 @@ systemd.enableUnifiedCgroupHierarchy = false;
 
 # Local installation
 
-The following commands will drop you in a shell where the `nxc` command is available and all required runtime dependencies (docker-compose, vde2, tmux, qemu_kvm).
+The following commands will drop you in a shell where the `nxc` command is available and all required runtime dependencies (docker, vde2, tmux, qemu_kvm).
 
 ```shell
 git clone https://gitlab.inria.fr/nixos-compose/nixos-compose.git
@@ -85,7 +85,7 @@ Two shells availables :
 
 - `nxcShell`
     - python app `nxc`
-    - docker-compose
+    - docker
     - vde2
     - tmux
     - qemu_kvm
