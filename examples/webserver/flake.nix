@@ -2,7 +2,7 @@
   description = "nixos-compose - basic webserver setup";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/25.05";
     nxc.url = "git+https://gitlab.inria.fr/nixos-compose/nixos-compose.git";
   };
 
