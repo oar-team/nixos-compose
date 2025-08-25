@@ -23,27 +23,27 @@ DEFAULT_WALLTIME := "1:0"
 DEFAULT_EXAMPLE := "basic"
 
 alias b := build
-alias dev-p18 := develop_with_poetry_1_8_shell
-alias d := develop_venv
+alias dev-p18 := develop-with-poetry-1_8-shell
+alias d := develop-venv
 alias p := poetry
 
 default:
     @just --list
 
-_copy_prepare_example TMPDIR EXAMPLE:
+_copy-prepare-example TMPDIR EXAMPLE:
     #!/usr/bin/env bash
     set -euxo pipefail
     cp -a examples/{{ EXAMPLE }}/* {{ TMPDIR }}
     cd {{ TMPDIR }}
     git init && git add *
 
-build_and_test FLAVOUR EXAMPLE:
+build-and-test FLAVOUR EXAMPLE:
     #!/usr/bin/env bash
     set -euxo pipefail
     mkdir -p $TEST_TMP_DIR/{{ FLAVOUR }}
     tmpdir=$(mktemp -d $TEST_TMP_DIR/{{ FLAVOUR }}/{{ EXAMPLE }}.XXXXXX)
     #prepare directory
-    just _copy_prepare_example $tmpdir {{ EXAMPLE }}
+    just _copy-prepare-example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
     if [[ $(hostname -d) == *"grid5000"* ]] ; then
       shopt -s expand_aliases && alias nxc_local="nxc"
@@ -69,7 +69,7 @@ build FLAVOUR EXAMPLE:
     mkdir -p $HOME/nxc-test-tmp/{{ FLAVOUR }}
     tmpdir=$(mktemp -d $TEST_TMP_DIR/{{ FLAVOUR }}/{{ EXAMPLE }}.XXXXXX)
     #prepare directory
-    just _copy_prepare_example $tmpdir {{ EXAMPLE }}
+    just _copy-prepare-example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
     if [[ $(hostname -d) == *"grid5000"* ]] ; then
       shopt -s expand_aliases && alias nxc_local="nxc"
@@ -79,17 +79,17 @@ build FLAVOUR EXAMPLE:
     nxc_local build {{ nix_flags }} -f {{ FLAVOUR }}
 
 docker EXAMPLE="basic":
-    just build_and_test docker {{ EXAMPLE }}
+    just build-and-test docker {{ EXAMPLE }}
 
 vm EXAMPLE="basic":
-    just build_and_test vm {{ EXAMPLE }}
+    just build-and-test vm {{ EXAMPLE }}
 
-list_examples:
+list-examples:
     #!/usr/bin/env bash
     cd $JUST_DIR/examples
     for example in `ls -I "*.*"`; do echo "$example"; echo poy; done
 
-_examples_test FLAVOUR +EXAMPLES:
+_examples-test FLAVOUR +EXAMPLES:
     #!/usr/bin/env bash
     for example in {{ EXAMPLES }} ; do
       printf "###\n###  Example: $example\n###\n"
@@ -97,14 +97,14 @@ _examples_test FLAVOUR +EXAMPLES:
     done
 
 # Build/test selected example with Docker flavour
-docker_tests +DOCKER_EXAMPLES=DEFAULT_DOCKER_EXAMPLES:
-    just _examples_test docker {{ DOCKER_EXAMPLES }}
+docker-tests +DOCKER_EXAMPLES=DEFAULT_DOCKER_EXAMPLES:
+    just _examples-test docker {{ DOCKER_EXAMPLES }}
 
-vm_tests +VM_EXAMPLES=DEFAULT_VM_EXAMPLES:
-    just _examples_test vm {{ VM_EXAMPLES }}
+vm-tests +VM_EXAMPLES=DEFAULT_VM_EXAMPLES:
+    just _examples-test vm {{ VM_EXAMPLES }}
 
 # build test examples w/ docker (TODO add filter examples or use docker_tests)
-docker_examples:
+docker-examples:
     #!/usr/bin/env bash
     cd $JUST_DIR/examples
     for example in `ls -I "*.*"`; do
@@ -112,19 +112,19 @@ docker_examples:
       just docker $example
     done
 
-clean_nxc_test:
+clean-nxc-test:
     @echo clean
     rm -f $TEST_TMP_DIR
 
 # Rsynch current worktree to G5K
-rsync_g5k SITE=DEFAULT_G5K_SITE:
+rsync-g5k SITE=DEFAULT_G5K_SITE:
     #!/usr/bin/env bash
     set -euxo pipefail
     rsync -avz $JUST_DIR/.. --delete --exclude '\#*' {{ SITE }}.g5k:nxc-test-src
     # change gitdir ref from absolute to relative path
     ssh grenoble.g5k "find nxc-test-src -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
 
-oarsub_g5k_script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
+oarsub-g5k-script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
     #!/usr/bin/env bash
     # TODO test if there is already active job
     set -euxo pipefail
@@ -136,7 +136,7 @@ oarsub_g5k_script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
     "$g5k_script {{ WALLTIME }}h" | grep OAR_JOB_ID)
     echo $OAR_JOB_ID > $TEST_TMP_DIR/OAR_JOB_ID
 
-start_test_g5k_nfs_store EXAMPLE:
+start-test-g5k-nfs-store EXAMPLE:
     #!/usr/bin/env bash
     # take the repo of the last built composition
     set -euxo pipefail
@@ -163,7 +163,7 @@ start_test_g5k_nfs_store EXAMPLE:
     nxc driver -t
 
 # build and test g5k-nfs-store flavoured test (launchable remotly or on site)
-g5k_nfs_store_test SITE=DEFAULT_G5K_SITE EXAMPLE=DEFAULT_EXAMPLE NBNODES=DEFAULT_NBNODES:
+g5k-nfs-store-test SITE=DEFAULT_G5K_SITE EXAMPLE=DEFAULT_EXAMPLE NBNODES=DEFAULT_NBNODES:
     #!/usr/bin/env bash
     set -euxo pipefail
     hostname_fqdn=$(hostname --fqdn)
@@ -181,28 +181,28 @@ g5k_nfs_store_test SITE=DEFAULT_G5K_SITE EXAMPLE=DEFAULT_EXAMPLE NBNODES=DEFAULT
     echo $hostname_fqdn $remote {{ SITE }}
     ssh $remote "cd nxc-test-src/$NXC_BRANCH && just g5k_nfs_store_test"
 
-print_examples_nixpkgs_version:
+print-examples-nixpkgs-version:
     git --no-pager grep NixOS/nixpkgs examples
 
 # Set flakes nixpkgs (arg example: 23.11)
-set_flake_nixpkgs_version version: && print_examples_nixpkgs_version
+set-flake-nixpkgs-version version: && print-examples-nixpkgs-version
     @find . -type f -name 'flake.nix' -exec sed -i 's/github:NixOS\/nixpkgs\/.*/github:NixOS\/nixpkgs\/{{ version }}";/g' {} +
 
 # Prune containers
-docker_container_prune:
+docker-container-prune:
     docker container prune
 
-develop_venv:
+develop-venv:
     # TODO: test if .venv exist it not create w/ : uv pip install -e .
     source .venv/bin/activate
 
-develop_with_poetry:
+develop-with-poetry:
     #!/usr/bin/env bash
     echo "execute: poetry env activate"
     nix run nixpkgs#poetry
 
 # Launch poetry shell (from nixpkgs)
-develop_with_poetry_1_8_shell:
+develop-with-poetry-1_8-shell:
     echo "Warning old poetry is deprecated to remove when poetru"
     nix develop .\#poetry-python311 --command $SHELL -c "poetry shell"
 
@@ -232,7 +232,7 @@ g5k-uninstall-nxc-nix:
 g5k-install-just SITE:
     ssh {{ SITE }}.g5k "mkdir -p ~/.local/bin  &&curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin"
 
-build_and_test_from_installed FLAVOUR EXAMPLE="basic":
+build-and-test-from-installed FLAVOUR EXAMPLE="basic":
     #!/usr/bin/env bash
     set -euxo pipefail
     mkdir -p $TEST_TMP_DIR/{{ FLAVOUR }}
