@@ -57,7 +57,7 @@
             ${packageName} = app;
             # "${packageName}-full" = app.overrideAttrs(attr: rec {
             #   propagatedBuildInputs = attr.propagatedBuildInputs ++ [
-            #     pkgs.docker-compose
+            #     pkgs.docker
             #     pkgs.qemu_kvm
             #     pkgs.vde2
             #   ];
@@ -82,7 +82,7 @@
                     kapackpkgs.execo
                     self.packages.${system}.${packageName}
                 ]))
-                pkgs.docker-compose
+                pkgs.docker
                 pkgs.qemu_kvm
                 pkgs.vde2
                 pkgs.tmux
