@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/25.05";
     flake-utils.url = "github:numtide/flake-utils";
-    kapack.url = "github:oar-team/nur-kapack/master";
+    kapack.url = "github:oar-team/nur-kapack/25.05";
     kapack.inputs.nixpkgs.follows = "nixpkgs";
   };
 
