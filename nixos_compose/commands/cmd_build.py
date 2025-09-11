@@ -95,6 +95,12 @@ from ..flavour import base_flavours
     is_flag=True,
     help="Build with nix-output-monitor",
 )
+@click.option(
+    "--deferred-link-creation",
+    "--dl",
+    is_flag=True,
+    help="Symlink is not created by the (potentially remote) nix daemon but by nixos-compose",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
@@ -115,6 +121,7 @@ def cli(
     setup,
     setup_param,
     monitor,
+    deferred_link_creation,
 ):
     """
     Builds the composition.
@@ -141,7 +148,7 @@ def cli(
                 flavour = ctx.platform.default_flavour
             else:
                 flavour = "default"
-        ctx.vlog(f"Seleced flavour: {flavour}")
+        ctx.vlog(f"Selected flavour: {flavour}")
         return flavour
 
     if setup and not op.exists(op.join(ctx.envdir, "setup.toml")):
@@ -265,8 +272,10 @@ def cli(
         build_cmd = nix_cmd_base + ["eval"] + build_cmd + ["--raw"]
     else:
         build_cmd = nix_cmd_base + ["build"] + build_cmd
-        if out_link:
+        if out_link and not deferred_link_creation:
             build_cmd += ["-o", out_link]
+        if deferred_link_creation:
+            build_cmd += ["--no-link", "--json"]
 
     if not composition_flavour and flavour:
         composition_flavour = f"composition::{flavour}"
@@ -280,7 +289,16 @@ def cli(
     if not dry_run:
         ctx.glog("Starting Build")
         ctx.vlog(build_cmd)
-        returncode = subprocess.call(build_cmd, cwd=ctx.envdir)
+        if deferred_link_creation:
+            proc = subprocess.run(build_cmd, cwd=ctx.envdir, stdout=subprocess.PIPE)
+            returncode = proc.returncode
+            if not returncode:
+                nix_build_output = json.loads(proc.stdout)
+                # create link here and not by nix, to avoid issue directory is not accessible with remote build .
+                ctx.vlog(f"nix build output: {nix_build_output}")
+                os.symlink(nix_build_output[0]["outputs"]["out"], out_link)
+        else:
+            returncode = subprocess.call(build_cmd, cwd=ctx.envdir)
         if returncode:
             ctx.elog(f"Build return code: {returncode}")
             sys.exit(returncode)
