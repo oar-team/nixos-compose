@@ -7,8 +7,7 @@ import os.path as op
 
 import sys
 import glob
-import pyinotify
-import asyncio
+
 import ast
 import json
 
@@ -24,21 +23,11 @@ from ..actions import (
     translate_hosts2ip,
     push_on_machines,
     realpath_from_store,
-    get_fs_type,
 )
 
 from ..driver.driver import Driver
 from ..httpd import HTTPDaemon
 from ..setup import apply_setup
-
-machine_file_towait = ""
-notifier = None
-
-
-class EventHandler(pyinotify.ProcessEvent):
-    def process_IN_CREATE(self, event):
-        if event.pathname == machine_file_towait:
-            notifier.loop.stop()
 
 
 def start(
@@ -407,25 +396,11 @@ def cli(
             if ctx.show_spinner:
                 ctx.spinner.start(f"Waiting for {machine_file} creation")
 
-            if "nfs" == get_fs_type(machine_file):
-                while not op.isfile(machine_file):
-                    time.sleep(0.1)
-            else:
-                wm = pyinotify.WatchManager()  # Watch Manager
-                loop = asyncio.get_event_loop()
-
-                global notifier
-                notifier = pyinotify.AsyncioNotifier(
-                    wm, loop, default_proc_fun=EventHandler()
-                )
-
-                global machine_file_towait
-                machine_file_towait = machine_file
-
-                # TODO race condition remains possible ....
-                wm.add_watch(op.dirname(machine_file), pyinotify.CREATE)
-                loop.run_forever()
-                notifier.stop()
+            # Note: inotify approach does not work with NFS, and pyinotify
+            # is no more developed so simple pulling loop is used
+            # if "nfs" == get_fs_type(machine_file):
+            while not op.isfile(machine_file):
+                time.sleep(0.1)
 
             if ctx.show_spinner:
                 ctx.spinner.succeed(f"{machine_file} file created")
