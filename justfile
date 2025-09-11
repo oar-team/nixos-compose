@@ -24,7 +24,6 @@ DEFAULT_EXAMPLE := "basic"
 
 alias b := build
 alias dev-p18 := develop-with-poetry-1_8-shell
-alias d := develop-venv
 alias p := poetry
 
 default:
@@ -192,9 +191,10 @@ set-flake-nixpkgs-version version: && print-examples-nixpkgs-version
 docker-container-prune:
     docker container prune
 
-develop-venv:
-    # TODO: test if .venv exist it not create w/ : uv pip install -e .
+create-venv:
+    nix run 'nixpkgs#uv' -- venv .venv
     source .venv/bin/activate
+    nix run 'nixpkgs#uv' -- pip install -e .
 
 develop-with-poetry:
     #!/usr/bin/env bash
@@ -203,7 +203,7 @@ develop-with-poetry:
 
 # Launch poetry shell (from nixpkgs)
 develop-with-poetry-1_8-shell:
-    echo "Warning old poetry is deprecated to remove when poetru"
+    echo "Warning old poetry is deprecated"
     nix develop .\#poetry-python311 --command $SHELL -c "poetry shell"
 
 # Launch poetry (from nixpkgs)
