@@ -19,8 +19,6 @@ from ..flavours import get_flavour_by_name
 from ..actions import (
     read_deployment_info,
     read_test_script,
-    read_hosts,
-    translate_hosts2ip,
     push_on_machines,
     realpath_from_store,
 )
@@ -30,9 +28,7 @@ from ..httpd import HTTPDaemon
 from ..setup import apply_setup
 
 
-def start(
-    ctx, interactive, execute_test_script, port, machine_file=None, push_path=None
-):
+def start(ctx, interactive, execute_test_script, port, push_path=None):
     if (  # TODO rework (ask flavour ?)
         ctx.ip_addresses
         and (ctx.flavour.name != "vm-ramdisk")
@@ -52,7 +48,7 @@ def start(
             ctx.httpd.start(directory=ctx.envdir)
 
         if not interactive:
-            ctx.flavour.launch(machine_file=machine_file)
+            ctx.flavour.launch()
             sys.exit(0)
 
     test_script = read_test_script(ctx, ctx.compose_info)
@@ -305,7 +301,6 @@ def cli(
         )
 
     ctx.log("Starting")
-
     ctx.ssh = ssh
     ctx.sudo = sudo
     ctx.interactive = interactive
@@ -377,7 +372,6 @@ def cli(
         )
 
     # Handle cases where machines list must be provided
-    machines = []
     if machine_file and not op.isfile(machine_file) and not wait_machine_file:
         raise click.ClickException(f"{machine_file} file does not exist")
 
@@ -502,15 +496,5 @@ def cli(
     #     else:
     #         (ssh, sudo, push_path) = ctx.platform.first_start_values
 
-    if machine_file:
-        machines = read_hosts(machine_file)
-        if not machines:
-            ctx.elog(f"Machine file '{machine_file}' is empty")
-            sys.exit(1)
-
-    if machines:
-        translate_hosts2ip(ctx, machines)
-        print(ctx.ip_addresses, ctx.host2ip_address)
-
-    ctx.flavour.generate_deployment_info(identity_file)
-    start(ctx, interactive, execute_test_script, port, machine_file, push_path)
+    ctx.flavour.generate_deployment_info(identity_file, machine_file)
+    start(ctx, interactive, execute_test_script, port, push_path)

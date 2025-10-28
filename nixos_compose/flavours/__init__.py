@@ -13,7 +13,7 @@ FLAVOUR_MAP = {
     "vm-ramdisk": "vm::VmRamdiskFlavour",
     "g5k-nfs-store": "grid5000::G5kNfsStoreFlavour",
     "g5k-ramdisk": "grid5000::G5kRamdiskFlavour",
-    "g5k-image": "grid5000::G5KImageFlavour",
+    "g5k-image": "grid5000::G5kImageFlavour",
 }
 
 

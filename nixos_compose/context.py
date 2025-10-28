@@ -73,6 +73,8 @@ class Context(object):
         self.deployment_filename: str = ""
         self.deployment_info = {}  # change to deployment ?
         self.deployment_info_b64 = ""  # change to depolyment_b64 ?
+        self.machine_file = ""
+        self.machine_names_from_file = []  # from machine_file
         self.ip_addresses = []
         self.host2ip_address = {}
         self.ssh = ""

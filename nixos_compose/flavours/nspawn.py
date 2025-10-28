@@ -109,8 +109,13 @@ class NspawnFlavour(Flavour):
     def host_info(role, hostname, info):
         return {"role": role, "host": hostname, "toplevel": info["toplevel"]}
 
-    def generate_deployment_info(self, ssh_pub_key_file=None):
+    def generate_deployment_info(self, ssh_pub_key_file=None, machine_file=None):
         ctx = self.ctx
+        if machine_file:
+            self.ctx.wlog(
+                f"With Nspawn flavour the given machine file({machine_file}) is ignored"
+            )
+
         deploy_dir = op.join(ctx.envdir, "deploy")
         if not op.exists(deploy_dir):
             create = click.style("   create", fg="green")
