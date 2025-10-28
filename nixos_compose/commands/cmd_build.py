@@ -1,11 +1,16 @@
 import os
 import os.path as op
+import shutil
 import sys
 import subprocess
 import click
 import json
 
-from ..actions import get_nix_command, realpath_from_store
+from ..actions import (
+    get_nix_command,
+    realpath_from_store,
+    artifact_copy_all_kernel_initrd,
+)
 from ..context import pass_context, on_started, on_finished
 from ..platform import platform_detection
 from ..setup import apply_setup
@@ -96,10 +101,10 @@ from ..flavour import base_flavours
     help="Build with nix-output-monitor",
 )
 @click.option(
-    "--deferred-link-creation",
-    "--dl",
-    is_flag=True,
-    help="Symlink is not created by the (potentially remote) nix daemon but by nixos-compose",
+    "--mounted-store-url",
+    "--mu",
+    type=click.STRING,
+    help="L",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -121,7 +126,7 @@ def cli(
     setup,
     setup_param,
     monitor,
-    deferred_link_creation,
+    mounted_store_url,
 ):
     """
     Builds the composition.
@@ -235,6 +240,14 @@ def cli(
     if show_trace:
         build_cmd += ["--show-trace"]
 
+    if mounted_store_url:
+        build_cmd = [
+            "--extra-experimental-features",
+            "mounted-ssh-store",
+            "--store",
+            f"mounted-ssh-ng://{mounted_store_url}",
+        ]
+
     if flavour and composition_flavour:
         if len(composition_flavour.split("::")) == 1:
             composition_flavour = composition_flavour + "::" + flavour
@@ -268,42 +281,49 @@ def cli(
     if not flavour:
         flavour = determine_flavour(ctx)
 
+    if not composition_flavour:
+        composition_flavour = f"composition::{flavour}"
+
     if dry_build:
         build_cmd = nix_cmd_base + ["eval"] + build_cmd + ["--raw"]
     else:
         build_cmd = nix_cmd_base + ["build"] + build_cmd
-        if out_link and not deferred_link_creation:
+        if out_link and not mounted_store_url:
             build_cmd += ["-o", out_link]
-        if deferred_link_creation:
+        if mounted_store_url:
             build_cmd += ["--no-link", "--json"]
-
-    if not composition_flavour and flavour:
-        composition_flavour = f"composition::{flavour}"
-    if flavour:
-        build_cmd += [f".#packages.x86_64-linux.{composition_flavour}"]
 
     # add additional nix flags if any
     if nix_flags:
         build_cmd += nix_flags.split()
 
+    build_cmd += [f".#packages.x86_64-linux.{composition_flavour}"]
+
     if not dry_run:
         ctx.glog("Starting Build")
         ctx.vlog(build_cmd)
-        if deferred_link_creation:
+        if mounted_store_url:
             proc = subprocess.run(build_cmd, cwd=ctx.envdir, stdout=subprocess.PIPE)
             returncode = proc.returncode
             if not returncode:
                 nix_build_output = json.loads(proc.stdout)
                 # create link here and not by nix, to avoid issue directory is not accessible with remote build .
                 ctx.vlog(f"nix build output: {nix_build_output}")
-                os.symlink(nix_build_output[0]["outputs"]["out"], out_link)
+                if os.path.exists(out_link):
+                    os.remove(out_link)
+                shutil.copyfile(nix_build_output[0]["outputs"]["out"], out_link)
+
+                if flavour == "g5k-nfs-store":
+                    ctx.compose_info_file = out_link
+                    artifact_copy_all_kernel_initrd(ctx)
         else:
             returncode = subprocess.call(build_cmd, cwd=ctx.envdir)
         if returncode:
             ctx.elog(f"Build return code: {returncode}")
             sys.exit(returncode)
 
-        # Loading the docker image"
+        # Loading the docker image
+        # todo: to move in docker flavour class
         if flavour == "docker" and not dry_build:
             out_link = realpath_from_store(ctx, out_link)
             with open(out_link, "r") as compose_info_json:
@@ -332,20 +352,23 @@ def get_flavours(nix_cmd_base, ctx):
         op.join(op.dirname(__file__), "../../nix", "flavours.json")
     )
 
-    flake_location = "."
-    output_json = "/tmp/.flavours.json"
+    output_json = FLAVOURS_JSON
 
-    ctx.log("Build list of flavours")
-    retcode = subprocess.call(
-        nix_cmd_base + ["build", f"{flake_location}#flavoursJson", "-o", output_json],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    if retcode:
-        output_json = FLAVOURS_JSON
-    else:
-        if not op.exists(output_json):
-            output_json = realpath_from_store(ctx, output_json)
+    # TODO add option to build flavours list from nix
+    #
+    # flake_location = "."
+    # output_json = "/tmp/.flavours.json"
+    # ctx.log("Build list of flavours")
+    # retcode = subprocess.call(
+    #     nix_cmd_base + ["build", f"{flake_location}#flavoursJson", "-o", output_json],
+    #     stdout=subprocess.DEVNULL,
+    #     stderr=subprocess.DEVNULL,
+    # )
+    # if retcode:
+    #     output_json = FLAVOURS_JSON
+    # else:
+    #     if not op.exists(output_json):
+    #         output_json = realpath_from_store(ctx, output_json)
 
     return json.load(open(output_json, "r"))
 
