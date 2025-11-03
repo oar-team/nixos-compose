@@ -48,7 +48,7 @@ def nix_store_location(ctx):
 ##
 # Retrieve from path from different store location if needed
 #
-def realpath_from_store(ctx, path, include_prefix_store=False):
+def realpath_from_store_core(ctx, path, include_prefix_store=False):
     p = op.realpath(path)
     potential_store_paths = ctx.alternative_stores + [
         op.join(ctx.envdir, "artifact/nix")
@@ -59,13 +59,55 @@ def realpath_from_store(ctx, path, include_prefix_store=False):
             if include_prefix_store:
                 return new_p, store_path
             else:
-                return new_p
+                return new_p, None
     if op.exists(p):
         if include_prefix_store:
-            return p, None
+            return p, "/"
         else:
-            return p
-    ctx.elog(f"{path} does not exist in standard store or alternate")
+            return p, None
+    return None, None
+
+
+def realpath_prefix_from_store(ctx, path):
+    realpath, prefix_store = realpath_from_store_core(ctx, path, True)
+    if not realpath:
+        ctx.elog(f"{path} does not exist in standard store or alternate")
+        sys.exit(1)
+    return realpath, prefix_store
+
+
+def realpath_from_store(ctx, path):
+    realpath, _ = realpath_from_store_core(ctx, path)
+    if not realpath:
+        ctx.elog(f"{path} does not exist in standard store or alternate")
+        sys.exit(1)
+    return realpath
+
+
+def realpath_from_store_remote(ctx, path, remote_store_url=None):
+    realpath, _ = realpath_from_store_core(ctx, path)
+    if realpath is not None:
+        return realpath, False
+    if remote_store_url:
+        cmd = ["ssh"]
+        if remote_store_url[:6] == "ssh://":
+            s = remote_store_url[:6].split(":")
+            if len(s) == 2:
+                cmd += ["-p", s[1]]
+            cmd += [s[0], "ls", path]
+            ctx.vlog(f"Check path in remote store: {cmd}")
+            retcode = subprocess.run(cmd).returncode
+            if retcode:
+                ctx.vlog(f"Remote store check of path failed, return code: {retcode}")
+            else:
+                return path, True
+        else:
+            ctx.elog(
+                f"Remote store url is not supported or malformed, only ssh://username@host:port is support: {remote_store_url}"
+            )
+            sys.exit(1)
+
+    ctx.elog(f"{path} does not exist in standard, alternate or remote stores")
     sys.exit(1)
 
 
