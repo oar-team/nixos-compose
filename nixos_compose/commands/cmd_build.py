@@ -104,7 +104,7 @@ from ..flavour import base_flavours
     "--mounted-store-url",
     "--mu",
     type=click.STRING,
-    help="L",
+    help="Use of nix experimental SSH store with filesystem mounted, format: [username@]hostname",
 )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
