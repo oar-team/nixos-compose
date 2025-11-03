@@ -177,7 +177,7 @@ class NspawnFlavour(Flavour):
             return
         self.start_all()
 
-    def launch(self, machine_file=None):
+    def launch(self):
         ctx = self.ctx
         if not ctx.deployment_info:
             read_deployment_info(ctx)
