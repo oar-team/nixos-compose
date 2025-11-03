@@ -12,7 +12,7 @@ from ..flavour import Flavour
 from ..actions import (
     get_machine_from_file,
     read_compose_info,
-    realpath_from_store,
+    realpath_from_store_remote,
     generate_deployment_info,
     generate_deploy_info_b64,
     generate_kexec_scripts,
@@ -114,11 +114,11 @@ class G5kFlavour(Flavour):
                 ).decode()
             else:
                 output = subprocess.check_output(["oarstat", "-u", "-J"]).decode()
-            d = json.loads(output)
+            oarstat_json = json.loads(output)
 
             job_id = 0
             nb_nodes = 0
-            for jid, j in d.items():
+            for jid, j in oarstat_json.items():
                 if "deploy" in j["types"]:
                     try:
                         os.remove(".oar_nodefile")
@@ -132,28 +132,33 @@ class G5kFlavour(Flavour):
 
                     if nb_nodes > 0:
                         self.ctx.vlog(
-                            f"Auto generate .oar_nodefile as machine file from job: {job_id} with {nb_nodes} nodes identified"
+                            f"Auto generate .oar_nodefile as a machine file from job: {job_id} with {nb_nodes} nodes identified"
                         )
                     else:
                         self.ctx.elog(
-                            "Cannot retrieve machines from existing deployed job, verify it exists or give machine file"
+                            "Cannot retrieve machines from existing deployed job, verify it exists or give a machine file"
                         )
                         sys.exit(1)
                     machine_file = self.ctx.envdir + "/.oar_nodefile"
                     break
+        if not machine_file:
+            self.ctx.elog(
+                "Cannot retrieve machines from any existing jobs, verify if one exists or give a machine file"
+            )
+            sys.exit(1)
         self.ctx.machine_file = machine_file
         get_machine_from_file(self.ctx, machine_file)
         generate_deployment_info(self.ctx, ssh_pub_key_file)
 
 
-class G5kKexecBasedFlavour(Flavour):
+class G5kKexecBasedFlavour(G5kFlavour):
     def __init__(self, ctx):
         super().__init__(ctx)
 
     def generate_kexec_scripts(self):
         generate_kexec_scripts(self.ctx)
 
-    def launch(self, machine_file=None):
+    def launch(self):
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
@@ -242,16 +247,24 @@ class G5kImageFlavour(G5kFlavour):
         generate_kadeploy_envfile(
             self.ctx, kaenv_path=kaenv_path, deploy_image_path=deploy_image_path
         )
-        image_path = realpath_from_store(
-            self.ctx, self.ctx.deployment_info["all"]["image"]
+
+        remote_store_url = None
+        if self.ctx.image_store_ssh:
+            remote_store_url = f"ssh://{self.ctx.image_store_ssh}"
+        image_path, use_image_store_ssh = realpath_from_store_remote(
+            self.ctx, self.ctx.deployment_info["all"]["image"], remote_store_url
         )
+
         if deploy_image_path is None:
             user = os.environ["USER"]
             deploy_image_path = f"~{user}/public/nixos.tar.xz"
 
-        cmd_copy_image = (
-            f"cp {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}"
-        )
+        if use_image_store_ssh:
+            cmd_copy = f"ssh {self.ctx.image_store_ssh}"
+        else:
+            cmd_copy = "cp"
+
+        cmd_copy_image = f"{cmd_copy} {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}"
         if machine_file or click.confirm(
             f"Do you want to copy image to {deploy_image_path} ?"
         ):

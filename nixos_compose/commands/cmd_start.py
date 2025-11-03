@@ -126,14 +126,20 @@ def start(ctx, interactive, execute_test_script, port, push_path=None):
 )
 @click.option(
     "--remote-deployment-info",
+    "--http-deployment-info",
     is_flag=True,
-    help="deployement info is served by http (in place of kernel parameters)",
+    help="deployment info is served via http (in place of kernel parameters)",
 )
 @click.option(
     "--port",
     type=click.INT,
     default=0,
     help="Port to use for the HTTP server",
+)
+@click.option(
+    "--image-store-ssh",
+    type=click.STRING,
+    help="(experimental, only for Grid'5000) [username@]hostname[:port]",
 )
 @click.option(
     "-c",
@@ -262,7 +268,8 @@ def cli(
     parameter_file,
     ip_range,
     deployment_file,
-    tag
+    tag,
+    image_store_ssh,
     # dry_run,
 ):
     """
@@ -307,7 +314,7 @@ def cli(
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
     ctx.ip_range = ip_range
-
+    ctx.image_store_ssh = image_store_ssh
     if deployment_file:
         if not flavour:
             ctx.elog("Option --flavour is required with --deployment-file option !")
