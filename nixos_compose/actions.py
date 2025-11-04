@@ -91,7 +91,7 @@ def realpath_from_store_remote(ctx, path, remote_store_url=None):
     if remote_store_url:
         cmd = ["ssh"]
         if remote_store_url[:6] == "ssh://":
-            s = remote_store_url[:6].split(":")
+            s = remote_store_url[6:].split(":")
             if len(s) == 2:
                 cmd += ["-p", s[1]]
             cmd += [s[0], "ls", path]
