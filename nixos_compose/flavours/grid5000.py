@@ -290,7 +290,7 @@ class G5kImageFlavour(G5kFlavour):
             ssh2frontend = f"ssh {g5k_frontend}"
 
         cmd_kadeploy = (
-            f"{ssh2frontend} kadeploy3 -a {kaenv_path} -f {self.ctx.machine_file}"
+            f"{ssh2frontend} -t kadeploy3 -a {kaenv_path} -f {self.ctx.machine_file}"
         )
 
         # g5k_frontend == socket.gethostname() and "OAR_NODEFILE" in os.environb:
