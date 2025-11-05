@@ -61,10 +61,7 @@ def realpath_from_store_core(ctx, path, include_prefix_store=False):
             else:
                 return new_p, None
     if op.exists(p):
-        if include_prefix_store:
-            return p, "/"
-        else:
-            return p, None
+        return p, None
     return None, None
 
 
