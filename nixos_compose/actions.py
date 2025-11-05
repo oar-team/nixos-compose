@@ -48,21 +48,63 @@ def nix_store_location(ctx):
 ##
 # Retrieve from path from different store location if needed
 #
-def realpath_from_store(ctx, path, include_prefix_store=False):
+def realpath_from_store_core(ctx, path, include_prefix_store=False):
     p = op.realpath(path)
-    for store_path in ctx.alternative_stores:
+    potential_store_paths = ctx.alternative_stores + [
+        op.join(ctx.envdir, "artifact/nix")
+    ]
+    for store_path in potential_store_paths:
         new_p = f"{store_path}{p[4:]}"
         if op.exists(new_p):
             if include_prefix_store:
                 return new_p, store_path
             else:
-                return new_p
+                return new_p, None
     if op.exists(p):
-        if include_prefix_store:
-            return p, None
+        return p, None
+    return None, None
+
+
+def realpath_prefix_from_store(ctx, path):
+    realpath, prefix_store = realpath_from_store_core(ctx, path, True)
+    if not realpath:
+        ctx.elog(f"{path} does not exist in standard store or alternate")
+        sys.exit(1)
+    return realpath, prefix_store
+
+
+def realpath_from_store(ctx, path):
+    realpath, _ = realpath_from_store_core(ctx, path)
+    if not realpath:
+        ctx.elog(f"{path} does not exist in standard store or alternate")
+        sys.exit(1)
+    return realpath
+
+
+def realpath_from_store_remote(ctx, path, remote_store_url=None):
+    realpath, _ = realpath_from_store_core(ctx, path)
+    if realpath is not None:
+        return realpath, False
+    if remote_store_url:
+        cmd = ["ssh"]
+        if remote_store_url[:6] == "ssh://":
+            s = remote_store_url[6:].split(":")
+            if len(s) == 2:
+                cmd += ["-p", s[1]]
+            cmd += [s[0], "ls", path]
+            ctx.vlog(f"Check path in remote store: {cmd}")
+            retcode = subprocess.run(cmd).returncode
+            if retcode:
+                ctx.vlog(f"Remote store check of path failed, return code: {retcode}")
+            else:
+                return path, True
         else:
-            return p
-    ctx.elog(f"{path} does not exist in standard store or alternate")
+            ctx.elog(
+                f"Remote store url is not supported or malformed, only ssh://username@host:port is support: {remote_store_url}"
+            )
+            sys.exit(1)
+
+    ctx.elog(f"{path} does not exist in standard, alternate or remote stores")
     sys.exit(1)
 
 
@@ -105,7 +147,9 @@ def get_deployment_file(ctx, deployment_file, flavour, tag):
                 exit_is_not_file(deployment_file)
                 return deployment_file
             else:
-                deployment_file = op.join(op.join(ctx.envdir, "deploy"), deployment_file)
+                deployment_file = op.join(
+                    op.join(ctx.envdir, "deploy"), deployment_file
+                )
                 if op.exists(deployment_file):
                     exit_is_not_file(deployment_file)
                     return deployment_file
@@ -192,7 +236,8 @@ def read_compose_info(ctx):
                 ]
 
         compose_flavour_name = ctx.compositions_info["flavour"]["name"]
-        if ctx.flavour.name != compose_flavour_name:
+
+        if ctx.flavour and ctx.flavour.name != compose_flavour_name:
             raise click.ClickException(
                 f"Selected flavour ({ctx.flavour.name}) differs from compose info ({compose_flavour_name})"
             )
@@ -201,8 +246,14 @@ def read_compose_info(ctx):
     return
 
 
-def read_hosts(hostsfile):
-    return [host.rstrip() for host in open(hostsfile, "r")]
+def get_machine_from_file(ctx, machine_file):
+    machines = [machine.rstrip() for machine in open(machine_file, "r")]
+    if not machines:
+        ctx.elog(f"Machine file '{machine_file}' is empty")
+        sys.exit(1)
+    ctx.machine_names_from_file = machines  # CHECK IT USED ?
+    translate_hosts2ip(ctx, machines)
+    print(ctx.ip_addresses, ctx.host2ip_address)
 
 
 def translate_hosts2ip(ctx, hosts):
@@ -524,6 +575,21 @@ def generate_deploy_info_b64(ctx):
     return
 
 
+def artifact_copy_all_kernel_initrd(ctx):
+    read_compose_info(ctx)
+    compose_info_all = ctx.compose_info["all"]
+    kernel_path = compose_info_all["kernel"]
+    initrd_path = compose_info_all["initrd"]
+
+    for store_path in [kernel_path, initrd_path]:
+        artifact_path = op.join(ctx.envdir, f"artifact{store_path}")
+        if not op.exists(artifact_path):
+            artifact_dir = op.dirname(artifact_path)
+            if not op.exists(artifact_dir):
+                os.makedirs(artifact_dir, mode=0o700, exist_ok=True)
+            shutil.copy(store_path, op.join(ctx.envdir, f"artifact{store_path}"))
+
+
 # def copy_result_from_store(ctx):
 
 #     if not ctx.compose_info:
@@ -719,17 +785,18 @@ def push_on_machines(ctx, push_path=None):
 
 def get_ip_ssh_port(ctx, host):
     """Retrieve host's ip address and ssh port from deployment info"""
+    ip_out = ""
     ssh_port = 22
     if not ctx.deployment_info:
         read_deployment_info(ctx)
     for ip, v in ctx.deployment_info["deployment"].items():
         if v["host"] == host:
-            ip = ip
+            ip_out = ip
             if "vm_id" in v:
-                ip = "127.0.0.1"
+                ip_out = "127.0.0.1"
                 ssh_port = 22021 + int(v["vm_id"])
             break
-    return (ip, ssh_port)
+    return (ip_out, ssh_port)
 
 
 def ssh_connect(ctx, user, host, execute=True, ssh_key_file=None):

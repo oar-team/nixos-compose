@@ -6,7 +6,7 @@ import click
 import copy
 
 from ..flavour import Flavour
-from ..actions import read_compose_info, realpath_from_store
+from ..actions import read_compose_info, realpath_prefix_from_store
 from ..driver.logger import rootlog
 from ..driver.machine import Machine
 from ..default_role import DefaultRole
@@ -27,8 +27,8 @@ def set_prefix_store_volumes(dc_json, prefix_store):
 
 
 def generate_docker_compose_file(ctx):
-    base_docker_compose, prefix_store = realpath_from_store(
-        ctx, ctx.compose_info["docker-compose-file"], include_prefix_store=True
+    base_docker_compose, prefix_store = realpath_prefix_from_store(
+        ctx, ctx.compose_info["docker-compose-file"]
     )
     docker_compose_content = {"services": {}}
     nodes_info = {}
@@ -174,7 +174,11 @@ class DockerFlavour(Flavour):
         self.description = ""
         # TOR self.docker_processes = {}
 
-    def generate_deployment_info(self, ssh_pub_key_file=None):
+    def generate_deployment_info(self, ssh_pub_key_file=None, machine_file=None):
+        if machine_file:
+            self.ctx.wlog(
+                f"With Docker flavour the given machine file({machine_file}) is ignored"
+            )
         self.docker_compose_file = generate_deployment_info_docker(self.ctx)
 
     def driver_initialize(self, tmp_dir):

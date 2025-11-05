@@ -1,15 +1,18 @@
 import os
 import os.path as op
+import sys
 import time
 from string import Template
 import click
 import subprocess
 import socket
+import json
 
 from ..flavour import Flavour
 from ..actions import (
+    get_machine_from_file,
     read_compose_info,
-    realpath_from_store,
+    realpath_from_store_remote,
     generate_deployment_info,
     generate_deploy_info_b64,
     generate_kexec_scripts,
@@ -20,7 +23,6 @@ from ..actions import (
 from ..driver.machine import Machine
 
 # from ..driver.logger import rootlog
-
 
 KADEPOY_ARCH = {
     "x86_64-linux": "x86_64",
@@ -73,8 +75,10 @@ def generate_kadeploy_envfile(
             deploy = ctx.deployment_info_b64
 
     user = os.environ["USER"]
-    g5k_frontend = socket.gethostname()
-    g5k_site = g5k_frontend[1:]
+
+    fqdn = socket.getfqdn()
+    g5k_site = fqdn.split(".")[1]
+
     system = ctx.compositions_info["system"]
     additional_kernel_params = ""
     if ctx.kernel_params:
@@ -93,19 +97,68 @@ def generate_kadeploy_envfile(
         kaenv_file.write(kaenv)
 
 
-class G5kKexecBasedFlavour(Flavour):
+class G5kFlavour(Flavour):
     def __init__(self, ctx):
+        super().__init__(ctx)
         if ctx.ssh == "":
             ctx.ssh = "ssh -l root"
-        super().__init__(ctx)
 
-    def generate_deployment_info(self, ssh_pub_key_file=None):
+    def generate_deployment_info(self, ssh_pub_key_file, machine_file):
+        if not machine_file:
+            fqdn = socket.getfqdn()
+            g5k_site = fqdn.split(".")[1]
+            g5k_frontend = "f" + g5k_site
+            if g5k_frontend != socket.gethostname():
+                output = subprocess.check_output(
+                    ["ssh", g5k_frontend, "oarstat -u -J"]
+                ).decode()
+            else:
+                output = subprocess.check_output(["oarstat", "-u", "-J"]).decode()
+            oarstat_json = json.loads(output)
+
+            job_id = 0
+            nb_nodes = 0
+            for jid, j in oarstat_json.items():
+                if "deploy" in j["types"]:
+                    try:
+                        os.remove(".oar_nodefile")
+                    except OSError:
+                        pass
+                    with open(".oar_nodefile", "w") as outfile:
+                        for n in j["assigned_network_address"]:
+                            outfile.write(n + "\n")
+                            nb_nodes += 1
+                            job_id = jid
+
+                    if nb_nodes > 0:
+                        self.ctx.vlog(
+                            f"Auto generate .oar_nodefile as a machine file from job: {job_id} with {nb_nodes} nodes identified"
+                        )
+                    else:
+                        self.ctx.elog(
+                            "Cannot retrieve machines from existing deployed job, verify it exists or give a machine file"
+                        )
+                        sys.exit(1)
+                    machine_file = self.ctx.envdir + "/.oar_nodefile"
+                    break
+        if not machine_file:
+            self.ctx.elog(
+                "Cannot retrieve machines from any existing jobs, verify if one exists or give a machine file"
+            )
+            sys.exit(1)
+        self.ctx.machine_file = machine_file
+        get_machine_from_file(self.ctx, machine_file)
         generate_deployment_info(self.ctx, ssh_pub_key_file)
+
+
+class G5kKexecBasedFlavour(G5kFlavour):
+    def __init__(self, ctx):
+        super().__init__(ctx)
 
     def generate_kexec_scripts(self):
         generate_kexec_scripts(self.ctx)
 
-    def launch(self, machine_file=None):
+    def launch(self):
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
@@ -151,14 +204,13 @@ class G5kKexecBasedFlavour(Flavour):
                 ]
             )
 
-    def ext_connect(self, user, node, execute=True, ssh_key_file=None):
+    def ext_connect(self, user, node, execute, ssh_key_file):
         return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
 
 
 class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
     def __init__(self, ctx):
         super().__init__(ctx)
-
         self.name = "g5k-nfs-store"
 
     def generate_kexec_scripts(self):
@@ -183,33 +235,36 @@ class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
 class G5kRamdiskFlavour(G5kKexecBasedFlavour):
     def __init__(self, ctx):
         super().__init__(ctx)
-
         self.name = "g5k-ramdisk"
 
 
-class G5KImageFlavour(Flavour):
+class G5kImageFlavour(G5kFlavour):
     def __init__(self, ctx):
         super().__init__(ctx)
-
         self.name = "g5k-image"
-
-    def generate_deployment_info(self, ssh_pub_key_file=None):
-        generate_deployment_info(self.ctx, ssh_pub_key_file)
 
     def launch(self, machine_file=None, kaenv_path=None, deploy_image_path=None):
         generate_kadeploy_envfile(
             self.ctx, kaenv_path=kaenv_path, deploy_image_path=deploy_image_path
         )
-        image_path = realpath_from_store(
-            self.ctx, self.ctx.deployment_info["all"]["image"]
+
+        remote_store_url = None
+        if self.ctx.image_store_ssh:
+            remote_store_url = f"ssh://{self.ctx.image_store_ssh}"
+        image_path, use_image_store_ssh = realpath_from_store_remote(
+            self.ctx, self.ctx.deployment_info["all"]["image"], remote_store_url
         )
+
         if deploy_image_path is None:
             user = os.environ["USER"]
             deploy_image_path = f"~{user}/public/nixos.tar.xz"
 
-        cmd_copy_image = (
-            f"cp {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}"
-        )
+        if use_image_store_ssh:
+            cmd_copy = f"ssh {self.ctx.image_store_ssh}"
+        else:
+            cmd_copy = "cp"
+
+        cmd_copy_image = f"{cmd_copy} {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}"
         if machine_file or click.confirm(
             f"Do you want to copy image to {deploy_image_path} ?"
         ):
@@ -225,15 +280,25 @@ class G5KImageFlavour(Flavour):
         )
         if kaenv_path is None:
             kaenv_path = op.join(base_path, "nixos.yaml")
-        if machine_file:
-            cmd_kadeploy = f"kadeploy3 -a {kaenv_path} -f {machine_file}"
-        else:
-            cmd_kadeploy = f"kadeploy3 -a {kaenv_path} -f $OAR_NODEFILE"
 
-        if machine_file or click.confirm(
-            "Do you want to kadeploy nixos.tar.xz image on nodes from $OAR_NODEFILE"
-        ):
+        fqdn = socket.getfqdn()
+        g5k_site = fqdn.split(".")[1]
+        g5k_frontend = "f" + g5k_site
+
+        ssh2frontend = ""
+        if g5k_frontend != socket.gethostname():
+            ssh2frontend = f"ssh {g5k_frontend}"
+
+        cmd_kadeploy = (
+            f"{ssh2frontend} -t kadeploy3 -a {kaenv_path} -f {self.ctx.machine_file}"
+        )
+
+        # g5k_frontend == socket.gethostname() and "OAR_NODEFILE" in os.environb:
+        # cmd_kadeploy = f"kadeploy3 -a {kaenv_path} -f $OAR_NODEFILE"
+
+        if click.confirm(f"Do you want to launch kadeploy: \n {cmd_kadeploy}"):
             try:
+                self.ctx.vlog(cmd_kadeploy)
                 subprocess.call(cmd_kadeploy, shell=True)
             except Exception as ex:
                 raise click.ClickException(f"Failed to execute kadeploy command: {ex}")

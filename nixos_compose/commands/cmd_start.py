@@ -7,8 +7,7 @@ import os.path as op
 
 import sys
 import glob
-import pyinotify
-import asyncio
+
 import ast
 import json
 
@@ -20,30 +19,16 @@ from ..flavours import get_flavour_by_name
 from ..actions import (
     read_deployment_info,
     read_test_script,
-    read_hosts,
-    translate_hosts2ip,
     push_on_machines,
     realpath_from_store,
-    get_fs_type,
 )
 
 from ..driver.driver import Driver
 from ..httpd import HTTPDaemon
 from ..setup import apply_setup
 
-machine_file_towait = ""
-notifier = None
 
-
-class EventHandler(pyinotify.ProcessEvent):
-    def process_IN_CREATE(self, event):
-        if event.pathname == machine_file_towait:
-            notifier.loop.stop()
-
-
-def start(
-    ctx, interactive, execute_test_script, port, machine_file=None, push_path=None
-):
+def start(ctx, interactive, execute_test_script, port, push_path=None):
     if (  # TODO rework (ask flavour ?)
         ctx.ip_addresses
         and (ctx.flavour.name != "vm-ramdisk")
@@ -63,7 +48,7 @@ def start(
             ctx.httpd.start(directory=ctx.envdir)
 
         if not interactive:
-            ctx.flavour.launch(machine_file=machine_file)
+            ctx.flavour.launch()
             sys.exit(0)
 
     test_script = read_test_script(ctx, ctx.compose_info)
@@ -141,14 +126,20 @@ def start(
 )
 @click.option(
     "--remote-deployment-info",
+    "--http-deployment-info",
     is_flag=True,
-    help="deployement info is served by http (in place of kernel parameters)",
+    help="deployment info is served via http (in place of kernel parameters)",
 )
 @click.option(
     "--port",
     type=click.INT,
     default=0,
     help="Port to use for the HTTP server",
+)
+@click.option(
+    "--image-store-ssh",
+    type=click.STRING,
+    help="(experimental, only for Grid'5000) [username@]hostname[:port]",
 )
 @click.option(
     "-c",
@@ -277,7 +268,8 @@ def cli(
     parameter_file,
     ip_range,
     deployment_file,
-    tag
+    tag,
+    image_store_ssh,
     # dry_run,
 ):
     """
@@ -316,14 +308,13 @@ def cli(
         )
 
     ctx.log("Starting")
-
     ctx.ssh = ssh
     ctx.sudo = sudo
     ctx.interactive = interactive
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
     ctx.ip_range = ip_range
-
+    ctx.image_store_ssh = image_store_ssh
     if deployment_file:
         if not flavour:
             ctx.elog("Option --flavour is required with --deployment-file option !")
@@ -388,7 +379,6 @@ def cli(
         )
 
     # Handle cases where machines list must be provided
-    machines = []
     if machine_file and not op.isfile(machine_file) and not wait_machine_file:
         raise click.ClickException(f"{machine_file} file does not exist")
 
@@ -407,25 +397,11 @@ def cli(
             if ctx.show_spinner:
                 ctx.spinner.start(f"Waiting for {machine_file} creation")
 
-            if "nfs" == get_fs_type(machine_file):
-                while not op.isfile(machine_file):
-                    time.sleep(0.1)
-            else:
-                wm = pyinotify.WatchManager()  # Watch Manager
-                loop = asyncio.get_event_loop()
-
-                global notifier
-                notifier = pyinotify.AsyncioNotifier(
-                    wm, loop, default_proc_fun=EventHandler()
-                )
-
-                global machine_file_towait
-                machine_file_towait = machine_file
-
-                # TODO race condition remains possible ....
-                wm.add_watch(op.dirname(machine_file), pyinotify.CREATE)
-                loop.run_forever()
-                notifier.stop()
+            # Note: inotify approach does not work with NFS, and pyinotify
+            # is no more developed so simple pulling loop is used
+            # if "nfs" == get_fs_type(machine_file):
+            while not op.isfile(machine_file):
+                time.sleep(0.1)
 
             if ctx.show_spinner:
                 ctx.spinner.succeed(f"{machine_file} file created")
@@ -527,15 +503,5 @@ def cli(
     #     else:
     #         (ssh, sudo, push_path) = ctx.platform.first_start_values
 
-    if machine_file:
-        machines = read_hosts(machine_file)
-        if not machines:
-            ctx.elog(f"Machine file '{machine_file}' is empty")
-            sys.exit(1)
-
-    if machines:
-        translate_hosts2ip(ctx, machines)
-        print(ctx.ip_addresses, ctx.host2ip_address)
-
-    ctx.flavour.generate_deployment_info(identity_file)
-    start(ctx, interactive, execute_test_script, port, machine_file, push_path)
+    ctx.flavour.generate_deployment_info(identity_file, machine_file)
+    start(ctx, interactive, execute_test_script, port, push_path)

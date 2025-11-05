@@ -1,5 +1,6 @@
 export JUST_DIR := justfile_directory()
 export NXC_BRANCH := `basename $PWD`
+export INSIDE_G5K := `hostname -f | grep grid5000 | cat` # cat to consume the grep's exit code
 
 # nxc command from local source version
 
@@ -24,7 +25,6 @@ DEFAULT_EXAMPLE := "basic"
 
 alias b := build
 alias dev-p18 := develop-with-poetry-1_8-shell
-alias d := develop-venv
 alias p := poetry
 
 default:
@@ -192,9 +192,10 @@ set-flake-nixpkgs-version version: && print-examples-nixpkgs-version
 docker-container-prune:
     docker container prune
 
-develop-venv:
-    # TODO: test if .venv exist it not create w/ : uv pip install -e .
+create-venv:
+    nix run 'nixpkgs#uv' -- venv .venv
     source .venv/bin/activate
+    nix run 'nixpkgs#uv' -- pip install -e .
 
 develop-with-poetry:
     #!/usr/bin/env bash
@@ -203,7 +204,7 @@ develop-with-poetry:
 
 # Launch poetry shell (from nixpkgs)
 develop-with-poetry-1_8-shell:
-    echo "Warning old poetry is deprecated to remove when poetru"
+    echo "Warning old poetry is deprecated"
     nix develop .\#poetry-python311 --command $SHELL -c "poetry shell"
 
 # Launch poetry (from nixpkgs)
@@ -223,7 +224,7 @@ g5k-install-nxc-nix:
     pip install nixos-compose
     nxc helper install-nix
 
-g5k-uninstall-nxc-nix:
+g5k-uninstall-nxc-nix-store:
     #!/usr/bin/env bash
     pip uninstall nixos-compose
     chmod 777 -R ~/.local/share/nix
@@ -254,6 +255,7 @@ build-and-test-from-installed FLAVOUR EXAMPLE="basic":
       nxc stop
     fi
 
+# Publish Python package on Pypi
 publish-on-pypi:
     #!/usr/bin/env bash
     if [[ {{ NXC_BRANCH }} == "master" ]]; then
@@ -262,12 +264,22 @@ publish-on-pypi:
        just poetry "-- publish --build -u __token__ -p $(cat ~/tokens/nxc)"
     fi
 
+# Build python package (pip installable)
 build-tgz:
     just poetry build
 
+# Install lastest builtpython package (pip installable) on G5K site
 g5k-install-tgz SITE="grenoble":
     #!/usr/bin/env bash
     rsync -avz dist/ --delete --exclude '*.whl' {{ SITE }}.g5k:nxc-dist
     lastest_tgz=$(ls -t dist -I '*.whl'| head -n 1)
     echo "Install $lastest_tgz on {{ SITE }} site"
     ssh {{ SITE }}.g5k "pip uninstall -y nixos-compose ; pip install nxc-dist/$lastest_tgz ; nxc --version"
+
+g5k-inside-test:
+    #!/usr/bin/env bash
+    if [[ ${INSIDE_G5K} ]]; then
+        echo "Inside G5K"
+    else
+        echo "Outside G5K"
+    fi

@@ -73,6 +73,8 @@ class Context(object):
         self.deployment_filename: str = ""
         self.deployment_info = {}  # change to deployment ?
         self.deployment_info_b64 = ""  # change to depolyment_b64 ?
+        self.machine_file = ""
+        self.machine_names_from_file = []  # from machine_file
         self.ip_addresses = []
         self.host2ip_address = {}
         self.ssh = ""
@@ -87,7 +89,7 @@ class Context(object):
             f"{os.environ['HOME']}/.nix",
         ]
 
-        self.roles_distribution = {}
+        self.roles_distribution = {}  # start only
         self.setup = None
         self.sigwait = None
         self.kernel_params = None
@@ -101,6 +103,9 @@ class Context(object):
         # interface
         self.spinner = LazySpinner()
         self.show_spinner = True
+
+        # Start
+        self.image_store_ssh = None
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:
