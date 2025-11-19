@@ -314,6 +314,7 @@ def cli(
     ctx.execute_test_script = execute_test_script
     ctx.sigwait = sigwait
     ctx.ip_range = ip_range
+    ctx.machine_file = machine_file
     ctx.image_store_ssh = image_store_ssh
     if deployment_file:
         if not flavour:
@@ -503,5 +504,5 @@ def cli(
     #     else:
     #         (ssh, sudo, push_path) = ctx.platform.first_start_values
 
-    ctx.flavour.generate_deployment_info(identity_file, machine_file)
+    ctx.flavour.generate_deployment_info(identity_file)
     start(ctx, interactive, execute_test_script, port, push_path)

@@ -33,7 +33,7 @@ class VmBasedFlavour(Flavour):
         ctx.external_connect = True  # to force use of ssh on foo.execute(command)
         platform_detection(ctx)
 
-    def generate_deployment_info(self, ssh_pub_key_file=None, machine_file=None):
+    def generate_deployment_info(self, ssh_pub_key_file=None):
         generate_deployment_info(self.ctx, ssh_pub_key_file)
 
     def create_machines(self):

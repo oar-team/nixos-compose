@@ -37,6 +37,7 @@ def get_oar_job_nodes_nxc(
     roles_quantities={},
     port=0,
     skip_deploy=False,
+    image_store_ssh=None,
 ):
     """
     Brother of the "get_oar_job_nodes" function from execo
@@ -48,7 +49,7 @@ def get_oar_job_nodes_nxc(
     ctx.flavour_name = flavour_name
     ctx.composition_flavour_prefix = f"{composition_name}::{flavour_name}"
     ctx.roles_distribution = roles_quantities
-
+    ctx.image_store_ssh = image_store_ssh
     ctx.envdir = None
     get_envdir(ctx)
 
@@ -66,7 +67,6 @@ def get_oar_job_nodes_nxc(
 
     # print(f"compose info file: {ctx.compose_info_file}")
 
-
     if "g5k" in flavour_name:
         g5k_nodes = get_oar_job_nodes(oar_job_id, site)
         # print(f"G5K nodes: {g5k_nodes}")
@@ -81,18 +81,18 @@ def get_oar_job_nodes_nxc(
         tmp_dir = Path(os.environ.get("TMPDIR", tempfile.gettempdir()))
         tmp_dir.mkdir(mode=0o700, exist_ok=True)
         flavour.driver_initialize(tmp_dir)
-        _vlan = flavour.create_vlan()
+        # TODO _vlan = flavour.create_vlan()
         machines = list(map(lambda x: (x.ip, x.ssh_port), flavour.machines))
         flavour.ctx.ip_addresses = list(map(lambda x: x[0], machines))
     else:
-        raise Exception(f"Unsupported flavour '{flavour}' for the Execo-NXC integration")
- 
-    if len(machines) > 4:
-        ctx.use_http = True
+        raise Exception(
+            f"Unsupported flavour '{flavour}' for the Execo-NXC integration"
+        )
+
+    if len(machines) > 3:
+        ctx.use_httpd = True
         ctx.httpd = HTTPDaemon(ctx=ctx, port=port)
         ctx.httpd.start(directory=ctx.envdir)
-
-    # flavour.generate_deployment_info()
 
     if not skip_deploy:
         ctx.log("Deploying")
@@ -110,12 +110,12 @@ def get_oar_job_nodes_nxc(
             tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)
             temp_dir = tempfile.TemporaryDirectory()
             try:
-                machines_str = "\n".join(machine for machine in machines)
-                # for machine in machines:
-                #     machines_str += f"{machine}\n"
+                machines_str = "\n".join(f"{m}" for m in machines)
                 tmp.write(machines_str.encode("utf-8"))
                 tmp.flush()
                 nxc_image_path = op.join(temp_dir.name, "nixos.tar.xz")
+                flavour.ask_before_kadeploy = False
+                ctx.machine_file = tmp.name
                 flavour.launch(
                     machine_file=tmp.name,
                     kaenv_path=tmp_kaenv.name,
@@ -132,7 +132,7 @@ def get_oar_job_nodes_nxc(
     nodes = {}
     for ip_addr, node_info in flavour.ctx.deployment_info["deployment"].items():
         node_role = node_info["role"]
-        port = 22 if flavour_name != "vm" else 22021 + int(node_info['vm_id'])
+        port = 22 if flavour_name != "vm" else 22021 + int(node_info["vm_id"])
         ip_addr_node = ip_addr if flavour_name != "vm" else "localhost"
         localhost = Host(ip_addr_node, user="root", port=port)
         nodes[node_info["host"]] = localhost

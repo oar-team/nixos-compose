@@ -120,7 +120,7 @@ clean-nxc-test:
 rsync-g5k SITE=DEFAULT_G5K_SITE:
     #!/usr/bin/env bash
     set -euxo pipefail
-    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' {{ SITE }}.g5k:nxc-test-src
+    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' --exclude '.venv/' --exclude 'dist/' {{ SITE }}.g5k:nxc-test-src
     # change gitdir ref from absolute to relative path
     ssh grenoble.g5k "find nxc-test-src -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
 

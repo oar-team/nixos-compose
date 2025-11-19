@@ -174,11 +174,7 @@ class DockerFlavour(Flavour):
         self.description = ""
         # TOR self.docker_processes = {}
 
-    def generate_deployment_info(self, ssh_pub_key_file=None, machine_file=None):
-        if machine_file:
-            self.ctx.wlog(
-                f"With Docker flavour the given machine file({machine_file}) is ignored"
-            )
+    def generate_deployment_info(self, ssh_pub_key_file):
         self.docker_compose_file = generate_deployment_info_docker(self.ctx)
 
     def driver_initialize(self, tmp_dir):

@@ -246,10 +246,10 @@ def read_compose_info(ctx):
     return
 
 
-def get_machine_from_file(ctx, machine_file):
-    machines = [machine.rstrip() for machine in open(machine_file, "r")]
+def get_machine_from_file(ctx):
+    machines = [machine.rstrip() for machine in open(ctx.machine_file, "r")]
     if not machines:
-        ctx.elog(f"Machine file '{machine_file}' is empty")
+        ctx.elog(f"Machine file '{ctx.machine_file}' is empty")
         sys.exit(1)
     ctx.machine_names_from_file = machines  # CHECK IT USED ?
     translate_hosts2ip(ctx, machines)

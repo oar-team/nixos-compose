@@ -24,13 +24,13 @@ from ..driver.machine import Machine
 
 # from ..driver.logger import rootlog
 
-KADEPOY_ARCH = {
+KADEPLOY_ARCH = {
     "x86_64-linux": "x86_64",
     "powerpc64le-linux": "ppc64le",
     "aarch64-linux": "aarch64",
 }
 
-KADEPOY_ENV_DESC = """
+KADEPLOY_ENV_DESC = """
       name: $image_name
       version: 1
       description: NixOS
@@ -84,11 +84,11 @@ def generate_kadeploy_envfile(
     if ctx.kernel_params:
         additional_kernel_params = ctx.kernel_params
     with open(kaenv_path, "w") as kaenv_file:
-        t = Template(KADEPOY_ENV_DESC)
+        t = Template(KADEPLOY_ENV_DESC)
         kaenv = t.substitute(
             image_name="NixOS",
             author=user,
-            system=KADEPOY_ARCH[system],
+            system=KADEPLOY_ARCH[system],
             file_image_url=f"local://{deploy_image_path}"
             if deploy_image_path
             else f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
@@ -97,57 +97,61 @@ def generate_kadeploy_envfile(
         kaenv_file.write(kaenv)
 
 
+def generate_machine_file_retrieve_ips(ctx):
+    if not ctx.machine_file:
+        fqdn = socket.getfqdn()
+        g5k_site = fqdn.split(".")[1]
+        g5k_frontend = "f" + g5k_site
+        if g5k_frontend != socket.gethostname():
+            output = subprocess.check_output(
+                ["ssh", g5k_frontend, "oarstat -u -J"]
+            ).decode()
+        else:
+            output = subprocess.check_output(["oarstat", "-u", "-J"]).decode()
+        oarstat_json = json.loads(output)
+
+        job_id = 0
+        nb_nodes = 0
+        for jid, j in oarstat_json.items():
+            if "deploy" in j["types"]:
+                try:
+                    os.remove(".oar_nodefile")
+                except OSError:
+                    pass
+                with open(".oar_nodefile", "w") as outfile:
+                    for n in j["assigned_network_address"]:
+                        outfile.write(n + "\n")
+                        nb_nodes += 1
+                        job_id = jid
+
+                if nb_nodes > 0:
+                    ctx.vlog(
+                        f"Auto generate .oar_nodefile as a machine file from job: {job_id} with {nb_nodes} nodes identified"
+                    )
+                else:
+                    ctx.elog(
+                        "Cannot retrieve machines from existing deployed job, verify it exists or give a machine file"
+                    )
+                    sys.exit(1)
+                ctx.machine_file = ctx.envdir + "/.oar_nodefile"
+                break
+    if not ctx.machine_file:
+        ctx.elog(
+            "Cannot retrieve machines from any existing jobs, verify if one exists or give a machine file"
+        )
+        sys.exit(1)
+    get_machine_from_file(ctx)
+
+
 class G5kFlavour(Flavour):
     def __init__(self, ctx):
         super().__init__(ctx)
         if ctx.ssh == "":
             ctx.ssh = "ssh -l root"
 
-    def generate_deployment_info(self, ssh_pub_key_file, machine_file):
-        if not machine_file:
-            fqdn = socket.getfqdn()
-            g5k_site = fqdn.split(".")[1]
-            g5k_frontend = "f" + g5k_site
-            if g5k_frontend != socket.gethostname():
-                output = subprocess.check_output(
-                    ["ssh", g5k_frontend, "oarstat -u -J"]
-                ).decode()
-            else:
-                output = subprocess.check_output(["oarstat", "-u", "-J"]).decode()
-            oarstat_json = json.loads(output)
-
-            job_id = 0
-            nb_nodes = 0
-            for jid, j in oarstat_json.items():
-                if "deploy" in j["types"]:
-                    try:
-                        os.remove(".oar_nodefile")
-                    except OSError:
-                        pass
-                    with open(".oar_nodefile", "w") as outfile:
-                        for n in j["assigned_network_address"]:
-                            outfile.write(n + "\n")
-                            nb_nodes += 1
-                            job_id = jid
-
-                    if nb_nodes > 0:
-                        self.ctx.vlog(
-                            f"Auto generate .oar_nodefile as a machine file from job: {job_id} with {nb_nodes} nodes identified"
-                        )
-                    else:
-                        self.ctx.elog(
-                            "Cannot retrieve machines from existing deployed job, verify it exists or give a machine file"
-                        )
-                        sys.exit(1)
-                    machine_file = self.ctx.envdir + "/.oar_nodefile"
-                    break
-        if not machine_file:
-            self.ctx.elog(
-                "Cannot retrieve machines from any existing jobs, verify if one exists or give a machine file"
-            )
-            sys.exit(1)
-        self.ctx.machine_file = machine_file
-        get_machine_from_file(self.ctx, machine_file)
+    def generate_deployment_info(self, ssh_pub_key_file=None):
+        if self.ctx.ip_addresses == []:
+            generate_machine_file_retrieve_ips(self.ctx)
         generate_deployment_info(self.ctx, ssh_pub_key_file)
 
 
@@ -242,6 +246,7 @@ class G5kImageFlavour(G5kFlavour):
     def __init__(self, ctx):
         super().__init__(ctx)
         self.name = "g5k-image"
+        self.ask_before_kadeploy = True
 
     def launch(self, machine_file=None, kaenv_path=None, deploy_image_path=None):
         generate_kadeploy_envfile(
@@ -260,13 +265,16 @@ class G5kImageFlavour(G5kFlavour):
             deploy_image_path = f"~{user}/public/nixos.tar.xz"
 
         if use_image_store_ssh:
-            cmd_copy = f"ssh {self.ctx.image_store_ssh}"
+            cmd_copy = "scp"
+            image_path = f"{self.ctx.image_store_ssh}:{image_path}"
         else:
             cmd_copy = "cp"
 
         cmd_copy_image = f"{cmd_copy} {image_path} {deploy_image_path} && chmod 644 {deploy_image_path}"
-        if machine_file or click.confirm(
-            f"Do you want to copy image to {deploy_image_path} ?"
+        if (
+            machine_file
+            or self.ctx.machine_file
+            or click.confirm(f"Do you want to copy image to {deploy_image_path} ?")
         ):
             try:
                 subprocess.call(cmd_copy_image, shell=True)
@@ -287,16 +295,18 @@ class G5kImageFlavour(G5kFlavour):
 
         ssh2frontend = ""
         if g5k_frontend != socket.gethostname():
-            ssh2frontend = f"ssh {g5k_frontend}"
+            ssh2frontend = f"ssh {g5k_frontend} -t"
 
         cmd_kadeploy = (
-            f"{ssh2frontend} -t kadeploy3 -a {kaenv_path} -f {self.ctx.machine_file}"
+            f"{ssh2frontend} kadeploy3 -a {kaenv_path} -f {self.ctx.machine_file}"
         )
 
         # g5k_frontend == socket.gethostname() and "OAR_NODEFILE" in os.environb:
         # cmd_kadeploy = f"kadeploy3 -a {kaenv_path} -f $OAR_NODEFILE"
 
-        if click.confirm(f"Do you want to launch kadeploy: \n {cmd_kadeploy}"):
+        if not self.ask_before_kadeploy or click.confirm(
+            f"Do you want to launch kadeploy: \n {cmd_kadeploy}"
+        ):
             try:
                 self.ctx.vlog(cmd_kadeploy)
                 subprocess.call(cmd_kadeploy, shell=True)

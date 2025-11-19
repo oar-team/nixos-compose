@@ -15,7 +15,7 @@ class MyEngine(Engine):
         super(MyEngine, self).__init__()
         self.oar_job_id = None
         parser = self.args_parser
-        parser.add_argument("--nxc_build_file", help="Path to the NXC deploy file")
+        parser.add_argument("--nxc_build_file", help="Path to the NXC build file")
         parser.add_argument("--walltime", help="Grid5000 booking walltime (in hours)")
         parser.add_argument(
             "--flavour", help="Nixos compose flavour", default="g5k-image"
