@@ -30,9 +30,10 @@ alias p := poetry
 default:
     @just --list
 
-_copy-prepare-example TMPDIR EXAMPLE:
+copy-prepare-example TMPDIR EXAMPLE:
     #!/usr/bin/env bash
     set -euxo pipefail
+    mkdir -p {{ TMPDIR }}
     cp -a examples/{{ EXAMPLE }}/* {{ TMPDIR }}
     cd {{ TMPDIR }}
     git init && git add *
@@ -43,7 +44,7 @@ build-and-test FLAVOUR EXAMPLE:
     mkdir -p $TEST_TMP_DIR/{{ FLAVOUR }}
     tmpdir=$(mktemp -d $TEST_TMP_DIR/{{ FLAVOUR }}/{{ EXAMPLE }}.XXXXXX)
     #prepare directory
-    just _copy-prepare-example $tmpdir {{ EXAMPLE }}
+    just copy-prepare-example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
     if [[ $(hostname -d) == *"grid5000"* ]] ; then
       shopt -s expand_aliases && alias nxc_local="nxc"
@@ -69,7 +70,7 @@ build FLAVOUR EXAMPLE:
     mkdir -p $HOME/nxc-test-tmp/{{ FLAVOUR }}
     tmpdir=$(mktemp -d $TEST_TMP_DIR/{{ FLAVOUR }}/{{ EXAMPLE }}.XXXXXX)
     #prepare directory
-    just _copy-prepare-example $tmpdir {{ EXAMPLE }}
+    just copy-prepare-example $tmpdir {{ EXAMPLE }}
     cd $tmpdir
     if [[ $(hostname -d) == *"grid5000"* ]] ; then
       shopt -s expand_aliases && alias nxc_local="nxc"
@@ -89,6 +90,7 @@ list-examples:
     cd $JUST_DIR/examples
     for example in `ls -I "*.*"`; do echo "$example"; echo poy; done
 
+# To finish
 _examples-test FLAVOUR +EXAMPLES:
     #!/usr/bin/env bash
     for example in {{ EXAMPLES }} ; do
@@ -116,7 +118,7 @@ clean-nxc-test:
     @echo clean
     rm -f $TEST_TMP_DIR
 
-# Rsynch current worktree to G5K
+# Rsynch current worktree to G5K in nxc-test-src directory
 rsync-g5k SITE=DEFAULT_G5K_SITE:
     #!/usr/bin/env bash
     set -euxo pipefail
@@ -124,6 +126,7 @@ rsync-g5k SITE=DEFAULT_G5K_SITE:
     # change gitdir ref from absolute to relative path
     ssh grenoble.g5k "find nxc-test-src -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
 
+# Submit g5k_script helper
 oarsub-g5k-script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
     #!/usr/bin/env bash
     # TODO test if there is already active job
