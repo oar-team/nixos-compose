@@ -6,7 +6,11 @@ let
   pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
   modulesPath = "${toString nixpkgs}/nixos";
-  compositionSet = composition { inherit pkgs lib system modulesPath helpers flavour setup nur; };
+  compositionSet =
+    if lib.isFunction composition then
+      composition { inherit pkgs lib system modulesPath helpers flavour setup nur; }
+    else
+      composition;
 
   roles = if compositionSet ? roles then compositionSet.roles else compositionSet.nodes;
 

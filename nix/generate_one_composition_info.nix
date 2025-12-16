@@ -4,9 +4,11 @@
 
 let
   lib = pkgs.lib;
-  compositionSet = composition {
-    inherit pkgs lib system modulesPath helpers flavour setup nur;
-  };
+  compositionSet =
+    if lib.isFunction composition then
+      composition { inherit pkgs lib system modulesPath helpers flavour setup nur; }
+    else
+      composition;
 
   roles = if compositionSet ? roles then compositionSet.roles else compositionSet.nodes;
   flavourConfig = if flavour ? module then flavour.module else { };
