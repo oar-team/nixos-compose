@@ -48,7 +48,9 @@ let
     let
       roleConfigWithoutVirtualisation = configRole:
         args@{ pkgs, ... }:
-        builtins.removeAttrs (configRole args) [ "virtualisation" ];
+        builtins.removeAttrs
+          (if lib.isFunction configRole then configRole args else configRole)
+          [ "virtualisation" ];
       config = {
         system.stateVersion = lib.mkDefault lib.trivial.release;
         imports = [ (import ./base.nix roleName)  (roleConfigWithoutVirtualisation roleConfig) ]
