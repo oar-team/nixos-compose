@@ -7,6 +7,12 @@ let
   flavours = import ./flavours.nix;
   generate = import ./generate_one_composition_info.nix;
 
+  baseConfig = (generate {
+    inherit pkgs modulesPath system setup extraConfigurations nur helpers
+      flavour;
+    baseConfig = true;
+  } { }).config;
+
   allCompositionsInfo = lib.mapAttrs (compositionName: composition:
     generate {
       inherit pkgs modulesPath system setup extraConfigurations nur helpers
@@ -119,20 +125,19 @@ let
     '';
   };
 
-  baseConfig = (generate {
-    inherit pkgs modulesPath system setup extraConfigurations nur helpers
-      flavour;
-    baseConfig = true;
-  } { }).config;
+  # TODO Optimisation:
+  # Copy of base kernel is suboptimal its storePath should be unambiguously add in set of captured storePaths
+  # problematic case: composition use only specific kernel so base kernel will failed (to be confirmed)
+  # cp ${baseConfig.system.build.kernel}/bzImage $out/kernel
 
   baseImage =
     pkgs.runCommand "image" { buildInputs = [ pkgs.nukeReferences ]; } ''
       mkdir $out
       cp ${baseConfig.system.build.kernel}/bzImage $out/kernel
+      echo ${baseConfig.system.build.kernel}/bzImage > $out/kernel_store_path
       echo "init=${
         builtins.unsafeDiscardStringContext baseConfig.system.build.toplevel
       }/init ${toString baseConfig.boot.kernelParams}" > $out/cmdline
-      nuke-refs $out/kernel
     '';
 
   baseSquashfsStore = pkgs.callPackage "${modulesPath}/lib/make-squashfs.nix" {

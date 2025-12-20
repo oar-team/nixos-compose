@@ -1,12 +1,19 @@
 { pkgs, flavour, compositionName, allConfig, buildOneconfig }:
 let
-
-  rolesInfo =
+  _rolesInfo =
     pkgs.lib.mapAttrs (n: m: m.config.system.build.initClosureInfo) allConfig;
 
-  allRoles = builtins.attrNames rolesInfo;
+  # _allRoles = builtins.attrNames rolesInfo;
+  # _allClosureInfo =
+  #   pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") rolesInfo;
+
+  rolesToplevel =
+     pkgs.lib.mapAttrs (n: m: "${m.config.system.build.toplevel}") allConfig;
+
+  allRoles = builtins.attrNames rolesToplevel;
   allClosureInfo =
-    pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") rolesInfo;
+    pkgs.lib.mapAttrsToList (n: m: m.config.system.build.closureInfo) allConfig;
+
   allStorePaths = map (x: "${x}/store-paths") allClosureInfo;
 
   allStoreInfo = pkgs.stdenv.mkDerivation {
@@ -41,6 +48,7 @@ let
   };
 
 in {
-  roles = rolesInfo;
+  # roles = rolesInfo;
+  roles = rolesToplevel;
   all_store_info = "${allStoreInfo}";
 }

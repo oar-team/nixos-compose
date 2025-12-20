@@ -31,13 +31,19 @@ with lib; {
         }/init ${toString config.boot.kernelParams}" > $out/cmdline
         nuke-refs $out/kernel
       '';
+
+    closureInfo = "${pkgs.closureInfo { rootPaths = config.system.build.toplevel; }}";
+
+    # TO REMOVE ??? only used for ramramdiskInfo
     initClosureInfo = {
       init = "${
           builtins.unsafeDiscardStringContext config.system.build.toplevel
         }/init";
+      toplevel =  "${config.system.build.toplevel}";
       closure_info =
         "${pkgs.closureInfo { rootPaths = config.system.build.toplevel; }}";
     };
+
     ramdiskInfo = {
       kernel = "${config.system.build.image}/kernel";
       initrd = "${config.system.build.image}/initrd";
