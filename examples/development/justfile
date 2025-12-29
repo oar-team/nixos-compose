@@ -1,0 +1,44 @@
+export JUST_DIR := justfile_directory()
+export INSIDE_G5K := `hostname -f | grep grid5000 | cat` # cat to consume the grep's exit code
+
+nxc_local := "nix develop --override-input nxc path:$NXC_SRC -c nxc"
+nix_flags := "--nix-flags \"--override-input nxc path:$NXC_SRC \""
+
+alias b := build
+alias bm := build-mounted-store
+
+default:
+    @just --list
+
+test:
+    echo $JUST_DIR
+
+# Check if NXC_SRC is a directory
+check-nxc-src:
+    #!/usr/bin/env bash
+    # Check that the variable VAR is defined and not empty
+    if [ -z "${NXC_SRC:-}" ]; then
+        echo "Error: NXC_SRC is not defined or is empty" >&2
+        exit 1
+    fi
+
+    # Check that NXC_SRC is an existing directory
+    if [ ! -d "$NXC_SRC" ]; then
+        echo "Error: '$NXC_SRC' is not an existing directory" >&2
+        exit 1
+    fi
+
+
+build FLAVOUR OPTIONS="":
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    if [[ $(hostname -d) == *"grid5000"* ]] ; then
+        shopt -s expand_aliases && alias nxc_local="nxc"
+    else
+        shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
+    fi
+    nxc_local build {{ nix_flags }} -f {{ FLAVOUR }} {{ OPTIONS }}
+
+# build using a remote builder with store mounted localy
+build-mounted-store FLAVOUR URL="doozer@nix-datamove":
+    just build {{ FLAVOUR }} "--mounted-store-url {{ URL }}"
