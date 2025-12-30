@@ -77,7 +77,6 @@
       echo "compositions info file: $compositions_info_file"
 
       toplevel=$(jq -r ".\"$composition\".roles.\"$role\"" /mnt-root"$compositions_info_file")
-      #init=$(jq -r ".\"$composition\".roles.\"$role\".init" /mnt-root/$compositions_info_file
 
       for o in $(cat /proc/cmdline); do
         case $o in
@@ -92,7 +91,7 @@
 
             echo kernel: $kernel_target $base_kernel
             echo initrd: $base_initrd $base_initrd
-            echo Breakpoint reached && fail
+            #echo Breakpoint reached && fail
 
             if [ "$kernel_target" != "$base_kernel" ] || [ "$initrd_target" != "$base_initrd" ]; then
                 echo "Kexec to kernel/initrd target"
@@ -127,7 +126,6 @@
         ln -s "$registration_store_path" /mnt-root/etc/nxc/all_compositions_registration_store
       fi
 
-
-      echo Breakpoint reached  after && fail
+      #echo Breakpoint reached  after && fail
     '';
 }

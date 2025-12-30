@@ -113,7 +113,7 @@ with lib; {
            NOGRAPHIC="-nographic"
         fi
 
-        APPEND="$IP net.ifnames=0 console=tty0 console=ttyS0,115200n8 $FLAVOUR $ROLE $DEBUG_INITRD $DEPLOY $QEMU_APPEND $ADDITIONAL_KERNEL_PARAMS"
+        APPEND="$IP net.ifnames=0 console=tty0 console=ttyS0,115200n8 check_kernel_initrd $FLAVOUR $ROLE $DEBUG_INITRD $DEPLOY $QEMU_APPEND $ADDITIONAL_KERNEL_PARAMS"
 
         LENGTH_APPEND=''${#APPEND}
         echo "Length of kernel’s command-line parameters string: $LENGTH_APPEND"

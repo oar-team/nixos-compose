@@ -3,6 +3,7 @@
   #boot.initrd.network.enable = true;
   boot.initrd.extraUtilsCommands = ''
     copy_bin_and_libs ${pkgs.jq}/bin/jq
+    copy_bin_and_libs ${pkgs.kexec-tools}/bin/kexec
     cp -pv ${pkgs.glibc}/lib/libnss_files.so.2 $out/lib
     cp -pv ${pkgs.glibc}/lib/libresolv.so.2 $out/lib
     cp -pv ${pkgs.glibc}/lib/libnss_dns.so.2 $out/lib
@@ -79,51 +80,6 @@
                       echo "Use base64 decode to deployment configuration"
                       echo "$d" | base64 -d >> $deployment_json
                    fi
-                   composition=$(jq -r '."composition" // empty' $deployment_json)
-                   echo "composition: $composition"
-                   role_host=$(jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.host // \"\")\""  $deployment_json)
-                   set -- $(IFS=" "; echo $role_host)
-                   role=$1
-                   hostname=$2
-                   echo "role: $role"
-                   echo "hostname: $hostname"
-
-                   init=""
-                   if [ "''${composition+set}" = set ]; then
-                      if [ -f /mnt-root/nix/store/compositions-info.json ]; then
-                         echo "/mnt-root/nix/store/compositions-info.json"
-                         init=$(jq -r ".\"$composition\".roles.\"$role\".init" /mnt-root/nix/store/compositions-info.json)
-                      else
-                         compositions_info_file=$(jq -r '."compositions_info_path" // empty' $deployment_json)
-                         echo "compositions info file: $compositions_info_file"
-                         init=$(jq -r ".\"$composition\".roles.\"$role\".init" /mnt-root/$compositions_info_file)
-                      fi
-                      echo "init: $init"
-                   fi
-                   export stage2Init="$init"
-                   echo $role > /mnt-root/etc/nxc/role
-
-                   if   [ "''${hostname+set}" = set ]; then
-                        echo "$hostname" > /mnt-root/etc/nxc/hostname
-                   fi
-
-                   ssh_key_pub=$(jq -r '."ssh_key.pub" // empty' $deployment_json)
-
-                   if [ "''${ssh_key_pub+set}" = set ]; then
-                       mkdir -p /mnt-root/root/.ssh/
-                       echo "$ssh_key_pub" >> /mnt-root/root/.ssh/authorized_keys
-                   fi
-                   echo "Generate/complete /etc/nxc/deployment-hosts  from deployment.json"
-                   jq -r '.deployment | to_entries | map(.key + " " + (.value.host)) | .[]' \
-                   $deployment_json >> /mnt-root/etc/nxc/deployment-hosts
-
-                   echo "Retrieve all_compositions_registration_store_path"
-                   registration_store_path=$(jq -r '."all" | ."all_compositions_registration_store_path" // empty' $deployment_json)
-                   if [ "''${registration_store_path}" = set ]; then
-                     echo "Create link to $registration_store_path in /etc/nxc"
-                     # link destination will valid after switch_root
-                     ln -s "$registration_store_path" /mnt-root/etc/nxc/all_compositions_registration_store
-                   fi
                    ;;
 
                role=*)
@@ -148,5 +104,80 @@
                    ;;
             esac
         done
+
+        composition=$(jq -r '."composition" // empty' $deployment_json)
+        echo "composition: $composition"
+        role_host=$(jq -r ".deployment.\"$ip_addr\" | \"\(.role) \(.host // \"\")\""  $deployment_json)
+        set -- $(IFS=" "; echo $role_host)
+        role=$1
+        hostname=$2
+        echo "role: $role"
+        echo "hostname: $hostname"
+
+        toplevel=""
+        if [ "''${composition+set}" = set ]; then
+           if [ -f /mnt-root/nix/store/compositions-info.json ]; then
+              echo "/mnt-root/nix/store/compositions-info.json"
+              toplevel=$(jq -r ".\"$composition\".roles.\"$role\"" /mnt-root/nix/store/compositions-info.json)
+           else
+              compositions_info_file=$(jq -r '."compositions_info_path" // empty' $deployment_json)
+              echo "compositions info file: $compositions_info_file"
+              toplevel=$(jq -r ".\"$composition\".roles.\"$role\"" /mnt-root/$compositions_info_file)
+           fi
+           echo "toplevel: $toplevel"
+        fi
+
+        for o in $(cat /proc/cmdline); do
+          case $o in
+            check_kernel_initrd)
+              kernel_target=$(readlink /mnt-root"$toplevel"/kernel)
+              initrd_target=$(readlink /mnt-root"$toplevel"/initrd)
+
+              copy_base_kernel=$(jq -r ".all.kernel" $deployment_json)
+              base_initrd=$(jq -r ".all.initrd" $deployment_json)
+
+              base_kernel=$(cat /mnt-root"$copy_base_kernel"_store_path)
+
+              echo kernel: $kernel_target $base_kernel
+              echo initrd: $base_initrd $base_initrd
+              #echo Breakpoint reached && fail
+
+              if [ "$kernel_target" != "$base_kernel" ] || [ "$initrd_target" != "$base_initrd" ]; then
+                  echo "Kexec to kernel/initrd target"
+                  kexec -l /mnt-root"$kernel_target" --initrd=/mnt-root"$initrd_target"  --command-line="$(cat /proc/cmdline | sed -r 's/check_kernel_initrd//')"
+                  kexec -e
+              fi
+              ;;
+          esac
+        done
+
+        init="$toplevel"/init
+        echo "init: $init"
+
+        export stage2Init="$init"
+        echo $role > /mnt-root/etc/nxc/role
+
+        if   [ "''${hostname+set}" = set ]; then
+             echo "$hostname" > /mnt-root/etc/nxc/hostname
+        fi
+
+        ssh_key_pub=$(jq -r '."ssh_key.pub" // empty' $deployment_json)
+
+        if [ "''${ssh_key_pub+set}" = set ]; then
+            mkdir -p /mnt-root/root/.ssh/
+            echo "$ssh_key_pub" >> /mnt-root/root/.ssh/authorized_keys
+        fi
+        echo "Generate/complete /etc/nxc/deployment-hosts  from deployment.json"
+        jq -r '.deployment | to_entries | map(.key + " " + (.value.host)) | .[]' \
+        $deployment_json >> /mnt-root/etc/nxc/deployment-hosts
+
+        echo "Retrieve all_compositions_registration_store_path"
+        registration_store_path=$(jq -r '."all" | ."all_compositions_registration_store_path" // empty' $deployment_json)
+        if [ "''${registration_store_path}" = set ]; then
+          echo "Create link to $registration_store_path in /etc/nxc"
+          # link destination will valid after switch_root
+          ln -s "$registration_store_path" /mnt-root/etc/nxc/all_compositions_registration_store
+        fi
+
      '';
 }
