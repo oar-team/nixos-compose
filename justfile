@@ -64,7 +64,7 @@ build-and-test FLAVOUR EXAMPLE:
       nxc_local stop
     fi
 
-build FLAVOUR EXAMPLE:
+build FLAVOUR EXAMPLE OPTIONS="":
     #!/usr/bin/env bash
     set -euxo pipefail
     mkdir -p $HOME/nxc-test-tmp/{{ FLAVOUR }}
@@ -77,7 +77,11 @@ build FLAVOUR EXAMPLE:
     else
       shopt -s expand_aliases && alias nxc_local="{{ nxc_local }}"
     fi
-    nxc_local build {{ nix_flags }} -f {{ FLAVOUR }}
+    nxc_local build {{ nix_flags }} -f {{ FLAVOUR }} {{ OPTIONS }}
+
+# build using a remote builder with store mounted localy
+build-mounted-store FLAVOUR EXAMPLE URL="doozer@nix-datamove":
+    just build {{ FLAVOUR }} {{ EXAMPLE }} "--mounted-store-url {{ URL }}"
 
 docker EXAMPLE="basic":
     just build-and-test docker {{ EXAMPLE }}
@@ -118,13 +122,20 @@ clean-nxc-test:
     @echo clean
     rm -f $TEST_TMP_DIR
 
-# Rsynch current worktree to G5K in nxc-test-src directory
+
+# Rsynch current worktree to G5K in nxc-src directory
 rsync-g5k SITE=DEFAULT_G5K_SITE:
     #!/usr/bin/env bash
     set -euxo pipefail
-    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' --exclude '.venv/' --exclude 'dist/' {{ SITE }}.g5k:nxc-test-src
+    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' --exclude '.venv/' --exclude 'dist/' {{ SITE }}.g5k:nxc-src
+
+# Rsynch current worktree to G5K in nxc-src-wkt directory
+rsync-g5k-wkt SITE=DEFAULT_G5K_SITE:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    rsync -avz $JUST_DIR/.. --delete --exclude '\#*' --exclude '.venv/' --exclude 'dist/' {{ SITE }}.g5k:nxc-src-wkt
     # change gitdir ref from absolute to relative path
-    ssh grenoble.g5k "find nxc-test-src -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
+    ssh {{ SITE }}.g5k "find nxc-src-wkt -name .git -exec sed -i 's/ .*bare/ \.\.\/\.bare/' {} \;"
 
 # Submit g5k_script helper
 oarsub-g5k-script NBNODES=DEFAULT_NBNODES WALLTIME=DEFAULT_WALLTIME:
@@ -195,10 +206,15 @@ set-flake-nixpkgs-version version: && print-examples-nixpkgs-version
 docker-container-prune:
     docker container prune
 
+# create .venv with editable source (for nix develop venvShell)
 create-venv:
     nix run 'nixpkgs#uv' -- venv .venv
-    source .venv/bin/activate
     nix run 'nixpkgs#uv' -- pip install -e .
+    echo type just venv-shell or nix develop .#venvShell to launch this venv dev shell
+
+# Launch venv dev shell (for python dev)
+venv-shell:
+    nix develop .#venvShell
 
 develop-with-poetry:
     #!/usr/bin/env bash
@@ -286,3 +302,9 @@ g5k-inside-test:
     else
         echo "Outside G5K"
     fi
+
+# create .venv with editable source (for nix develop venvShell)
+# create-venv:
+#     #!/usr/bin/env bash
+#     uv venv .venv
+#     uv pip install -e .
