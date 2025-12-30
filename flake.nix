@@ -89,6 +89,30 @@
                 pkgs.nmap
               ];
             };
+            venvShell = pkgs.mkShell {
+              buildInputs = [
+                (pkgs.python3.withPackages (ps: [
+                    kapackpkgs.execo
+                ]))
+                pkgs.uv
+                pkgs.poetry
+                pkgs.docker
+                pkgs.qemu_kvm
+                pkgs.vde2
+                pkgs.tmux
+                pkgs.nmap
+              ];
+              shellHook = ''
+                if [ -d ".venv" ]; then
+                    echo "Activate .venv dev"
+                    source .venv/bin/activate
+                    echo "export NXC_SRC_DIR=$PWD"
+                    export NXC_SRC_DIR=$PWD
+                else
+                    echo ".venv does not exit. To create: just create-uv-venv and relaunch venvShell"
+                fi
+              '';
+            };
             devDoc = pkgs.mkShell {
               buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ];
             };
