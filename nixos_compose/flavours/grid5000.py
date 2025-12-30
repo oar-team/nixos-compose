@@ -92,7 +92,7 @@ def generate_kadeploy_envfile(
             file_image_url=f"local://{deploy_image_path}"
             if deploy_image_path
             else f"http://public.{g5k_site}.grid5000.fr/~{user}/nixos.tar.xz",
-            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 deploy={deploy} {additional_kernel_params} {kernel_params}",
+            kernel_params=f"boot.shell_on_fail console=tty0 console=ttyS0,115200 check_kernel_initrd deploy={deploy} {additional_kernel_params} {kernel_params}",
         )
         kaenv_file.write(kaenv)
 

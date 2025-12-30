@@ -279,10 +279,14 @@ def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
             # deployment[ip] = {"role": role, "vm_id": i}
             deployment[ip] = {
                 "role": role,
-                "init": v["init"],
                 "vm_id": i,
                 "host": hostname,
             }
+            if isinstance(v, str):
+                deployment[ip]["toplevel"] = v
+            else:
+                # backward compatibility, deprecated
+                deployment[ip]["init"] = v["init"]
             i = i + 1
 
     return deployment, ips
@@ -412,7 +416,12 @@ def populate_deployment_ips(ctx, roles_info, ips, roles_distribution):
             if hasattr(ctx.flavour, "host_info"):
                 deployment[ip] = ctx.flavour.host_info(role, hostname, v)
             else:
-                deployment[ip] = {"role": role, "host": hostname, "init": v["init"]}
+                deployment[ip] = {"role": role, "host": hostname}
+                if isinstance(v, str):
+                    deployment[ip]["toplevel"] = v
+                else:
+                    # backward compatibility, deprecated
+                    deployment[ip]["init"] = v["init"]
             i = i + 1
     return deployment
 
@@ -433,18 +442,18 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
             ctx, ctx.compose_info["roles"], ctx.ip_addresses, ctx.roles_distribution
         )
     else:
-        deployment, ctx.ip_addresses = populate_deployment_vm_by_ip(
+        deployment_base, ctx.ip_addresses = populate_deployment_vm_by_ip(
             ctx, ctx.compose_info["roles"], ctx.roles_distribution
         )
-        deployment = {
-            k: {
-                "role": v["role"],
-                "host": v["host"],
-                "vm_id": v["vm_id"],
-                "init": v["init"] if "host" in v else v["role"],
-            }
-            for k, v in deployment.items()
-        }
+        deployment = {}
+        for k, v in deployment_base.items():
+            s = {"role": v["role"], "host": v["host"], "vm_id": v["vm_id"]}
+            if "toplevel" in v:
+                s["toplevel"] = v["toplevel"]
+            else:
+                # backward compatibility, deprecated
+                s["init"] = v["init"] if "host" in v else v["role"]
+            deployment[k] = s
 
     deployment = {
         "ssh_key.pub": sshkey_pub,
@@ -520,7 +529,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
         initrd_path = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
 
         kexec_args = "-l $KERNEL --initrd=$INITRD "
-        kexec_args += rf'--append="deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
+        kexec_args += rf'--append="deploy={deploy_info_src} console=tty0 console=ttyS0,115200 check_kernel_initrd {flavour_kernel_params} {kernel_params}"'
         script_path = op.join(kexec_scripts_path, "kexec.sh")
         with open(script_path, "w") as kexec_script:
             kexec_script.write("#!/usr/bin/env bash\n")
@@ -534,9 +543,13 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
             role = v["role"]
             kernel_path = f"{base_path}/kernel_{role}"
             initrd_path = f"{base_path}/initrd_{role}"
-            init_path = v["init"]
+            if "toplevel" in v:
+                init_path = f"{v['tolelevel']}/init"
+            else:
+                # backward compatibility, deprecated
+                init_path = v["init"]
             kexec_args = f"-l {kernel_path} --initrd={initrd_path} "
-            kexec_args += rf'--append="init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 {flavour_kernel_params} {kernel_params}"'
+            kexec_args += rf'--append="init={init_path} deploy={deploy_info_src} console=tty0 console=ttyS0,115200 check_kernel_initrd {flavour_kernel_params} {kernel_params}"'
             script_path = op.join(kexec_scripts_path, f"kexec_{role}.sh")
             with open(script_path, "w") as kexec_script:
                 kexec_script.write("#!/usr/bin/env bash\n")
