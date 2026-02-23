@@ -107,6 +107,7 @@ class Context(object):
         # Start
         self.image_store_ssh = None
         self.namespace = None
+        self.start_option = []
 
     def init_workdir(self, env_name, env_id):
         with open(self.env_name_file, "w+") as fd:

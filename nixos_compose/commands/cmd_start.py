@@ -237,7 +237,12 @@ def start(ctx, interactive, execute_test_script, port, push_path=None):
     type=click.STRING,
     help="tagname of the deployment",
 )
-#     "--dry-run", is_flag=True, help="Show what this command would do without doing it"
+@click.option(
+    "--start-option",
+    type=click.STRING,
+    help="Additional option to modify start process (flavour dependant, see documentation)",
+)
+#     "--dry-run", is_flagmultiple=True,=True, help="Show what this command would do without doing it"
 # )
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
@@ -270,6 +275,7 @@ def cli(
     deployment_file,
     tag,
     image_store_ssh,
+    start_option
     # dry_run,
 ):
     """
@@ -316,6 +322,7 @@ def cli(
     ctx.ip_range = ip_range
     ctx.machine_file = machine_file
     ctx.image_store_ssh = image_store_ssh
+    ctx.start_option = start_option
     if deployment_file:
         if not flavour:
             ctx.elog("Option --flavour is required with --deployment-file option !")
