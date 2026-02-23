@@ -163,6 +163,9 @@ class G5kKexecBasedFlavour(G5kFlavour):
         generate_kexec_scripts(self.ctx)
 
     def launch(self):
+        if "no-launch" in self.ctx.start_option:
+            self.ctx.vlog("Start option no-launch, exit now without launching kexec")
+            exit(0)
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
