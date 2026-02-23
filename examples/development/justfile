@@ -1,4 +1,3 @@
-export JUST_DIR := justfile_directory()
 export INSIDE_G5K := `hostname -f | grep grid5000 | cat` # cat to consume the grep's exit code
 
 nxc_local := "nix develop --override-input nxc path:$NXC_SRC -c nxc"
@@ -16,7 +15,7 @@ test:
 # Check if NXC_SRC is a directory
 check-nxc-src:
     #!/usr/bin/env bash
-    # Check that the variable VAR is defined and not empty
+    # Check that the variable NXC_SRC is defined and not empty
     if [ -z "${NXC_SRC:-}" ]; then
         echo "Error: NXC_SRC is not defined or is empty" >&2
         exit 1
@@ -27,7 +26,6 @@ check-nxc-src:
         echo "Error: '$NXC_SRC' is not an existing directory" >&2
         exit 1
     fi
-
 
 build FLAVOUR OPTIONS="":
     #!/usr/bin/env bash
@@ -42,3 +40,31 @@ build FLAVOUR OPTIONS="":
 # build using a remote builder with store mounted localy
 build-mounted-store FLAVOUR URL="doozer@nix-datamove":
     just build {{ FLAVOUR }} "--mounted-store-url {{ URL }}"
+
+launch-vm ADDITIONAL_KERNEL_PARAMS="":
+    #!/usr/bin/env bash
+    export ADDITIONAL_KERNEL_PARAMS={{ ADDITIONAL_KERNEL_PARAMS }}
+    export FLAVOUR="flavour=vm"
+    export DEPLOY="deploy=deploy/composition::vm.json"
+    export SHARED_NXC_COMPOSITION_DIR=$PWD
+    $(jq -r .all.qemu_script build/composition\:\:vm)
+
+vm-script:
+    jq -r .all.qemu_script build/composition\:\:vm
+
+launch-vde:
+    nix shell "nixpkgs#vde2" -c vde_switch -s /tmp/kexec-qemu-vde1.ctl -mod 0770
+
+# Launch venv-shell according NXC_SRC
+venv-shell NXC_SRC_ARG="":
+    #!/usr/bin/env bash
+    NXC_SRC_ARG={{ NXC_SRC_ARG }}
+    if  [ -n "$NXC_SRC_ARG" ]; then
+        NXC_SRC=$NXC_SRC_ARG
+    fi
+    if  [ -z "$NXC_SRC" ]; then
+        echo "NXC_SRC does not exist, define it or give it as argument"
+        exit 1
+    fi
+    export NXC_DEV=$PWD
+    just -f $NXC_SRC/justfile venv-shell
