@@ -240,6 +240,7 @@ def start(ctx, interactive, execute_test_script, port, push_path=None):
 @click.option(
     "--start-option",
     type=click.STRING,
+    multiple=True,
     help="Additional option to modify start process (flavour dependant, see documentation)",
 )
 #     "--dry-run", is_flagmultiple=True,=True, help="Show what this command would do without doing it"
