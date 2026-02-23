@@ -29,6 +29,15 @@ from ..flavour import base_flavours
     type=click.STRING,
     help='add nix flags (aka options) to nix build command, --nix-flags "--impure"',
 )
+@click.option(
+    "--namespace",
+    "-N",
+    type=click.STRING,
+    help=(
+        "Attribute namespace for compositions (e.g. `.#legacyPackages.x86_64-linux.hello` for compositions under `.#legacyPackages.x86_64-linux.hello.\"composition::<flavor>\"`)."
+        "Defaults to `.#packages.x86_64-linux`"
+    ),
+)
 @click.option("--out-link", "-o", help="path of the symlink to the build result")
 @click.option(
     "-f",
@@ -113,6 +122,7 @@ def cli(
     ctx,
     composition_file,
     nix_flags,
+    namespace,
     out_link,
     flavour,
     list_flavours,
@@ -155,6 +165,25 @@ def cli(
                 flavour = "default"
         ctx.vlog(f"Selected flavour: {flavour}")
         return flavour
+
+    def namespace_attr_path(value):
+        if "#" in value:
+            attr = value.split("#", 1)[1]
+        else:
+            attr = value
+        return attr.split(".") if attr else []
+
+    def namespace_flake_ref(value):
+        if "#" not in value:
+            return None
+        ref = value.split("#", 1)[0]
+        if not ref or ref == ".":
+            return None
+        return ref
+
+    if not namespace:
+        namespace = ".#packages.x86_64-linux"
+    ctx.namespace = namespace
 
     if setup and not op.exists(op.join(ctx.envdir, "setup.toml")):
         ctx.elog("setup option is given but setup.toml is not found")
@@ -222,19 +251,39 @@ def cli(
 
     if list_compositions_flavours:
         cmd = nix_cmd_base + ["flake", "show", "--json"]
+        flake_ref = namespace_flake_ref(namespace)
+        if flake_ref:
+            cmd += [flake_ref]
+        attr_path = namespace_attr_path(namespace)
+        if attr_path and attr_path[0] == "legacyPackages":
+            cmd += ["--legacy"]
         raw_compositions_flavours = json.loads(
             subprocess.check_output(cmd, cwd=ctx.envdir).decode()
         )
+        if not attr_path:
+            raise click.ClickException(f"Namespace is empty: {namespace}")
+        current = raw_compositions_flavours
+        for part in attr_path:
+            if not isinstance(current, dict) or part not in current:
+                raise click.ClickException(
+                    f"Namespace not found in flake outputs: {namespace}"
+                )
+            current = current[part]
+        if not isinstance(current, dict):
+            raise click.ClickException(
+                f"Namespace does not point to an attribute set: {namespace}"
+            )
         for compo_flavour in filter(
             lambda x: x not in ["flavoursJson", "showFlavours"],
-            raw_compositions_flavours["packages"]["x86_64-linux"].keys(),
+            current.keys(),
         ):
             print(compo_flavour)
-        print(
-            click.style("Default", fg="green")
-            + ": "
-            + raw_compositions_flavours["defaultPackage"]["x86_64-linux"]["name"]
-        )
+        if namespace == ".#packages.x86_64-linux":
+            print(
+                click.style("Default", fg="green")
+                + ": "
+                + raw_compositions_flavours["defaultPackage"]["x86_64-linux"]["name"]
+            )
         sys.exit(0)
 
     if show_trace:
@@ -297,7 +346,7 @@ def cli(
     if nix_flags:
         build_cmd += nix_flags.split()
 
-    build_cmd += [f".#packages.x86_64-linux.{composition_flavour}"]
+    build_cmd += [f"{namespace}.{composition_flavour}"]
 
     if not dry_run:
         ctx.glog("Starting Build")

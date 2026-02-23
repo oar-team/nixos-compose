@@ -28,6 +28,9 @@ It generates a `build` folder which stores symlinks to the closure associated to
 - `--nix-flags`
     add nix flags (aka options) to nix build command, --nix-flags "--impure"
 
+- `--namespace, -N`
+    Attribute namespace for compositions (e.g. `.#legacyPackages.x86_64-linux.hello` for compositions under `.#legacyPackages.x86_64-linux.hello."composition::<flavor>"`). Defaults to `.#packages.x86_64-linux`
+
 - `--out-link, -o`
     path of the symlink to the build result
 
