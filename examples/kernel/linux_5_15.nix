@@ -1,10 +1,10 @@
 { pkgs, ... }: {
   roles = {
-    linux_5_4 = { pkgs, lib, ... }: {
-      boot.kernelPackages = pkgs.linuxKernel.packages.linux_5_4;
+    linux_5_15 = { pkgs, lib, ... }: {
+      boot.kernelPackages = pkgs.linuxKernel.packages.linux_5_15;
     };
   };
   testScript = ''
-    linux_5_4.succeed("true")
+    linux_5_15.succeed("uname -r | grep 5.15")
   '';
 }
