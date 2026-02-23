@@ -106,10 +106,21 @@
                 if [ -d ".venv" ]; then
                     echo "Activate .venv dev"
                     source .venv/bin/activate
-                    echo "export NXC_SRC_DIR=$PWD"
-                    export NXC_SRC_DIR=$PWD
+                    # NXC_SRC use typically in nxc/justfile to override the nix part for building
+                    if  [ -z "$NXC_SRC" ]; then
+                        echo "export NXC_SRC=$PWD"
+                        export NXC_SRC=$PWD
+                    fi
+                    # NXC_DEV used if devshell is called dir with an intention to go back
+                    if [ -n "$NXC_DEV" ]; then
+                        cd $NXC_DEV
+                    fi
                 else
-                    echo ".venv does not exit. To create: just create-uv-venv and relaunch venvShell"
+                    echo ".venv does not exit."
+                    echo "To create it :"
+                    echo "          just create-venv"
+                    echo "and relaunch venvShell"
+                    exit 1
                 fi
               '';
             };
