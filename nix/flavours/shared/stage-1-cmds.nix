@@ -1,6 +1,11 @@
-{ pkgs, config, ... }: {
+{ lib, pkgs, ... }: {
 
-  #boot.initrd.network.enable = true;
+  # boot.initrd.network.enable = true;
+
+  # nxc users might set `networking.useDHCP` to false
+  # but nxc deployment stage 1 must have dhcp
+  boot.initrd.network.udhcpc.enable = lib.mkForce true;
+
   boot.initrd.extraUtilsCommands = ''
     copy_bin_and_libs ${pkgs.jq}/bin/jq
     copy_bin_and_libs ${pkgs.kexec-tools}/bin/kexec
