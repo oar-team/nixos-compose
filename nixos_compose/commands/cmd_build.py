@@ -1,20 +1,21 @@
+import json
 import os
 import os.path as op
 import shutil
-import sys
 import subprocess
+import sys
+
 import click
-import json
 
 from ..actions import (
+    artifact_copy_all_kernel_initrd,
     get_nix_command,
     realpath_from_store,
-    artifact_copy_all_kernel_initrd,
 )
-from ..context import pass_context, on_started, on_finished
+from ..context import on_finished, on_started, pass_context
+from ..flavour import base_flavours
 from ..platform import platform_detection
 from ..setup import apply_setup
-from ..flavour import base_flavours
 
 # FLAVOURS_PATH = op.abspath(op.join(op.dirname(__file__), "../", "flavours"))
 # FLAVOURS = os.listdir(FLAVOURS_PATH)
@@ -34,7 +35,7 @@ from ..flavour import base_flavours
     "-N",
     type=click.STRING,
     help=(
-        "Attribute namespace for compositions (e.g. `.#legacyPackages.x86_64-linux.hello` for compositions under `.#legacyPackages.x86_64-linux.hello.\"composition::<flavor>\"`)."
+        'Attribute namespace for compositions (e.g. `.#legacyPackages.x86_64-linux.hello` for compositions under `.#legacyPackages.x86_64-linux.hello."composition::<flavor>"`).'
         "Defaults to `.#packages.x86_64-linux`"
     ),
 )
@@ -115,6 +116,12 @@ from ..flavour import base_flavours
     type=click.STRING,
     help="Use of nix experimental SSH store with filesystem mounted, format: [username@]hostname",
 )
+@click.option(
+    "--path-info",
+    "--pi",
+    is_flag=True,
+    help="Generate nix path-info json file",
+)
 @pass_context
 @on_finished(lambda ctx: ctx.show_elapsed_time())
 @on_started(lambda ctx: ctx.assert_valid_env())
@@ -137,6 +144,7 @@ def cli(
     setup_param,
     monitor,
     mounted_store_url,
+    path_info,
 ):
     """
     Builds the composition.
@@ -336,11 +344,11 @@ def cli(
     if dry_build:
         build_cmd = nix_cmd_base + ["eval"] + build_cmd + ["--raw"]
     else:
-        build_cmd = nix_cmd_base + ["build"] + build_cmd
+        build_cmd = nix_cmd_base + ["build"] + build_cmd + ["--json"]
         if out_link and not mounted_store_url:
             build_cmd += ["-o", out_link]
         if mounted_store_url:
-            build_cmd += ["--no-link", "--json"]
+            build_cmd += ["--no-link"]
 
     # add additional nix flags if any
     if nix_flags:
@@ -350,14 +358,15 @@ def cli(
 
     if not dry_run:
         ctx.glog("Starting Build")
-        ctx.vlog(build_cmd)
-        if mounted_store_url:
-            proc = subprocess.run(build_cmd, cwd=ctx.envdir, stdout=subprocess.PIPE)
-            returncode = proc.returncode
-            if not returncode:
-                nix_build_output = json.loads(proc.stdout)
-                # create link here and not by nix, to avoid issue directory is not accessible with remote build .
-                ctx.vlog(f"nix build output: {nix_build_output}")
+        ctx.vlog(" ".join(build_cmd))
+
+        proc = subprocess.run(build_cmd, cwd=ctx.envdir, stdout=subprocess.PIPE)
+        returncode = proc.returncode
+        if not returncode:
+            nix_build_output = json.loads(proc.stdout)
+            ctx.vlog(f"nix build output in store: {nix_build_output}")
+            if mounted_store_url:
+                # create link here and not by nix, to avoid issue directory is not accessible with remote build.
                 if os.path.exists(out_link):
                     os.remove(out_link)
                 shutil.copyfile(nix_build_output[0]["outputs"]["out"], out_link)
@@ -366,10 +375,26 @@ def cli(
                     ctx.compose_info_file = out_link
                     artifact_copy_all_kernel_initrd(ctx)
         else:
-            returncode = subprocess.call(build_cmd, cwd=ctx.envdir)
-        if returncode:
             ctx.elog(f"Build return code: {returncode}")
             sys.exit(returncode)
+
+        if path_info and not dry_build:
+            build_cmd = nix_cmd_base + ["path-info", "--recursive", "--json"]
+            build_cmd += [f"{namespace}.{composition_flavour}"]
+
+            path_info_filename = (
+                f"build/path-info_{ctx.composition_flavour_prefix}.json"
+            )
+            ctx.vlog(" ".join(build_cmd) + " > " + path_info_filename)
+
+            if os.path.exists(path_info_filename):
+                os.remove(path_info_filename)
+
+            with open(path_info_filename, "w") as f:
+                returncode = subprocess.call(build_cmd, cwd=ctx.envdir, stdout=f)
+                if returncode:
+                    ctx.elog(f"Generating path-info return code: {returncode}")
+                    sys.exit(returncode)
 
         # Loading the docker image
         # todo: to move in docker flavour class
