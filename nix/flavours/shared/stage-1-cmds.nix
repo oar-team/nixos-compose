@@ -1,4 +1,8 @@
-{ lib, pkgs, ... }: {
+{ config, lib, pkgs, ... }: {
+
+  # FIXME: migration to systemd stage 1 required soon!
+  # https://gitlab.inria.fr/nixos-compose/nixos-compose/-/issues/63
+  boot.initrd.systemd.enable = !lib.versionAtLeast config.system.stateVersion "26.05";
 
   # boot.initrd.network.enable = true;
 
