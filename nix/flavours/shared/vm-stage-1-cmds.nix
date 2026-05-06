@@ -1,4 +1,8 @@
-{ pkgs, config, ... }: {
+{ config, lib, pkgs,  ... }: {
+
+  # FIXME: migration to systemd stage 1 required soon!
+  # https://gitlab.inria.fr/nixos-compose/nixos-compose/-/issues/63
+  boot.initrd.systemd.enable = !lib.versionAtLeast config.system.stateVersion "26.05";
 
   boot.initrd.extraUtilsCommands = ''
     copy_bin_and_libs ${pkgs.jq}/bin/jq
