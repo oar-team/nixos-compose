@@ -6,13 +6,36 @@ let
   pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
   modulesPath = "${toString nixpkgs}/nixos";
+
+  roleConfigWithoutVirtualisation = configRole:
+    args@{ pkgs, ... }:
+    removeAttrs
+      (if lib.isFunction configRole then configRole args else configRole)
+      [ "virtualisation" ];
+
+  buildOneconfig = roleName: roleConfig:
+    pkgs.nixos {
+      imports = [
+        (import ./base.nix roleName)
+        (roleConfigWithoutVirtualisation roleConfig)
+        { _module.args.nodes = nodes; }
+        { system.stateVersion = lib.mkDefault lib.trivial.release; }
+      ] ++ extraConfigurations;
+    };
+
+  # FIXME: extract the common part in future refactor
+  # see `nix/generate_one_composition_info.nix` for the fixed-point rationale
+  nodes = lib.mapAttrs (_: c: c.config // { config = c.config; }) allConfig;
+
   compositionSet =
     if lib.isFunction composition then
-      composition { inherit pkgs lib system modulesPath helpers flavour setup nur; }
+      composition { inherit pkgs lib system modulesPath helpers flavour setup nur nodes; }
     else
       composition;
 
   roles = if compositionSet ? roles then compositionSet.roles else compositionSet.nodes;
+
+  allConfig = lib.mapAttrs buildOneconfig roles;
 
   testScriptFile = pkgs.writeTextFile {
     name = "test-script";
@@ -44,19 +67,9 @@ let
   dockerPorts =
     if compositionSet ? dockerPorts then compositionSet.dockerPorts else { };
 
-  dockerComposeConfig.services = builtins.mapAttrs (roleName: roleConfig:
+  dockerComposeConfig.services = lib.mapAttrs (roleName: _:
     let
-      roleConfigWithoutVirtualisation = configRole:
-        args@{ pkgs, ... }:
-        builtins.removeAttrs
-          (if lib.isFunction configRole then configRole args else configRole)
-          [ "virtualisation" ];
-      config = {
-        system.stateVersion = lib.mkDefault lib.trivial.release;
-        imports = [ (import ./base.nix roleName)  (roleConfigWithoutVirtualisation roleConfig) ]
-          ++ extraConfigurations;
-      };
-      builtConfig = pkgs.nixos config;
+      builtConfig = allConfig.${roleName};
     in {
       privileged = true;
       cgroup = "host";

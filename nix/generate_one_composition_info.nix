@@ -4,19 +4,13 @@
 
 let
   lib = pkgs.lib;
-  compositionSet =
-    if lib.isFunction composition then
-      composition { inherit pkgs lib system modulesPath helpers flavour setup nur; }
-    else
-      composition;
-
-  roles = if compositionSet ? roles then compositionSet.roles else compositionSet.nodes;
   flavourConfig = if flavour ? module then flavour.module else { };
 
   buildOneconfig = role: configuration:
     import "${modulesPath}/lib/eval-config.nix" {
       inherit system;
       modules = [
+        { _module.args.nodes = nodes; }
         {
           environment.etc."nxc-composition" = {
             mode = "0644";
@@ -29,7 +23,18 @@ let
       ] ++ extraConfigurations;
     };
 
-in let
+  # FIXME: extract common parts with other referred files in future refactor
+  # mirror nixpkgs `nixos/lib/testing/nodes.nix`'s `nodesCompat`
+  nodes = lib.mapAttrs (_: c: c.config // { config = c.config; }) allConfig;
+
+  compositionSet =
+    if lib.isFunction composition then
+      composition { inherit pkgs lib system modulesPath helpers flavour setup nur nodes; }
+    else
+      composition;
+
+  roles = if compositionSet ? roles then compositionSet.roles else compositionSet.nodes;
+
   allConfig = pkgs.lib.mapAttrs buildOneconfig roles;
 
   testScriptFile = pkgs.writeTextFile {
