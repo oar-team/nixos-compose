@@ -1,5 +1,37 @@
 image: registry.gitlab.inria.fr/nixos-compose/nixos-compose:doc
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+stages:
+  - check
+  - deploy
+
+formatting:
+  stage: check
+  image: nixpkgs/nix-flakes:latest
+  tags:
+    - ci.inria.fr
+  script:
+    - nix --version
+    - nix fmt
+    - |
+      if [[ -n "$(git status --porcelain)" ]]; then
+        echo "================================================================"
+        echo "  Formatter produced changes. Run 'nix fmt' locally and commit."
+        echo "================================================================"
+        git status
+        git --no-pager diff
+        exit 1
+      fi
+
 pages:
+  stage: deploy
   script:
     - mkdir -p public
     - mdbook build docs -d ../public
@@ -7,7 +39,6 @@ pages:
     paths:
       - public
   tags:
-      - ci.inria.fr
-      - small
+    - ci.inria.fr
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
