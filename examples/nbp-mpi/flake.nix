@@ -13,7 +13,8 @@
   outputs = { self, nixpkgs, nxc, NUR, kapack }:
     let
       system = "x86_64-linux";
-    in {
+    in
+    {
       packages.${system} = nxc.lib.compose {
         inherit nixpkgs system NUR;
         repoOverrides = { inherit kapack; };

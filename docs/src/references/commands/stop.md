@@ -1,4 +1,3 @@
-
 `nxc stop`
 
 Stop Nixos composition.
@@ -9,13 +8,8 @@ Stop Nixos composition.
 
 ## Options
 
-- `-f, --flavour`
-    specify flavour
+- `-f, --flavour` specify flavour
 
-- `-d, --deployment-file`
-    specify deployment
+- `-d, --deployment-file` specify deployment
 
-- `--help`
-    Show this message and exit.
-    *Default:* `False`
-
+- `--help` Show this message and exit. _Default:_ `False`

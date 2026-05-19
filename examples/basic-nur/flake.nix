@@ -25,7 +25,8 @@
         #nur.repos.alice.modules.foo
       ];
 
-    in {
+    in
+    {
       packages.${system} = nxc.lib.compose {
         inherit nixpkgs system extraConfigurations;
         composition = ./composition.nix;

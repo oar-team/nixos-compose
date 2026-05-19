@@ -10,7 +10,8 @@ let
     };
     installPhase = "mv ssh_host_keys $out/";
   };
-in {
+in
+{
   environment.etc."post-boot-script-00-g5k-ssh-keys" = {
     mode = "0755";
     source = pkgs.writeText "post-boot-script-00-g5k-ssh-keys" ''

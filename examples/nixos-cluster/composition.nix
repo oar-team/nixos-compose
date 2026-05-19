@@ -23,7 +23,8 @@ let
     environment.systemPackages = [ pkgs.git ];
   };
 
-in {
+in
+{
   roles = {
     builder = { pkgs, ... }: {
       imports = [ commonConfig ];

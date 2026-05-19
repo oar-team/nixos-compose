@@ -5,11 +5,11 @@ in
   roles = {
     bar = { ... }:
       {
-        environment.systemPackages = [ scripts.test0-python3  ];
+        environment.systemPackages = [ scripts.test0-python3 ];
       };
     foo = { ... }:
       {
-	      environment.systemPackages = [ scripts.test1-python3 scripts.test-bash ];
+        environment.systemPackages = [ scripts.test1-python3 scripts.test-bash ];
       };
   };
   testScript = ''

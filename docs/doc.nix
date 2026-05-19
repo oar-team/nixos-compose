@@ -11,7 +11,8 @@ let
     finalImageName = "nixpkgs/nix-flakes";
     finalImageTag = "nixos-21.11";
   };
-in rec {
+in
+rec {
   doc = pkgs.stdenv.mkDerivation {
     name = "nxcDoc";
     src = ../docs;

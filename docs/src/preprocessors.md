@@ -17,6 +17,7 @@ A beautifully styled message.
 ```
 
 # Syntax highlighting
+
 ```nix
 {
     environnment = true;

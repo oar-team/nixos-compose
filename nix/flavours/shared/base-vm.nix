@@ -7,7 +7,8 @@
     ./nxc-shared-dirs-nfs.nix
   ];
 
-  boot.initrd.availableKernelModules = [ # SATA/PATA support.
+  boot.initrd.availableKernelModules = [
+    # SATA/PATA support.
     "ahci"
 
     "ata_piix"
@@ -50,8 +51,8 @@
   hardware.enableRedistributableFirmware = false;
 
   fileSystems."/tmp/shared" = {
-      device = "shared";
-      fsType = "9p";
-      options = [ "trans=virtio" "version=9p2000.L" ];
-    };
+    device = "shared";
+    fsType = "9p";
+    options = [ "trans=virtio" "version=9p2000.L" ];
+  };
 }

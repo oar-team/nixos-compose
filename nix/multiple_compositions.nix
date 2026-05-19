@@ -1,5 +1,13 @@
-{ nixpkgs, system, compositions, flavour, setup ? { }, overlays ? [ ]
-, extraConfigurations, nur ? { }, helpers }:
+{ nixpkgs
+, system
+, compositions
+, flavour
+, setup ? { }
+, overlays ? [ ]
+, extraConfigurations
+, nur ? { }
+, helpers
+}:
 let
   pkgs = (import nixpkgs) { inherit system overlays; };
   lib = pkgs.lib;
@@ -7,24 +15,30 @@ let
   flavours = import ./flavours.nix;
   generate = import ./generate_one_composition_info.nix;
 
-  baseConfig = (generate {
-    inherit pkgs modulesPath system setup extraConfigurations nur helpers
-      flavour;
-    baseConfig = true;
-  } { }).config;
-
-  allCompositionsInfo = lib.mapAttrs (compositionName: composition:
-    generate {
+  baseConfig = (generate
+    {
       inherit pkgs modulesPath system setup extraConfigurations nur helpers
         flavour;
-    } { inherit compositionName composition; }) compositions;
+      baseConfig = true;
+    }
+    { }).config;
+
+  allCompositionsInfo = lib.mapAttrs
+    (compositionName: composition:
+      generate
+        {
+          inherit pkgs modulesPath system setup extraConfigurations nur helpers
+            flavour;
+        }
+        { inherit compositionName composition; })
+    compositions;
 
   allCompositionsInfoFile = pkgs.writeText "compositions-info.json"
     (builtins.toJSON allCompositionsInfo);
 
   allMergedStorePaths =
     lib.mapAttrsToList (n: m: "${m.all_store_info}/merged-store-paths")
-    allCompositionsInfo;
+      allCompositionsInfo;
 
   allCompositionsInfoPaths =
     lib.mapAttrsToList (n: m: "${m.all_store_info}") allCompositionsInfo;
@@ -165,34 +179,38 @@ let
     }];
   };
 
-in let
-  flavoured_all = if flavour ? image && flavour.image ? type
-  && flavour.image.type == "ramdisk" then {
-    compositions_squashfs_store = allCompositionsSquashfsStore;
-    all = {
-      initrd = "${allRamdisk}/initrd";
-      qemu_script = "${baseConfig.system.build.qemu_script}";
-    };
-  } else {
-    all = {
-      initrd = "${baseConfig.system.build.initialRamdisk}/initrd";
-      qemu_script = "${baseConfig.system.build.qemu_script}";
-      #initrd = "${baseRamdisk}/initrd";
-      all_compositions_registration_store_path =
-        "${allCompositionsRegistrationStorePath}";
-      init = "${
+in
+let
+  flavoured_all =
+    if flavour ? image && flavour.image ? type
+      && flavour.image.type == "ramdisk" then {
+      compositions_squashfs_store = allCompositionsSquashfsStore;
+      all = {
+        initrd = "${allRamdisk}/initrd";
+        qemu_script = "${baseConfig.system.build.qemu_script}";
+      };
+    } else {
+      all = {
+        initrd = "${baseConfig.system.build.initialRamdisk}/initrd";
+        qemu_script = "${baseConfig.system.build.qemu_script}";
+        #initrd = "${baseRamdisk}/initrd";
+        all_compositions_registration_store_path =
+          "${allCompositionsRegistrationStorePath}";
+        init = "${
           builtins.unsafeDiscardStringContext baseConfig.system.build.toplevel
         }/init";
-    } // (if flavour.image ? type && flavour.image.type == "tarball" then {
-      image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
-    } else
-      { });
-  };
+      } // (if flavour.image ? type && flavour.image.type == "tarball" then {
+        image = "${allCompositionsImage}/tarball/all-compositions.tar.xz";
+      } else
+        { });
+    };
 
-in pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate {
+in
+pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate
+{
   flavour =
     lib.filterAttrs (n: v: n == "name" || n == "description" || n == "image")
-    flavour;
+      flavour;
   system = system;
   compositions_info_path = "${allCompositionsInfoFile}";
   compositions_info = allCompositionsInfo;
@@ -200,4 +218,5 @@ in pkgs.writeText "compose-info.json" (builtins.toJSON (lib.recursiveUpdate {
     kernel = "${baseImage}/kernel";
     stage1 = "${baseConfig.system.build.bootStage1}";
   };
-} flavoured_all))
+}
+  flavoured_all))

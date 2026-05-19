@@ -1,21 +1,24 @@
 # Multi-composition
 
-Sometimes you have two or more compositions that have a lot in common. For example, you
-want to test a tool with different integration, or run performance tests on
-multiple similar tools, etc...
+Sometimes you have two or more compositions that have a lot in common. For
+example, you want to test a tool with different integration, or run performance
+tests on multiple similar tools, etc...
 
-To do so, _NixOSCompose_ provides a simple mechanism that allows you to create
-a multi-composition.
+To do so, _NixOSCompose_ provides a simple mechanism that allows you to create a
+multi-composition.
 
 Here is a simple example of a `composition.nix` file:
+
 ```nix
 {
   oar = import ./oar.nix;
   slurm = import ./slurm.nix;
 }
 ```
+
 Each `*.nix` file being a composition file itself. For example, the `oar.nix`
 might look like:
+
 ```nix
 { pkgs, ... }: {
   roles =
@@ -39,9 +42,10 @@ might look like:
 }
 ```
 
-This compositions can be built and started with the VM flavour using the `-C` or `--composition-flavour` option:
+This compositions can be built and started with the VM flavour using the `-C` or
+`--composition-flavour` option:
+
 ```sh
 nxc build -C oar::vm
 nxc start -C oar::vm
 ```
-

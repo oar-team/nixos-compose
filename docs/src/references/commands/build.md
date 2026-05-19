@@ -1,20 +1,20 @@
-
 `nxc build`
 
 Builds the composition.
 
-It generates a `build` folder which stores symlinks to the closure associated to a composition. The file name of the symlink follows this structure  `[composition-name]::[flavour]`
+It generates a `build` folder which stores symlinks to the closure associated to
+a composition. The file name of the symlink follows this structure
+`[composition-name]::[flavour]`
 
 ## Examples
 
 - `nxc build -t vm`
 
-    Build the `vm` flavour of your composition.
+  Build the `vm` flavour of your composition.
 
 - `nxc build -C oar::g5k-nfs-store`
 
-    Build the `oar` composition with the `g5k-nfs-store` flavour`.
-
+  Build the `oar` composition with the `g5k-nfs-store` flavour`.
 
 ## Usage
 
@@ -24,57 +24,42 @@ It generates a `build` folder which stores symlinks to the closure associated to
 
 - `composition_file`
 
+- `--nix-flags` add nix flags (aka options) to nix build command, --nix-flags
+  "--impure"
 
-- `--nix-flags`
-    add nix flags (aka options) to nix build command, --nix-flags "--impure"
+- `--namespace, -N` Attribute namespace for compositions (e.g.
+  `.#legacyPackages.x86_64-linux.hello` for compositions under
+  `.#legacyPackages.x86_64-linux.hello."composition::<flavor>"`). Defaults to
+  `.#packages.x86_64-linux`
 
-- `--namespace, -N`
-    Attribute namespace for compositions (e.g. `.#legacyPackages.x86_64-linux.hello` for compositions under `.#legacyPackages.x86_64-linux.hello."composition::<flavor>"`). Defaults to `.#packages.x86_64-linux`
+- `--out-link, -o` path of the symlink to the build result
 
-- `--out-link, -o`
-    path of the symlink to the build result
+- `-f, --flavour` Use particular flavour (name or path)
 
-- `-f, --flavour`
-    Use particular flavour (name or path)
+- `-F, --list-flavours` List available flavour _Default:_ `False`
 
-- `-F, --list-flavours`
-    List available flavour
-    *Default:* `False`
+- `--show-trace` Show Nix trace _Default:_ `False`
 
-- `--show-trace`
-    Show Nix trace
-    *Default:* `False`
+- `--dry-run` Show what this command would do without doing it _Default:_
+  `False`
 
-- `--dry-run`
-    Show what this command would do without doing it
-    *Default:* `False`
+- `--dry-build` Eval build expression and show store entry without building
+  derivation _Default:_ `False`
 
-- `--dry-build`
-    Eval build expression and show store entry without building derivation
-    *Default:* `False`
+- `-C, --composition-flavour` Use to specify which composition and flavour
+  combination to build when multiple compositions are describe at once (see -L
+  options to list them).
 
-- `-C, --composition-flavour`
-    Use to specify which composition and flavour combination to build when multiple compositions are describe at once (see -L options to list them).
+- `-L, --list-compositions-flavours` List available combinations of compositions
+  and flavours _Default:_ `False`
 
-- `-L, --list-compositions-flavours`
-    List available combinations of compositions and flavours
-    *Default:* `False`
+- `-s, --setup` Select setup variant
 
-- `-s, --setup`
-    Select setup variant
+- `-p, --setup-param` Override setup parameter
 
-- `-p, --setup-param`
-    Override setup parameter
+- `-u, --update-flake` Update flake.lock equivalent to: nix flake update
+  _Default:_ `False`
 
-- `-u, --update-flake`
-    Update flake.lock equivalent to: nix flake update
-    *Default:* `False`
+- `--monitor` Build with nix-output-monitor _Default:_ `False`
 
-- `--monitor`
-    Build with nix-output-monitor
-    *Default:* `False`
-
-- `--help`
-    Show this message and exit.
-    *Default:* `False`
-
+- `--help` Show this message and exit. _Default:_ `False`

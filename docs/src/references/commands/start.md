@@ -1,28 +1,28 @@
-
 `nxc start`
 
 Starts a set of nodes using the previous build.
 
-`ROLE_DISTRIBUTION_FILE` is and optional YAML file describing how many instance of each role are expected.
+`ROLE_DISTRIBUTION_FILE` is and optional YAML file describing how many instance
+of each role are expected.
 
 ## Examples
 
 - `nxc start`
 
-   Start the last built composition.
+  Start the last built composition.
 
 - `nxc start role-distrib.yaml`
 
-    With the file `role-distrib.yaml` written as this:
+  With the file `role-distrib.yaml` written as this:
 
-    ```yaml
-    nfsServerNode: 1
-    nfsClientNode: 2
-    ```
+  ```yaml
+  nfsServerNode: 1
+  nfsClientNode: 2
+  ```
 
-    Instantiates two nodes with the role `nfsClientNode` and one only with the role `nfsServerNode`. Of course, these roles have to be described beforehand in a `composition.nix` file.
-
-
+  Instantiates two nodes with the role `nfsClientNode` and one only with the
+  role `nfsServerNode`. Of course, these roles have to be described beforehand
+  in a `composition.nix` file.
 
 ## Usage
 
@@ -30,89 +30,65 @@ Starts a set of nodes using the previous build.
 
 ## Options
 
-- `-I, --interactive`
-    drop into a python repl with driver functions
-    *Default:* `False`
+- `-I, --interactive` drop into a python repl with driver functions _Default:_
+  `False`
 
-- `-m, --machine-file`
-    file that contains remote machines names to (duplicates are considered as one).
+- `-m, --machine-file` file that contains remote machines names to (duplicates
+  are considered as one).
 
-- `-W, --wait-machine-file`
-    wait machine-file creation
-    *Default:* `False`
+- `-W, --wait-machine-file` wait machine-file creation _Default:_ `False`
 
-- `-s, --ssh`
-    specify particular ssh command
-    *Default:* `ssh -l root `
+- `-s, --ssh` specify particular ssh command _Default:_ `ssh -l root`
 
-- `-S, --sudo`
-    specify particular sudo command
-    *Default:* `sudo`
+- `-S, --sudo` specify particular sudo command _Default:_ `sudo`
 
-- `--push-path`
-    remote path where to push image, kernel and kexec_script on machines (use to re-kexec)
+- `--push-path` remote path where to push image, kernel and kexec_script on
+  machines (use to re-kexec)
 
-- `--reuse`
-    supposed a previous succeded start (w/ root access via ssh)
-    *Default:* `False`
+- `--reuse` supposed a previous succeded start (w/ root access via ssh)
+  _Default:_ `False`
 
-- `--remote-deployment-info`
-    deployement info is served by http (in place of kernel parameters)
-    *Default:* `False`
+- `--remote-deployment-info` deployement info is served by http (in place of
+  kernel parameters) _Default:_ `False`
 
-- `--port`
-    Port to use for the HTTP server
-    *Default:* `0`
+- `--port` Port to use for the HTTP server _Default:_ `0`
 
-- `-c, -C, --composition`
-    specify composition, can specify flavour e.g. composition::flavour
+- `-c, -C, --composition` specify composition, can specify flavour e.g.
+  composition::flavour
 
-- `-f, --flavour`
-    specify flavour
+- `-f, --flavour` specify flavour
 
-- `-t, --test-script`
-    execute testscript
-    *Default:* `False`
+- `-t, --test-script` execute testscript _Default:_ `False`
 
-- `--file-test-script`
-    alternative testscript
+- `--file-test-script` alternative testscript
 
-- `-w, --sigwait`
-    wait any signal to exit after a start only action (not testscript execution or interactive use
-    *Default:* `False`
+- `-w, --sigwait` wait any signal to exit after a start only action (not
+  testscript execution or interactive use _Default:_ `False`
 
-- `-k, --kernel-params`
-    additional kernel parameters, this option is flavour dependent
+- `-k, --kernel-params` additional kernel parameters, this option is flavour
+  dependent
 
-- `-r, --role-distribution`
-    specify the number of nodes or nodes' name for a role (e.g. compute=2 or server=foo,bar ).
+- `-r, --role-distribution` specify the number of nodes or nodes' name for a
+  role (e.g. compute=2 or server=foo,bar ).
 
 - `roles_distribution_file`
 
+- `--compose-info` specific compose info file
 
-- `--compose-info`
-    specific compose info file
+- `-i, --identity-file` path to the ssh public key to use to connect to the
+  deployments
 
-- `-i, --identity-file`
-    path to the ssh public key to use to connect to the deployments
+- `-s, --setup` Select setup variant
 
-- `-s, --setup`
-    Select setup variant
+- `-p, --parameter` Parameter added to deployment file (for contextualization
+  phase)
 
-- `-p, --parameter`
-    Parameter added to deployment file (for contextualization phase)
+- `-P, --parameter-file` Json file contains parameters added to deployment file
+  (for contextualization phase)
 
-- `-P, --parameter-file`
-    Json file contains parameters added to deployment file (for contextualization phase)
+- `-d, --deployment-file` Deployement json file use for the deployment (skip
+  generation) Warning parametrization not supported (upto now)
 
-- `-d, --deployment-file`
-    Deployement json file use for the deployment (skip generation) Warning parametrization not supported (upto now)
+- `--ip-range` IP range (for now only usable with nspawn flavour) _Default:_ ``
 
-- `--ip-range`
-    IP range (for now only usable with nspawn flavour)
-    *Default:* ``
-
-- `--help`
-    Show this message and exit.
-    *Default:* `False`
-
+- `--help` Show this message and exit. _Default:_ `False`

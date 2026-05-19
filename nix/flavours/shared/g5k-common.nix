@@ -27,7 +27,7 @@
     serviceConfig = {
       Type = "oneshot";
       Restart = "on-failure";
-      RestartSec=1;
+      RestartSec = 1;
     };
     #path = [ pkgs.hostname pkgs.iproute pkgs.jq ];
     script = ''

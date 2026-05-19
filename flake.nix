@@ -53,7 +53,8 @@
           doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
 
           packageName = "nixos-compose";
-        in {
+        in
+        {
           packages = {
             ${packageName} = app;
             # "${packageName}-full" = app.overrideAttrs(attr: rec {
@@ -80,8 +81,8 @@
             nxcShell = pkgs.mkShell {
               buildInputs = [
                 (pkgs.python3.withPackages (ps: [
-                    kapackpkgs.execo
-                    self.packages.${system}.${packageName}
+                  kapackpkgs.execo
+                  self.packages.${system}.${packageName}
                 ]))
                 pkgs.docker
                 pkgs.qemu_kvm
@@ -93,7 +94,7 @@
             venvShell = pkgs.mkShell {
               buildInputs = [
                 (pkgs.python3.withPackages (ps: [
-                    kapackpkgs.execo
+                  kapackpkgs.execo
                 ]))
                 pkgs.uv
                 pkgs.poetry
@@ -135,26 +136,27 @@
               inputsFrom = [ self.packages.${system}.${packageName} ];
             };
 
-            poetry-python311 = let
-              overlays = [
-                (final: prev: {
-                  poetry = prev.poetry.override { python3 = prev.python311; };
-                })
-              ];
-              pkgs_python311 = import nixpkgs {
-                inherit system overlays;
-              };
-            in
+            poetry-python311 =
+              let
+                overlays = [
+                  (final: prev: {
+                    poetry = prev.poetry.override { python3 = prev.python311; };
+                  })
+                ];
+                pkgs_python311 = import nixpkgs {
+                  inherit system overlays;
+                };
+              in
               pkgs_python311.mkShell {
-               buildInputs = with pkgs_python311; [
-                 python311
-                 poetry
-               ];
-               shellHook = ''
-                echo "Python version: $(python --version)"
-                echo "Python used by poetry : $(poetry run python --version)"
-               '';
-            };
+                buildInputs = with pkgs_python311; [
+                  python311
+                  poetry
+                ];
+                shellHook = ''
+                  echo "Python version: $(python --version)"
+                  echo "Python used by poetry : $(poetry run python --version)"
+                '';
+              };
           };
 
           formatter = pkgs.writeShellScriptBin "formatter" ''

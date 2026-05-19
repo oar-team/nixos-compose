@@ -1,5 +1,13 @@
-{ nixpkgs, system, flavour, overlays ? [ ], setup ? { }, nur ? { }, extraConfigurations ? [ ]
-,helpers, ... }:
+{ nixpkgs
+, system
+, flavour
+, overlays ? [ ]
+, setup ? { }
+, nur ? { }
+, extraConfigurations ? [ ]
+, helpers
+, ...
+}:
 composition:
 
 let
@@ -43,9 +51,10 @@ let
   };
 
   # only rolesDistribution, could be extended
-  optionalCompositionAttr = if compositionSet ? rolesDistribution then
-    { roles_distribution = compositionSet.rolesDistribution; }
-                            else {};
+  optionalCompositionAttr =
+    if compositionSet ? rolesDistribution then
+      { roles_distribution = compositionSet.rolesDistribution; }
+    else { };
 
   # name and tag of the base container image
   name = "nxc-docker-base-image";
@@ -67,41 +76,45 @@ let
   dockerPorts =
     if compositionSet ? dockerPorts then compositionSet.dockerPorts else { };
 
-  dockerComposeConfig.services = lib.mapAttrs (roleName: _:
-    let
-      builtConfig = allConfig.${roleName};
-    in {
-      privileged = true;
-      cgroup = "host";
-      cap_add = [ "SYS_ADMIN" "SYS_NICE" ];
-      command = [ "${builtConfig.toplevel}/init" ];
-      environment = {
-        NIX_REMOTE = "";
-        PATH = "/bin:/usr/bin:/run/current-system/sw/bin";
-        container = "docker";
-      };
-      hostname = roleName;
-      image = "${name}:${tag}";
-      stop_signal = "SIGINT";
-      tmpfs = [ "/run" "/run/wrappers:exec,suid" "/tmp:exec,mode=777" ];
-      tty = true;
-      volumes = [
-        "/sys/fs/cgroup:/sys/fs/cgroup:rw"
-        "/nix/store:/nix/store:ro"
-        "${baseEnv}:/run/system:ro"
-        "/tmp/shared:/tmp/shared:rw"
-        "nxc-shared:/var/nxc/shared"
-      ] ++ extraVolumes;
-      ports =
-        if dockerPorts ? "${roleName}" then dockerPorts."${roleName}" else [ ];
-    }) roles;
+  dockerComposeConfig.services = lib.mapAttrs
+    (roleName: _:
+      let
+        builtConfig = allConfig.${roleName};
+      in
+      {
+        privileged = true;
+        cgroup = "host";
+        cap_add = [ "SYS_ADMIN" "SYS_NICE" ];
+        command = [ "${builtConfig.toplevel}/init" ];
+        environment = {
+          NIX_REMOTE = "";
+          PATH = "/bin:/usr/bin:/run/current-system/sw/bin";
+          container = "docker";
+        };
+        hostname = roleName;
+        image = "${name}:${tag}";
+        stop_signal = "SIGINT";
+        tmpfs = [ "/run" "/run/wrappers:exec,suid" "/tmp:exec,mode=777" ];
+        tty = true;
+        volumes = [
+          "/sys/fs/cgroup:/sys/fs/cgroup:rw"
+          "/nix/store:/nix/store:ro"
+          "${baseEnv}:/run/system:ro"
+          "/tmp/shared:/tmp/shared:rw"
+          "nxc-shared:/var/nxc/shared"
+        ] ++ extraVolumes;
+        ports =
+          if dockerPorts ? "${roleName}" then dockerPorts."${roleName}" else [ ];
+      })
+    roles;
 
   dockerComposeConfigJSON = pkgs.writeTextFile {
     name = "docker-compose";
     text = builtins.toJSON dockerComposeConfig;
   };
 
-in pkgs.writeTextFile {
+in
+pkgs.writeTextFile {
   name = "compose-info.json";
   text = builtins.toJSON ({
     inherit image;
@@ -109,5 +122,5 @@ in pkgs.writeTextFile {
     docker-compose-file = dockerComposeConfigJSON;
     test_script = testScriptFile;
     flavour = flavour.name;
-  } // optionalCompositionAttr );
+  } // optionalCompositionAttr);
 }
