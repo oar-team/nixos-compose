@@ -29,3 +29,7 @@
 # Tue May 19 13:52:36 2026 +0200
 # treewide: formatting pass 1 (nix, md, yaml, toml)
 1cffe9ea5b70b54e490db20c0d90be24fba234c9
+
+# Tue May 19 15:03:00 2026 +0200
+# treewide: formatting pass 2 (py, toml, nix)
+ff344b81c2cb31d12e56bc312262f4e2de3ce666
