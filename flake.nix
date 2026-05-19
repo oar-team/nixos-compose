@@ -12,6 +12,7 @@
     flake-utils.lib.eachDefaultSystem
       (system:
         let
+          inherit (nixpkgs) lib;
           mdbook-admonish =
             nixpkgs.legacyPackages.${system}.callPackage ./docs/mdbook-admonish.nix { };
           pkgs = nixpkgs.legacyPackages.${system};
@@ -154,9 +155,26 @@
                 echo "Python used by poetry : $(poetry run python --version)"
                '';
             };
-
           };
 
+          formatter = pkgs.writeShellScriptBin "formatter" ''
+            set -eoux pipefail
+            shopt -s globstar
+            root="$PWD"
+            while [[ ! -f "$root/.git/index" ]]; do
+              if [[ "$root" == "/" ]]; then
+                exit 1
+              fi
+              root="$(dirname "$root")"
+            done
+            pushd "$root" > /dev/null
+            ${lib.getExe pkgs.deno} fmt **/*.md **/*.yaml
+            ${lib.getExe pkgs.nixpkgs-fmt} .
+            ${lib.getExe pkgs.taplo} format pyproject.toml
+            # ${lib.getExe pkgs.ruff} check --fix --unsafe-fixes --preview .
+            # ${lib.getExe pkgs.mypy} .
+            popd
+          '';
         }) //
     { lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix; overlay = import ./overlay.nix { inherit self; }; };
 }
