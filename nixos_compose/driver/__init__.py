@@ -1,11 +1,5 @@
-from pathlib import Path
-import argparse
-import ptpython.repl
-import os
-import time
-
-from .logger import rootlog
 from .driver import Driver
+from .logger import rootlog as rootlog
 
 
 def generate_driver_symbols() -> None:

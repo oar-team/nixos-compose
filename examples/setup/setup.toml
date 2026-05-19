@@ -1,8 +1,8 @@
 [project]
 
 [params]
-a="hello world"
-b=10
+a = "hello world"
+b = 10
 
 # build arguments can be setted w/ options, cli arguments will overrides them if any
 # [options]
@@ -15,8 +15,8 @@ b=10
 [test.params]
 # to select this varitant use:
 # nxc build --setup test
-a="hello world"
-b=10
+a = "hello world"
+b = 10
 
 [dev.params]
 # to select this varitant use:
@@ -24,8 +24,8 @@ b=10
 # previous command raises error during testScript execution, the next below does not which
 # uses parameter overridiing
 # nxc build --setup dev --setup-param "a=hello world" --setup-param b=10
-a="hello"
-b=20
+a = "hello"
+b = 20
 
 # build arguments can be setted w/ options, cli arguments will overrides them if any
 # [dev.build.options]

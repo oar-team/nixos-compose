@@ -1,21 +1,22 @@
+import base64
+import glob
+import ipaddress
+import itertools
 import json
 import os
 import os.path as op
-import glob
-import socket
-import sys
 import shutil
-import subprocess
-import time
-import base64
-import click
 import signal
-import psutil
-import itertools
-import ipaddress
+import socket
+import subprocess
+import sys
+import time
 import urllib.request
 
-from .tools.kataract import generate_scp_tasks, exec_kataract_tasks
+import click
+import psutil
+
+from .tools.kataract import exec_kataract_tasks, generate_scp_tasks
 
 # from .default_role import DefaultRole #TODO
 
@@ -93,7 +94,7 @@ def realpath_from_store_remote(ctx, path, remote_store_url=None):
                 cmd += ["-p", s[1]]
             cmd += [s[0], "ls", path]
             ctx.vlog(f"Check path in remote store: {cmd}")
-            retcode = subprocess.run(cmd).returncode
+            retcode = subprocess.run(cmd, check=False).returncode
             if retcode:
                 ctx.vlog(f"Remote store check of path failed, return code: {retcode}")
             else:
@@ -171,7 +172,6 @@ def read_deployment_info(ctx, deployment_file=None, flavour=None, tag=None):
             ctx.wlog(
                 "Composition from built ({ctx.composition_name}) is different from deployment ({composition_name})"
             )
-    return
 
 
 def read_deployment_info_str(ctx, deployment_file=None):
@@ -243,11 +243,11 @@ def read_compose_info(ctx):
             )
 
     ctx.compose_info = compose_info
-    return
 
 
 def get_machine_from_file(ctx):
-    machines = [machine.rstrip() for machine in open(ctx.machine_file, "r")]
+    with open(ctx.machine_file, "r") as f:
+        machines = [machine.rstrip() for machine in f]
     if not machines:
         ctx.elog(f"Machine file '{ctx.machine_file}' is empty")
         sys.exit(1)
@@ -262,7 +262,6 @@ def translate_hosts2ip(ctx, hosts):
             ip = socket.gethostbyname_ex(host)[2][0]
             ctx.host2ip_address[host] = ip
             ctx.ip_addresses.append(ip)
-    return
 
 
 def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
@@ -274,7 +273,7 @@ def populate_deployment_vm_by_ip(ctx, roles_info, roles_distribution):
     ips = []
     for role, v in roles_info.items():
         for hostname in roles_distribution[role]:
-            ip = "192.168.1.{}".format(i)
+            ip = f"192.168.1.{i}"
             ips.append(ip)
             # deployment[ip] = {"role": role, "vm_id": i}
             deployment[ip] = {
@@ -298,7 +297,7 @@ def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=
     #     roles = roles_info
     # else:
     #     roles = roles_info.keys()
-    for role in roles_info.keys():
+    for role in roles_info:
         if role in roles_distribution_in:
             roles_distribution[role] = roles_distribution_in[role]
         elif (
@@ -391,7 +390,7 @@ def health_check_roles_distribution(ctx, roles_info, roles_distribution_in, ips=
     all_hostnames = list(itertools.chain.from_iterable(roles_distribution.values()))
     set_hostnames = set(all_hostnames)
     if len(all_hostnames) != len(set_hostnames):
-        raise Exception("Conflict in the naming of the nodes")
+        raise RuntimeError("Conflict in the naming of the nodes")
 
     return roles_distribution
 
@@ -405,13 +404,13 @@ def populate_deployment_ips(ctx, roles_info, ips, roles_distribution):
     for role, v in roles_info.items():
         if role not in roles_distribution:
             ctx.elog(f"role: {role} not found in roles-distribution file")
-            exit(1)
+            sys.exit(1)
         for hostname in roles_distribution[role]:
             try:
                 ip = ips[i]
             except IndexError as e:
                 ctx.elog(f"Not enough nodes are available for the deployment: {e}")
-                exit(1)
+                sys.exit(1)
             # TODO Ugly need core refactoring to remove it
             if hasattr(ctx.flavour, "host_info"):
                 deployment[ip] = ctx.flavour.host_info(role, hostname, v)
@@ -503,8 +502,6 @@ def generate_deployment_info(ctx, ssh_pub_key_file=None):
 
     ctx.deployment_info = deployment
 
-    return
-
 
 def generate_kexec_scripts(ctx, flavour_kernel_params=""):
     if ctx.use_httpd:
@@ -539,7 +536,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
             kexec_script.write("kexec -e\n")
         os.chmod(script_path, 0o755)
     else:
-        for ip, v in ctx.deployment_info["deployment"].items():
+        for v in ctx.deployment_info["deployment"].values():
             role = v["role"]
             kernel_path = f"{base_path}/kernel_{role}"
             initrd_path = f"{base_path}/initrd_{role}"
@@ -562,7 +559,7 @@ def generate_kexec_scripts(ctx, flavour_kernel_params=""):
 def generate_deploy_info_b64(ctx):
     deployment_info = {
         k: ctx.deployment_info[k]
-        for k in [n for n in ctx.deployment_info.keys() if n != "deployment"]
+        for k in [n for n in ctx.deployment_info if n != "deployment"]
     }
 
     deployment = {
@@ -585,7 +582,6 @@ def generate_deploy_info_b64(ctx):
             "The base64 encoded deploy data is too large: use an http server to serve it"
         )
         sys.exit(1)
-    return
 
 
 def artifact_copy_all_kernel_initrd(ctx):
@@ -706,10 +702,12 @@ def launch_ssh_kexec(ctx, ip=None, debug=False, push_path=None):
         if ip:
             one_ssh_kexec(ip)
         else:
-            for ip in ctx.deployment_info["deployment"].keys():
-                one_ssh_kexec(ip)
+            for deploy_ip in ctx.deployment_info["deployment"]:
+                one_ssh_kexec(deploy_ip)
     else:
-        raise Exception("Sorry, only all-in-one image version is supported up to now")
+        raise RuntimeError(
+            "Sorry, only all-in-one image version is supported up to now"
+        )
 
     if ctx.show_spinner:
         ctx.spinner.succeed("Remote kexec(s) launched")
@@ -736,20 +734,20 @@ def wait_ssh_ports(ctx, ips=None):
         nb_ssh_port = int(output.rstrip().decode())
         if ctx.show_spinner:
             ctx.spinner.text(
-                "Opened ssh ports: {}/{} ({:.1f}s)".format(
-                    nb_ssh_port, nb_ips, ctx.elapsed_time()
-                )
+                f"Opened ssh ports: {nb_ssh_port}/{nb_ips} ({ctx.elapsed_time():.1f}s)"
             )
         time.sleep(0.25)
     if ctx.show_spinner:
-        ctx.spinner.succeed("Deployment taken {:.1f} sec".format(ctx.elapsed_time()))
+        ctx.spinner.succeed(f"Deployment taken {ctx.elapsed_time():.1f} sec")
     else:
-        ctx.vlog("Deployment took {:.1f}s".format(ctx.elapsed_time()))
+        ctx.vlog(f"Deployment took {ctx.elapsed_time():.1f}s")
 
 
 def push_on_machines(ctx, push_path=None):
     if "all" not in ctx.deployment_info:
-        raise Exception("Sorry, only all-in-one image version is supported up to now")
+        raise RuntimeError(
+            "Sorry, only all-in-one image version is supported up to now"
+        )
 
     kernel = realpath_from_store(ctx, ctx.deployment_info["all"]["kernel"])
     initrd = realpath_from_store(ctx, ctx.deployment_info["all"]["initrd"])
@@ -826,7 +824,7 @@ def ssh_connect(ctx, user, host, execute=True, ssh_key_file=None):
     )
 
     if execute:
-        return_code = subprocess.run(ssh_cmd, shell=True).returncode
+        return_code = subprocess.run(ssh_cmd, shell=True, check=False).returncode
 
         if return_code:
             ctx.wlog(f"SSH exit code is not null: {return_code}")
@@ -843,7 +841,7 @@ def connect_tmux(
 ):
     if not nodes:
         deploy = ctx.deployment_info["deployment"]
-        node = (list(deploy.keys()))[0]
+        node = next(iter(deploy.keys()))
         try:
             ipaddress.ip_address(node)
             nodes = [v["host"] for v in deploy.values()]
@@ -867,7 +865,7 @@ def connect_tmux(
 
     # translate geometry
     if "+" in geometry and "*" in geometry:
-        raise Exception("Mixing + and * in geometry is not supported")
+        raise RuntimeError("Mixing + and * in geometry is not supported")
     if "+" in geometry:
         splitw = [int(i) for i in geometry.split("+")]
         splitw.reverse()
@@ -925,7 +923,7 @@ def connect_tmux(
 
         for h in range(splitw[v] - 1):
             ratio_v = round(100 * (1 - (1.0 / (splitw[v] - h))))
-            cmd = f"tmux splitw -v -p {ratio_v} -t {window_name}.{h+pane0} {cmds[i]}"
+            cmd = f"tmux splitw -v -p {ratio_v} -t {window_name}.{h + pane0} {cmds[i]}"
             # print(cmd)
             subprocess.call(cmd, shell=True)
             i += 1
@@ -1006,11 +1004,13 @@ def install_nix_static(
 
     ctx.log(f"Retrieving... {remote_nix_filename}")
 
-    with urllib.request.urlopen(
-        f"https://gitlab.inria.fr/nixos-compose/nix-static/-/raw/main/bin/{remote_nix_filename}"
-    ) as response:
-        with open(nix_path, "wb") as output_file:
-            shutil.copyfileobj(response, output_file)
+    with (
+        urllib.request.urlopen(
+            f"https://gitlab.inria.fr/nixos-compose/nix-static/-/raw/main/bin/{remote_nix_filename}"
+        ) as response,
+        open(nix_path, "wb") as output_file,
+    ):
+        shutil.copyfileobj(response, output_file)
 
     os.chmod(nix_path, 0o755)
 

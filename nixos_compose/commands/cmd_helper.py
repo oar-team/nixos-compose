@@ -1,9 +1,11 @@
-import click
-import sys
 import socket
+import sys
+
+import click
+
+from ..actions import get_ip_ssh_port, install_nix_static
 from ..context import pass_context
-from ..g5k import key_sleep_script, g5k_get_seed_store
-from ..actions import install_nix_static, get_ip_ssh_port
+from ..g5k import g5k_get_seed_store, key_sleep_script
 from ..tools.nested_deployment import main as nested
 
 

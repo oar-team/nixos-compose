@@ -1,10 +1,11 @@
-import click
+import glob
 import os
 import os.path as op
-import glob
 
-from ..context import pass_context
+import click
+
 from ..actions import read_deployment_info
+from ..context import pass_context
 from ..flavours import get_flavour_by_name
 
 

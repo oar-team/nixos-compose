@@ -1,9 +1,10 @@
 import os
 import os.path as op
-import click
 import shutil
 
-from ..context import pass_context, on_finished
+import click
+
+from ..context import on_finished, pass_context
 
 NXC_FOLDER_PATH = op.abspath(op.join(op.dirname(__file__), "../../nxc"))
 NXC_JSON_PATH = op.abspath(op.join(op.dirname(__file__), "../../nxc.json"))

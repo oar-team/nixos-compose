@@ -1,14 +1,14 @@
-import click
 import json
 import re
 import sys
+
+import click
 import ptpython.repl
 
-from ..context import pass_context
 from ..actions import read_deployment_info, realpath_from_store
-from ..flavours import get_flavour_by_name
-
+from ..context import pass_context
 from ..driver.driver import Driver
+from ..flavours import get_flavour_by_name
 
 
 @click.command("driver")
@@ -103,7 +103,7 @@ def cli(ctx, user, deployment_file, flavour, test_script_file, test_script):
         if test_script:
             try:
                 driver.test_script()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - test script errors are reported via elog
                 ctx.elog(e)
                 sys.exit(1)
         else:

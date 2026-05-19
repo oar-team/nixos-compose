@@ -5,24 +5,24 @@
 #
 # LICENSE:
 # BSD 3-Clause License
-# 
+#
 # Copyright (c) 2021, Rivery
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 # 1. Redistributions of source code must retain the above copyright notice, this
 #    list of conditions and the following disclaimer.
-# 
+#
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
-# 
+#
 # 3. Neither the name of the copyright holder nor the names of its
 #    contributors may be used to endorse or promote products derived from
 #    this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -34,10 +34,10 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import pathlib
 import importlib
 import itertools
 import os
+import pathlib
 
 import click
 
@@ -61,13 +61,14 @@ def trim_trailing_spaces(data: str):
     """
     Trim trailing whitespaces from text.
     """
-    return '\n'.join(line.rstrip() for line in data.splitlines())
+    return "\n".join(line.rstrip() for line in data.splitlines())
 
 
 def trim_empty_lines(data: str):
     """
     Remove empty lines from start and end of text.
     """
+
     def empty(x):
         return x == ""
 
@@ -76,7 +77,7 @@ def trim_empty_lines(data: str):
     lines = reversed(lines)
     lines = list(itertools.dropwhile(empty, lines))
     lines = reversed(lines)
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def trim_docstring(data):
@@ -88,14 +89,13 @@ def trim_docstring(data):
     """
     lines = trim_empty_lines(data).splitlines()
 
-    common_indentation = min([
-        len(list(itertools.takewhile(
-            lambda x: x == ' ' or x == '\t',
-            line
-        ))) for line in lines if line
-    ])
+    common_indentation = min(
+        len(list(itertools.takewhile(lambda x: x == " " or x == "\t", line)))
+        for line in lines
+        if line
+    )
 
-    return '\n'.join([line[common_indentation:] for line in lines])
+    return "\n".join([line[common_indentation:] for line in lines])
 
 
 def recursive_help(cmd, parent=None):
@@ -112,22 +112,24 @@ def recursive_help(cmd, parent=None):
     yield {
         "command": cmd,
         "help": cmd.get_help(ctx),
-        "parent": parent.info_name if parent else '',
+        "parent": parent.info_name if parent else "",
         "usage": cmd.get_usage(ctx),
         "params": cmd.get_params(ctx),
         "options": cmd.collect_usage_pieces(ctx),
-        "commands": {sub_command_name: cmd.get_command(ctx, sub_command_name) for sub_command_name in commands}
+        "commands": {
+            sub_command_name: cmd.get_command(ctx, sub_command_name)
+            for sub_command_name in commands
+        },
     }
-    
+
     for sub_command_name in commands:
-        for helpdct in recursive_help(cmd.get_command(ctx, sub_command_name), ctx):
-            yield helpdct
+        yield from recursive_help(cmd.get_command(ctx, sub_command_name), ctx)
 
 
 def format_option(opt):
-    usage = ', '.join(opt.get('usage').splitlines())
-    required = ' (REQUIRED)' if opt.get('required') else ''
-    default_value = opt.get('default', None)
+    usage = ", ".join(opt.get("usage").splitlines())
+    required = " (REQUIRED)" if opt.get("required") else ""
+    default_value = opt.get("default", None)
 
     # special case
     if default_value == os.getcwd():
@@ -145,17 +147,16 @@ def format_option(opt):
 
 def shorten_help(help_message: str) -> str:
     # Get the first line with content
-    for line in  help_message.split('\n'):
+    for line in help_message.split("\n"):
         if line:
             short_help = line.strip()
             break
-    short_help = info = (short_help[:80] + '...') if len(short_help) > 80 else short_help
+    short_help = (short_help[:80] + "...") if len(short_help) > 80 else short_help
     return short_help
 
 
-
 def dump_helper(base_command, docs_dir):
-    """ Dumping help usage files from Click Help files into an md """
+    """Dumping help usage files from Click Help files into an md"""
     docs_path = pathlib.Path(docs_dir)
     for helpdct in recursive_help(base_command):
         command = helpdct["command"]
@@ -164,14 +165,14 @@ def dump_helper(base_command, docs_dir):
 
         options = {
             opt.name: {
-                "usage": '\n'.join(opt.opts),
+                "usage": "\n".join(opt.opts),
                 "prompt": getattr(opt, "prompt", None),
                 "required": getattr(opt, "required", None),
                 "default": getattr(opt, "default", None),
                 "help": getattr(opt, "help", None),
-                "type": str(getattr(opt, "type", None))
+                "type": str(getattr(opt, "type", None)),
             }
-            for opt in helpdct.get('params', [])
+            for opt in helpdct.get("params", [])
         }
 
         if helpdct.get("parent"):
@@ -183,28 +184,29 @@ def dump_helper(base_command, docs_dir):
             command_name=command_name,
             description=trim_docstring(command.help),
             usage=usage.removeprefix("Usage: "),
-            options="".join([
-                format_option(opt)
-                for _, opt in options.items()
-            ]),
-            help=helptxt
+            options="".join([format_option(opt) for opt in options.values()]),
+            help=helptxt,
         )
         if helpdct.get("commands"):
             commands = "\n".join([
-                f"- `{cmd_name}`\n    {shorten_help(cmd_value.help)}" for cmd_name, cmd_value in helpdct["commands"].items()])
-            md_template += """## Commands
+                f"- `{cmd_name}`\n    {shorten_help(cmd_value.help)}"
+                for cmd_name, cmd_value in helpdct["commands"].items()
+            ])
+            md_template += f"""## Commands
 
 {commands}
-""".format(commands=commands)
+"""
 
         if not docs_path.exists():
             # Create md file dir if needed
             docs_path.mkdir(parents=True, exist_ok=False)
 
-        md_file_path = docs_path.joinpath(command.name.replace(' ', '-').lower() + '.md').absolute()
+        md_file_path = docs_path.joinpath(
+            command.name.replace(" ", "-").lower() + ".md"
+        ).absolute()
 
         # Create the file per each command
-        with open(md_file_path, 'w', encoding='utf-8') as md_file:
+        with open(md_file_path, "w", encoding="utf-8") as md_file:
             md_file.write(trim_trailing_spaces(md_template))
 
 
@@ -213,10 +215,16 @@ def cli():
     pass
 
 
-@cli.command('dumps')
-@click.option('--baseModule', help='The base command module path to import', required=True)
-@click.option('--baseCommand', help='The base command function to import', required=True)
-@click.option('--docsPath', help='The docs dir path to write the md files', required=True)
+@cli.command("dumps")
+@click.option(
+    "--baseModule", help="The base command module path to import", required=True
+)
+@click.option(
+    "--baseCommand", help="The base command function to import", required=True
+)
+@click.option(
+    "--docsPath", help="The docs dir path to write the md files", required=True
+)
 def dumps(**kwargs):
     """
     # Click-md
@@ -224,32 +232,34 @@ def dumps(**kwargs):
     in format of `command.md`,
     under the `--docsPath` directory.
     """
-    base_module = kwargs.get('basemodule')
-    base_command = kwargs.get('basecommand')
-    docs_path = kwargs.get('docspath')
+    base_module = kwargs.get("basemodule")
+    base_command = kwargs.get("basecommand")
+    docs_path = kwargs.get("docspath")
 
-    click.secho(f'Creating a new documents from {base_module}.{base_command} into {docs_path}',
-                color='green')
+    click.secho(
+        f"Creating a new documents from {base_module}.{base_command} into {docs_path}",
+        color="green",
+    )
 
     try:
         # Import the module
         module_ = importlib.import_module(base_module)
-    except Exception as e:
-        click.echo(f'Could not find module: {base_module}. Error: {str(e)}')
+    except Exception as e:  # noqa: BLE001 - report any import failure to the user
+        click.echo(f"Could not find module: {base_module}. Error: {e!s}")
         return
 
     try:
         # Import the base command (group of command) function inside the module
         command_ = getattr(module_, base_command)
     except AttributeError:
-        click.echo(f'Could not find command {base_command} on module {base_module}')
+        click.echo(f"Could not find command {base_command} on module {base_module}")
         return
 
     try:
         dump_helper(command_, docs_dir=docs_path)
-        click.secho(f'Created docs under {docs_path}', color='green')
+        click.secho(f"Created docs under {docs_path}", color="green")
     except Exception as e:
-        click.secho(f'Dumps command failed: {str(e)}', color='red')
+        click.secho(f"Dumps command failed: {e!s}", color="red")
         raise
 
     return

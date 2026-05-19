@@ -1,14 +1,16 @@
+import json
 import os
 import socket
-import click
 import subprocess
-import json
 import time
+
+import click
 from halo import Halo
+
 from .actions import nix_store_location
 
 
-class Platform(object):
+class Platform:
     def __init__(self, ctx, name):
         self.name = name
         self.copy_from_store = False
@@ -55,7 +57,7 @@ class Grid5000Platform(Platform):
             oar_job_id_str = os.environ["OAR_JOB_ID"]
         else:
             # we get the last one
-            oar_job_ids = [int(jid) for jid in o.keys()]
+            oar_job_ids = [int(jid) for jid in o]
             oar_job_ids.sort()
             if oar_job_ids:
                 oar_job_id_str = str(oar_job_ids[-1])
@@ -68,7 +70,7 @@ class Grid5000Platform(Platform):
         ctx.log(f"target OAR_JOB_ID={oar_job_id_str}")
 
         # TODO test when job exist but not Running or Launching (other states not supported)
-        if oar_job_id_str in o.keys():
+        if oar_job_id_str in o:
             oar_job = o[oar_job_id_str]
             if oar_job["state"] not in ["Running", "Launching", "Waiting"]:
                 raise click.ClickException(
@@ -86,7 +88,7 @@ class Grid5000Platform(Platform):
         while not oar_job or oar_job["state"] != "Running":
             time.sleep(0.25)
             o = oarstat()
-            if oar_job_id_str in o.keys():
+            if oar_job_id_str in o:
                 oar_job = o[oar_job_id_str]
 
         if halo:
@@ -115,4 +117,3 @@ def platform_detection(ctx):
         ctx.platform = Grid5000Platform(ctx)
     else:
         click.echo("      no particular platform detected, local mode will be used")
-    return

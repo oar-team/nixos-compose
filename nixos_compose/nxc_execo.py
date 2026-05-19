@@ -1,13 +1,13 @@
+import os
+import os.path as op
+import tempfile
+from pathlib import Path
+
 from execo import Host
 from execo_g5k import get_oar_job_nodes
 
-import os
-import os.path as op
-from pathlib import Path
-
-import tempfile
-from .context import Context
 from .actions import realpath_from_store, translate_hosts2ip, wait_ssh_ports
+from .context import Context
 from .flavours import get_flavour_by_name
 
 # from .g5k import key_sleep_script
@@ -25,7 +25,7 @@ def get_envdir(ctx):
 
         ctx.envdir = op.dirname(ctx.nxc_file)
     else:
-        raise Exception("Cannot find `nxc.json`")
+        raise RuntimeError("Cannot find `nxc.json`")
 
 
 def get_oar_job_nodes_nxc(
@@ -34,7 +34,7 @@ def get_oar_job_nodes_nxc(
     compose_info_file=None,
     flavour_name="g5k-nfs-store",
     composition_name="composition",
-    roles_quantities={},
+    roles_quantities=None,
     port=0,
     skip_deploy=False,
     image_store_ssh=None,
@@ -43,6 +43,8 @@ def get_oar_job_nodes_nxc(
     Brother of the "get_oar_job_nodes" function from execo
     but does the mapping with roles from NXC
     """
+    if roles_quantities is None:
+        roles_quantities = {}
     ctx = Context()
     # TODO: kaberk
     ctx.composition_name = composition_name
@@ -82,10 +84,10 @@ def get_oar_job_nodes_nxc(
         tmp_dir.mkdir(mode=0o700, exist_ok=True)
         flavour.driver_initialize(tmp_dir)
         # TODO _vlan = flavour.create_vlan()
-        machines = list(map(lambda x: (x.ip, x.ssh_port), flavour.machines))
-        flavour.ctx.ip_addresses = list(map(lambda x: x[0], machines))
+        machines = [(x.ip, x.ssh_port) for x in flavour.machines]
+        flavour.ctx.ip_addresses = [x[0] for x in machines]
     else:
-        raise Exception(
+        raise RuntimeError(
             f"Unsupported flavour '{flavour}' for the Execo-NXC integration"
         )
 
@@ -106,8 +108,8 @@ def get_oar_job_nodes_nxc(
         else:
             user = os.environ["USER"]
             tempfile.tempdir = f"/home/{user}/public"
-            tmp = tempfile.NamedTemporaryFile(delete=False)
-            tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)
+            tmp = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115 - managed manually via delete=False, cleanup outside scope
+            tmp_kaenv = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115 - managed manually via delete=False, cleanup outside scope
             temp_dir = tempfile.TemporaryDirectory()
             try:
                 machines_str = "\n".join(f"{m}" for m in machines)

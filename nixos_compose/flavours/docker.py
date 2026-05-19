@@ -1,21 +1,20 @@
+import copy
+import json
 import os
 import os.path as op
-import json
 import subprocess
-import click
-import copy
 
-from ..flavour import Flavour
+import click
+
 from ..actions import read_compose_info, realpath_prefix_from_store
+from ..default_role import DefaultRole
 from ..driver.logger import rootlog
 from ..driver.machine import Machine
-from ..default_role import DefaultRole
-
-from typing import Tuple, Optional
+from ..flavour import Flavour
 
 
 def set_prefix_store_volumes(dc_json, prefix_store):
-    for service in dc_json["services"].keys():
+    for service in dc_json["services"]:
         volumes = dc_json["services"][service]["volumes"]
         volumes_out = []
         for vol in volumes:
@@ -64,13 +63,11 @@ def generate_docker_compose_file(ctx):
             os.symlink(deployment_file, deployment_symlink)
 
         for service in dc_json["services"].values():
-            (service["volumes"]).append(
-                {
-                    "type": "bind",
-                    "source": deployment_symlink,
-                    "target": "/etc/nxc/deployment.json",
-                }
-            )
+            (service["volumes"]).append({
+                "type": "bind",
+                "source": deployment_symlink,
+                "target": "/etc/nxc/deployment.json",
+            })
         for role, distribution in roles_distribution.items():
             if type(distribution) is int:
                 if distribution == 1:
@@ -111,7 +108,7 @@ def generate_docker_compose_file(ctx):
                         docker_compose_content["services"][hostname] = config
                         nodes_info[hostname] = role
             else:
-                raise Exception("Unvalid type for specifying the roles of the nodes")
+                raise RuntimeError("Unvalid type for specifying the roles of the nodes")
         dc_json.pop("services")
         docker_compose_content = docker_compose_content | dc_json
 
@@ -216,9 +213,14 @@ class DockerFlavour(Flavour):
     def start_all(self):
         if not self.external_connect:
             with rootlog.nested("starting docker compose"):
-                subprocess.Popen(
-                    ["docker", "compose", "-f", self.docker_compose_file, "up", "-d"]
-                )
+                subprocess.Popen([
+                    "docker",
+                    "compose",
+                    "-f",
+                    self.docker_compose_file,
+                    "up",
+                    "-d",
+                ])
 
             self.wait_on_check()
 
@@ -231,29 +233,27 @@ class DockerFlavour(Flavour):
         assert machine.name
         assert self.docker_compose_file
 
-        machine.start_process_shell(
-            [
-                "docker",
-                "compose",
-                "-f",
-                self.docker_compose_file,
-                "exec",
-                "-u",
-                "root",
-                "-T",
-                machine.name,
-                "bash",
-                "-l",
-            ]
-        )
+        machine.start_process_shell([
+            "docker",
+            "compose",
+            "-f",
+            self.docker_compose_file,
+            "exec",
+            "-u",
+            "root",
+            "-T",
+            machine.name,
+            "bash",
+            "-l",
+        ])
 
     def execute(
         self,
         machine,
         command: str,
         check_return: bool = True,
-        timeout: Optional[int] = 900,
-    ) -> Tuple[int, str]:
+        timeout: int | None = 900,
+    ) -> tuple[int, str]:
         return machine.execute_process_shell(command, check_return, timeout)
 
     def restart(self, machine):
@@ -263,16 +263,14 @@ class DockerFlavour(Flavour):
         # TODO handle stdout/stderr
         if not self.docker_compose_file:
             self.docker_compose_file = self.ctx.deployment_info["docker-compose-file"]
-        subprocess.Popen(
-            [
-                "docker",
-                "compose",
-                "-f",
-                self.docker_compose_file,
-                "down",
-                "--remove-orphans",
-            ]
-        )
+        subprocess.Popen([
+            "docker",
+            "compose",
+            "-f",
+            self.docker_compose_file,
+            "down",
+            "--remove-orphans",
+        ])
 
     def shell_interact(self, machine) -> None:
         self.connect(machine)
@@ -285,7 +283,7 @@ class DockerFlavour(Flavour):
         cmd = f"docker compose -f {self.docker_compose_file} exec -u {user} {node} bash"
         print(f"ext_connect {cmd}")
         if execute:
-            return_code = subprocess.run(cmd, shell=True).returncode
+            return_code = subprocess.run(cmd, shell=True, check=False).returncode
 
             if return_code:
                 self.ctx.wlog(f"Docker exit code is not null: {return_code}")

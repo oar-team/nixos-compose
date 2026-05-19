@@ -1,17 +1,15 @@
+import builtins
+import json
 import os
 import os.path as op
-import json
 import re
 import subprocess
 import sys
-
-from io import open
 
 import click
 
 from ..actions import get_nix_command
 from ..context import pass_context
-
 from ..platform import platform_detection
 from ..utils import copy_tree
 
@@ -85,10 +83,11 @@ def cli(
 
     nxc_json_file = op.abspath(op.join(ctx.envdir, "nxc.json"))
     description_flavours_file = op.abspath(op.join(NXC_NIX_PATH, "flavours.json"))
-    description_flavours = json.load(open(description_flavours_file, "r"))
+    with builtins.open(description_flavours_file, "r") as f:
+        description_flavours = json.load(f)
 
     if list_flavours:
-        for k in description_flavours.keys():
+        for k in description_flavours:
             click.echo(f"{k: <18}: {description_flavours[k]['description']}")
         sys.exit(0)
 
@@ -109,7 +108,8 @@ def cli(
             # stderr=subprocess.DEVNULL,
         )
 
-        list_templates = json.load(open(out_file, "r"))
+        with builtins.open(out_file, "r") as f:
+            list_templates = json.load(f)
         print(json.dumps(list_templates, indent=4))
         sys.exit(0)
 
@@ -124,6 +124,7 @@ def cli(
     res = subprocess.run(
         nix_cmd_base + ["flake", "new", "-t", f"{flake_location}#{template}", "nxc"],
         capture_output=True,
+        check=False,
     )
     # Workaround for nix 2.10.3 due to bug with flae new -t and store located in  ~/.local/share/nix/root
     # Should be resolved with availability of source tree abstraction
@@ -135,7 +136,7 @@ def cli(
         local_store_path = list(filter(r.match, res_error.split()))
         if local_store_path:
             copy_tree(local_store_path[0][1:-1], ctx.envdir)
-            subprocess.run(["chmod", "-R", "gu+w", ctx.envdir])
+            subprocess.run(["chmod", "-R", "gu+w", ctx.envdir], check=False)
         else:
             ctx.elog("Flake new from template failed:")
             ctx.elog(f"returncode: {res.returncode}")
@@ -158,7 +159,7 @@ def cli(
 
         click.echo("   " + create + "  " + nxc_json_file)
 
-        with open(nxc_json_file, "w") as f:
+        with builtins.open(nxc_json_file, "w") as f:
             f.write(nxc_json_str)
 
     if not no_symlink:

@@ -1,7 +1,9 @@
-import click
 import re
+
+import click
+
+from ..actions import connect_tmux, read_deployment_info
 from ..context import pass_context  # , on_started, on_finished
-from ..actions import read_deployment_info, connect_tmux
 from ..flavours import get_flavour_by_name
 
 
@@ -39,7 +41,15 @@ from ..flavours import get_flavour_by_name
 # TODO @on_finished(lambda ctx: ctx.state.dump())
 # TODO @on_started(lambda ctx: ctx.assert_valid_env())
 def cli(
-    ctx, user, host, geometry, pane_console, deployment_file, flavour, identity_file, tag
+    ctx,
+    user,
+    host,
+    geometry,
+    pane_console,
+    deployment_file,
+    flavour,
+    identity_file,
+    tag,
 ):
     """
     Opens one or more terminal sessions into the deployed nodes. By default, it will connect to all nodes, but we can specify which ones to connect to.

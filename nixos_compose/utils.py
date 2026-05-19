@@ -1,7 +1,7 @@
+import filecmp
 import os
 import os.path as op
 import shutil
-import filecmp
 
 import click
 
@@ -28,12 +28,14 @@ def copy_file(srcname, dstname, preserve_symlinks=True):
         shutil.copy2(srcname, dstname)
 
 
-def copy_tree(src, dest, overwrite=False, ignore_if_exists=[]):
+def copy_tree(src, dest, overwrite=False, ignore_if_exists=None):
     """
     Copy all files in the source path to the destination path.
     """
+    if ignore_if_exists is None:
+        ignore_if_exists = []
     if op.exists(dest) and not overwrite:
-        raise click.ClickException("File exists : '%s'" % dest)
+        raise click.ClickException(f"File exists : '{dest}'")
     create = click.style("   create", fg="green")
     # chmod = click.style("    chmod", fg="cyan")
     overwrite = click.style("overwrite", fg="yellow")

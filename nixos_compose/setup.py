@@ -1,7 +1,8 @@
 import os
 import os.path as op
-from subprocess import call, DEVNULL
 import sys
+from subprocess import DEVNULL, call
+
 import tomlkit
 
 
@@ -25,7 +26,7 @@ def apply_setup(
     # test if setup.toml is inside flake.nix and is not commented
     flake_file = op.join(ctx.envdir, "flake.nix")
     status = call(
-        f"grep '^[[:blank:]]*[^[:blank:]#].*setup\.toml.*$' {flake_file}",
+        rf"grep '^[[:blank:]]*[^[:blank:]#].*setup\.toml.*$' {flake_file}",
         stdout=DEVNULL,
         stderr=DEVNULL,
         shell=True,
@@ -34,7 +35,8 @@ def apply_setup(
         ctx.elog(f"setup.toml file is present but not referenced in {flake_file}")
         sys.exit(1)
 
-    setup_toml = tomlkit.loads(open(op.join(ctx.envdir, setup_file)).read())
+    with open(op.join(ctx.envdir, setup_file)) as f:
+        setup_toml = tomlkit.loads(f.read())
 
     if (
         not selected_setup
@@ -101,7 +103,7 @@ def apply_setup(
                     ]
 
             if "project" not in setup_toml:
-                project = tomlkit.table()
+                tomlkit.table()
                 setup_toml.add("selected", selected_setup)
             else:
                 setup_toml["project"]["selected"] = selected_setup

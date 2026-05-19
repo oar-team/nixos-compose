@@ -163,7 +163,7 @@ def cli(
     """
 
     def determine_flavour(ctx):
-        if "default_flavour" in ctx.nxc and ctx.nxc["default_flavour"]:
+        if ctx.nxc.get("default_flavour"):
             flavour = ctx.nxc["default_flavour"]
         else:
             platform_detection(ctx)
@@ -305,9 +305,8 @@ def cli(
             f"mounted-ssh-ng://{mounted_store_url}",
         ]
 
-    if flavour and composition_flavour:
-        if len(composition_flavour.split("::")) == 1:
-            composition_flavour = composition_flavour + "::" + flavour
+    if flavour and composition_flavour and len(composition_flavour.split("::")) == 1:
+        composition_flavour = composition_flavour + "::" + flavour
 
     if not out_link:
         build_path = op.join(ctx.envdir, "build")
@@ -360,7 +359,9 @@ def cli(
         ctx.glog("Starting Build")
         ctx.vlog(" ".join(build_cmd))
 
-        proc = subprocess.run(build_cmd, cwd=ctx.envdir, stdout=subprocess.PIPE)
+        proc = subprocess.run(
+            build_cmd, cwd=ctx.envdir, stdout=subprocess.PIPE, check=False
+        )
         returncode = proc.returncode
         if not returncode:
             nix_build_output = json.loads(proc.stdout)

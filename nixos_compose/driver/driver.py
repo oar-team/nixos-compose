@@ -1,14 +1,17 @@
+import os
+import signal
+import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Iterator, List
-import os
-import tempfile
-import signal
+from typing import Any
 
+from typing_extensions import Self
+
+from ..flavours import use_flavour_method_if_any
 from .logger import rootlog
 from .machine import Machine, retry
 from .vlan import VLan
-from ..flavours import use_flavour_method_if_any
 
 
 class Driver:
@@ -16,14 +19,14 @@ class Driver:
     and runs the tests"""
 
     tests: str
-    vlans: List[VLan]
-    machines: List[Machine]
+    vlans: list[VLan]
+    machines: list[Machine]
 
     def __init__(
         self,
         ctx,
-        start_scripts: List[str],
-        vlans: List[int],
+        start_scripts: list[str],
+        vlans: list[int],
         tests: str,
         keep_vm_state: bool = False,
     ):
@@ -62,10 +65,10 @@ class Driver:
         #     for cmd in cmd(start_scripts)
         # ]
 
-    def __enter__(self) -> "Driver":
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         if not self.ctx.interactive and not self.ctx.execute_test_script:
             if self.ctx.sigwait:
                 with rootlog.nested("wait any signal to exit"):
@@ -88,29 +91,29 @@ class Driver:
                 return True
             except Exception as e:
                 rootlog.error(f'Test "{name}" failed with error: "{e}"')
-                raise e
+                raise
 
-    def test_symbols(self) -> Dict[str, Any]:
+    def test_symbols(self) -> dict[str, Any]:
         @contextmanager
         def subtest(name: str) -> Iterator[None]:
             return self.subtest(name)
 
-        general_symbols = dict(
-            start_all=self.start_all,
-            test_script=self.test_script,
-            machines=self.machines,
+        general_symbols = {
+            "start_all": self.start_all,
+            "test_script": self.test_script,
+            "machines": self.machines,
             # vlans=self.vlans,
-            driver=self,
-            log=rootlog,
-            os=os,
-            subtest=subtest,
-            run_tests=self.run_tests,
-            join_all=self.join_all,
-            retry=retry,
-            serial_stdout_off=self.serial_stdout_off,
-            serial_stdout_on=self.serial_stdout_on,
-            Machine=Machine,  # for typing
-        )
+            "driver": self,
+            "log": rootlog,
+            "os": os,
+            "subtest": subtest,
+            "run_tests": self.run_tests,
+            "join_all": self.join_all,
+            "retry": retry,
+            "serial_stdout_off": self.serial_stdout_off,
+            "serial_stdout_on": self.serial_stdout_on,
+            "Machine": Machine,  # for typing
+        }
         machine_symbols = {m.name: m for m in self.machines}
         # If there's exactly one machine, make it available under the name
         # "machine", even if it's not called that.
@@ -122,7 +125,7 @@ class Driver:
         # }
         print(
             "additionally exposed symbols:\n    "
-            + ", ".join(map(lambda m: m.name, self.machines))
+            + ", ".join(m.name for m in self.machines)
             + ",\n    "
             # + ", ".join(map(lambda v: f"vlan{v.nr}", self.vlans))
             + ",\n    "
@@ -139,7 +142,7 @@ class Driver:
 
         with rootlog.nested(message):
             symbols = self.test_symbols()  # call eagerly
-            exec(self.tests, symbols, None)
+            exec(self.tests, symbols, None)  # noqa: S102 - NixOS test driver pattern executes user test scripts
 
     def run_tests(self) -> None:
         """Run the test script (for non-interactive test runs)"""
