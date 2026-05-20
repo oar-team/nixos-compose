@@ -58,6 +58,7 @@
                 requests
                 tomlkit
                 setuptools
+                typing-extensions
               ]
               ++ [
                 pkgs.taktuk
