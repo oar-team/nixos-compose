@@ -2,7 +2,7 @@ from subprocess import run
 
 
 def run_test(cmd, tmp_path, ret_test=1):
-    res = run(cmd, shell=True, cwd=tmp_path)
+    res = run(cmd, shell=True, cwd=tmp_path, check=False)
     if ret_test:
         print(f"cmd: {cmd} returncode: {res.returncode}")
         assert not res.returncode

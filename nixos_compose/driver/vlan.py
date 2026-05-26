@@ -1,11 +1,10 @@
-from pathlib import Path
-from typing import Optional
 import io
 import os
 import pty
-import sys
 import shutil
 import subprocess
+import sys
+from pathlib import Path
 
 from .logger import rootlog
 
@@ -19,7 +18,7 @@ class VLan:
     socket_dir: Path
 
     process: subprocess.Popen
-    slirpvde_process: Optional[subprocess.Popen]
+    slirpvde_process: subprocess.Popen | None
     pid: int
     fd: io.TextIOBase
 

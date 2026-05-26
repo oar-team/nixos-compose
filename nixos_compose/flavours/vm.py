@@ -1,25 +1,24 @@
 import os
 
+from ..actions import (
+    generate_deployment_info,
+    kill_proc_tree,
+    realpath_from_store,
+    ssh_connect,
+)
+from ..driver.logger import rootlog
+from ..driver.machine import Machine, StartScript
+from ..driver.vlan import VLan
+
 # import sys
 # import json
 # import base64
 # from ..httpd import HTTPDaemon
-
 from ..flavour import Flavour
-from ..actions import (
-    generate_deployment_info,
-    ssh_connect,
-    kill_proc_tree,
-    realpath_from_store,
-)
-from ..driver.vlan import VLan
-from ..driver.logger import rootlog
-from ..driver.machine import Machine, StartScript
 from ..platform import platform_detection
 
 
 class VmBasedFlavour(Flavour):
-
     """
     The Vm Ramdisk flavour. This is flavour provides a system image to be executed with QEMU and use memory only for root system. By consequence lot of ram is used around 2Go minimum by node.
     """
@@ -140,11 +139,11 @@ class VmBasedFlavour(Flavour):
             ctx.vlog(f"INITRD: {os.environ['INITRD']}")
 
         if "DEPLOY" not in os.environ:
-            os.environ[
-                "DEPLOY"
-            ] = f"deploy={self.ctx.deployment_filename[len(self.ctx.envdir)+1:]}"
+            os.environ["DEPLOY"] = (
+                f"deploy={self.ctx.deployment_filename[len(self.ctx.envdir) + 1 :]}"
+            )
         else:
-            rootlog.nested(f'Variable environment DEPLOY: {os.environ["DEPLOY"]}')
+            rootlog.nested(f"Variable environment DEPLOY: {os.environ['DEPLOY']}")
 
         self.create_machines()
 
@@ -153,19 +152,17 @@ class VmBasedFlavour(Flavour):
         return self.vlan
 
     def start_process_shell(self, machine):
-        machine.start_process_shell(
-            [
-                "ssh",
-                "-t",
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-l",
-                "root",
-                "-p",
-                machine.ssh_port,
-                machine.ip,
-            ]
-        )
+        machine.start_process_shell([
+            "ssh",
+            "-t",
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-l",
+            "root",
+            "-p",
+            machine.ssh_port,
+            machine.ip,
+        ])
 
     def start(self, machine):
         if not self.ctx.no_start:

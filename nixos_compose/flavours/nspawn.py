@@ -1,22 +1,19 @@
+import ipaddress
 import os
 import os.path as op
-import subprocess
-import click
-import ipaddress
 import socket
-
-from ..flavour import Flavour
-from ..actions import (
-    read_compose_info,
-    read_deployment_info,
-    generate_deployment_info,
-)
-
-from ..driver.machine import Machine
+import subprocess
 
 # from ..default_role import DefaultRole
+import click
 
-from typing import Tuple, Optional
+from ..actions import (
+    generate_deployment_info,
+    read_compose_info,
+    read_deployment_info,
+)
+from ..driver.machine import Machine
+from ..flavour import Flavour
 
 
 def nft_nixos_fw_rules(ctx, remove=False, add=False):
@@ -53,39 +50,35 @@ def nft_nixos_fw_rules(ctx, remove=False, add=False):
                 nxc_br0_rule_handle = s[-1]
 
     if remove and nxc_br0_rule:
-        subprocess.Popen(
-            [
-                "sudo",
-                "nft",
-                "delete",
-                "rule",
-                "ip",
-                "filter",
-                "nixos-fw",
-                "handle",
-                nxc_br0_rule_handle,
-            ]
-        )
+        subprocess.Popen([
+            "sudo",
+            "nft",
+            "delete",
+            "rule",
+            "ip",
+            "filter",
+            "nixos-fw",
+            "handle",
+            nxc_br0_rule_handle,
+        ])
         return 1
     if add and not nxc_br0_rule:
-        subprocess.Popen(
-            [
-                "sudo",
-                "nft",
-                "insert",
-                "rule",
-                "ip",
-                "filter",
-                "nixos-fw",
-                'iifname "nxc-br0" counter packets 0 bytes 0 accept',
-            ]
-        )
+        subprocess.Popen([
+            "sudo",
+            "nft",
+            "insert",
+            "rule",
+            "ip",
+            "filter",
+            "nixos-fw",
+            'iifname "nxc-br0" counter packets 0 bytes 0 accept',
+        ])
         return 1
     return 0
 
 
 def set_prefix_store_volumes(dc_json, prefix_store):
-    for service in dc_json["services"].keys():
+    for service in dc_json["services"]:
         volumes = dc_json["services"][service]["volumes"]
         volumes_out = []
         for vol in volumes:
@@ -135,7 +128,7 @@ class NspawnFlavour(Flavour):
 
     def driver_initialize(self, tmp_dir):
         print("TODO driver_initialize")
-        exit
+        raise NotImplementedError
         assert self.ctx.deployment_info
         if not self.nspawn_compose_file:
             self.nspawn_compose_file = self.ctx.deployment_info["nspawn-compose-file"]
@@ -153,7 +146,7 @@ class NspawnFlavour(Flavour):
 
     def check(self, state="running"):
         print("TODO check")
-        exit
+        raise NotImplementedError
         # check_process = subprocess.check_output(
         #     [
         #         "nspawn-compose",
@@ -179,7 +172,7 @@ class NspawnFlavour(Flavour):
 
         nest_host = ""
 
-        if "nested" in ctx.deployment_info and ctx.deployment_info["nested"]:
+        if ctx.deployment_info.get("nested"):
             nest_host = f"-{socket.gethostname()}"
 
         # prepare nxc-dnsmasq.conf
@@ -190,8 +183,10 @@ class NspawnFlavour(Flavour):
         nxc_dnsmasq_conf_file = op.join(artifact_dir, f"nxc-dnsmasq{nest_host}.conf")
 
         with open(nxc_dnsmasq_conf_file, "w") as outfile:
-            for ip, host_info in ctx.deployment_info["deployment"].items():
-                outfile.write(f"dhcp-host={host_info['host']},{ip}\n")
+            outfile.writelines(
+                f"dhcp-host={host_info['host']},{ip}\n"
+                for ip, host_info in ctx.deployment_info["deployment"].items()
+            )
 
         _ROOT = os.path.abspath(os.path.dirname(__file__))
         nxc_net_script = _ROOT + "/nspawn/nxc-net.sh"
@@ -206,7 +201,7 @@ class NspawnFlavour(Flavour):
         env["NXC_DHCP_CONFILE"] = nxc_dnsmasq_conf_file
         preserve_env = "NXC_DHCP_CONFILE"
 
-        if "nested" in ctx.deployment_info and ctx.deployment_info["nested"]:
+        if ctx.deployment_info.get("nested"):
             nested_network = ctx.deployment_info["network"]
             net_addr, net_masq = nested_network.split("/")
             if net_masq != "24":
@@ -231,7 +226,7 @@ class NspawnFlavour(Flavour):
 
         ctx.log("Prepare machines dirs")
         p_lst = []
-        for _, host_info in ctx.deployment_info["deployment"].items():
+        for host_info in ctx.deployment_info["deployment"].values():
             p = subprocess.Popen(
                 [
                     "sudo",
@@ -252,7 +247,7 @@ class NspawnFlavour(Flavour):
 
         env["SYSTEMD_NSPAWN_UNIFIED_HIERARCHY"] = "1"
 
-        for _, host_info in ctx.deployment_info["deployment"].items():
+        for host_info in ctx.deployment_info["deployment"].values():
             subprocess.Popen(
                 [
                     "sudo",
@@ -272,8 +267,7 @@ class NspawnFlavour(Flavour):
 
     def start_all(self):
         print("TODO start_all")
-        exit
-        pass
+        raise NotImplementedError
         # if not self.external_connect:
         #     with rootlog.nested("starting nspawn-compose"):
         #         subprocess.Popen(
@@ -289,8 +283,7 @@ class NspawnFlavour(Flavour):
 
     def start(self, machine):  # TODO MOVE to Connect ???
         print("TODO start")
-        exit
-        pass
+        raise NotImplementedError
         assert machine.name
         assert self.nspawn_compose_file
 
@@ -314,8 +307,8 @@ class NspawnFlavour(Flavour):
         machine,
         command: str,
         check_return: bool = True,
-        timeout: Optional[int] = 900,
-    ) -> Tuple[int, str]:
+        timeout: int | None = 900,
+    ) -> tuple[int, str]:
         return machine.execute_process_shell(command, check_return, timeout)
 
     def restart(self, machine):
@@ -334,25 +327,21 @@ class NspawnFlavour(Flavour):
         ctx.log("Test sudo (root privilege rights required)")
         subprocess.call("sudo true", shell=True)
 
-        for _, host_info in ctx.deployment_info["deployment"].items():
-            subprocess.Popen(
-                [
-                    "sudo",
-                    "machinectl",
-                    "stop",
-                    host_info["host"],
-                ]
-            )
+        for host_info in ctx.deployment_info["deployment"].values():
+            subprocess.Popen([
+                "sudo",
+                "machinectl",
+                "stop",
+                host_info["host"],
+            ])
 
-        for _, host_info in ctx.deployment_info["deployment"].items():
-            subprocess.Popen(
-                [
-                    "sudo",
-                    machine_dir_script,
-                    "remove",
-                    host_info["host"],
-                ]
-            )
+        for host_info in ctx.deployment_info["deployment"].values():
+            subprocess.Popen([
+                "sudo",
+                machine_dir_script,
+                "remove",
+                host_info["host"],
+            ])
         ctx.log("Stop nxc-net")
 
         subprocess.Popen(["sudo", nxc_net_script, "stop"])
@@ -367,7 +356,7 @@ class NspawnFlavour(Flavour):
         # subprocess.call("sudo true", shell=True)
         cmd = f"machinectl shell {user}@{node}"
         if execute:
-            return_code = subprocess.run(cmd, shell=True).returncode
+            return_code = subprocess.run(cmd, shell=True, check=False).returncode
 
             if return_code:
                 self.ctx.wlog(f"Machinectl exit code is not null: {return_code}")

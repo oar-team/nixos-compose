@@ -1,26 +1,27 @@
+import json
 import os
 import os.path as op
+import socket
+import subprocess
 import sys
 import time
 from string import Template
-import click
-import subprocess
-import socket
-import json
 
-from ..flavour import Flavour
+import click
+
 from ..actions import (
+    generate_deploy_info_b64,
+    generate_deployment_info,
+    generate_kexec_scripts,
     get_machine_from_file,
+    launch_ssh_kexec,
     read_compose_info,
     realpath_from_store_remote,
-    generate_deployment_info,
-    generate_deploy_info_b64,
-    generate_kexec_scripts,
-    launch_ssh_kexec,
-    wait_ssh_ports,
     ssh_connect,
+    wait_ssh_ports,
 )
 from ..driver.machine import Machine
+from ..flavour import Flavour
 
 # from ..driver.logger import rootlog
 
@@ -103,9 +104,11 @@ def generate_machine_file_retrieve_ips(ctx):
         g5k_site = fqdn.split(".")[1]
         g5k_frontend = "f" + g5k_site
         if g5k_frontend != socket.gethostname():
-            output = subprocess.check_output(
-                ["ssh", g5k_frontend, "oarstat -u -J"]
-            ).decode()
+            output = subprocess.check_output([
+                "ssh",
+                g5k_frontend,
+                "oarstat -u -J",
+            ]).decode()
         else:
             output = subprocess.check_output(["oarstat", "-u", "-J"]).decode()
         oarstat_json = json.loads(output)
@@ -165,7 +168,7 @@ class G5kKexecBasedFlavour(G5kFlavour):
     def launch(self):
         if "no-launch" in self.ctx.start_option:
             self.ctx.vlog("Start option no-launch, exit now without launching kexec")
-            exit(0)
+            sys.exit(0)
         launch_ssh_kexec(self.ctx)
         time.sleep(10)
         wait_ssh_ports(self.ctx)
@@ -174,7 +177,7 @@ class G5kKexecBasedFlavour(G5kFlavour):
         self.tmp_dir = tmp_dir
         ctx = self.ctx
 
-        if ctx.no_start:  #
+        if ctx.no_start:
             deployment_nodes = self.ctx.deployment_info["deployment"]
             for ip, node in deployment_nodes.items():
                 self.machines.append(
@@ -197,19 +200,17 @@ class G5kKexecBasedFlavour(G5kFlavour):
     def start(self, machine):
         if not self.ctx.no_start:
             print("Not Yet Implemented")
-            exit(1)
+            sys.exit(1)
         else:
-            machine.start_process_shell(
-                [
-                    "ssh",
-                    "-t",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-l",
-                    "root",
-                    machine.ip,
-                ]
-            )
+            machine.start_process_shell([
+                "ssh",
+                "-t",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-l",
+                "root",
+                machine.ip,
+            ])
 
     def ext_connect(self, user, node, execute, ssh_key_file):
         return ssh_connect(self.ctx, user, node, execute, ssh_key_file)
@@ -227,7 +228,7 @@ class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
                 if op.exists(store_path):
                     return store_path
             self.ctx.elog("Store Path Not Found")
-            exit(1)
+            sys.exit(1)
 
         if "NFS_STORE" in os.environ:
             nfs_store_str = os.environ["NFS_STORE"]
@@ -240,7 +241,7 @@ class G5kNfsStoreFlavour(G5kKexecBasedFlavour):
                 self.ctx.elog(
                     f"NFS_STORE environment variable is malformed {nfs_store_str}"
                 )
-                exit(1)
+                sys.exit(1)
             if len(nfs_store_parts) == 1:
                 directory = "/nix/store"
             else:
@@ -297,7 +298,7 @@ class G5kImageFlavour(G5kFlavour):
         ):
             try:
                 subprocess.call(cmd_copy_image, shell=True)
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001 - surface any copy failure as ClickException
                 raise click.ClickException(f"Failed to copy image: {ex}")
         else:
             print(f"You can copy image with: {cmd_copy_image}")
@@ -329,7 +330,7 @@ class G5kImageFlavour(G5kFlavour):
             try:
                 self.ctx.vlog(cmd_kadeploy)
                 subprocess.call(cmd_kadeploy, shell=True)
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001 - surface any kadeploy failure as ClickException
                 raise click.ClickException(f"Failed to execute kadeploy command: {ex}")
         else:
             print(f"You can kadeploy image with: {cmd_kadeploy}")
@@ -337,19 +338,17 @@ class G5kImageFlavour(G5kFlavour):
     def start(self, machine):
         if not self.ctx.no_start:
             print("Not Yet Implemented")
-            exit(1)
+            sys.exit(1)
         else:
-            machine.start_process_shell(
-                [
-                    "ssh",
-                    "-t",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-l",
-                    "root",
-                    machine.ip,
-                ]
-            )
+            machine.start_process_shell([
+                "ssh",
+                "-t",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-l",
+                "root",
+                machine.ip,
+            ])
 
     def ext_connect(self, user, node, execute=True, ssh_key_file=None):
         return ssh_connect(self.ctx, user, node, execute, ssh_key_file)

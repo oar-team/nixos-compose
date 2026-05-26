@@ -1,15 +1,16 @@
 import time
-from typing import List
+
 from .driver.machine import Machine
 
 
-class Flavour(object):
+class Flavour:
     name: str
     external_connect: bool = False
-    machines: List[Machine] = []
+    machines: list[Machine]
 
     def __init__(self, ctx):
         self.ctx = ctx
+        self.machines = []
 
     def check(self, state="running"):
         self.ctx.wlog(f"Check not implement for flavour: {self.name}")

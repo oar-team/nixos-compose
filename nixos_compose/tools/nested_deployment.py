@@ -52,8 +52,8 @@ def nested_deployment(composition, role_distribution, hostbase_filter=None):
 
     for hostbase, v in role_distribution["role_distribution"].items():
         nest_host_index = 1
-        l, h = v["range"].split("-")
-        for host_index in range(int(l), int(h) + 1):
+        low, high = v["range"].split("-")
+        for host_index in range(int(low), int(high) + 1):
             host = f"{hostbase}{host_index}"
             role = v["role"]
             folding = v["folding"]
@@ -173,13 +173,11 @@ def main(options=None):
 
     if inputs.ip_hosts:
         with open(inputs.ip_hosts, "w") as outfile:
-            for ip_host in ip_hosts:
-                outfile.write(ip_host + "\n")
+            outfile.writelines(ip_host + "\n" for ip_host in ip_hosts)
 
     if inputs.route_commands:
         with open(inputs.route_commands, "w") as outfile:
-            for route_command in route_commands:
-                outfile.write(route_command + "\n")
+            outfile.writelines(route_command + "\n" for route_command in route_commands)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import sys
 import argparse
 import asyncio
+import sys
 from string import Template
 
 CMD_BASE = Template(
@@ -50,28 +50,31 @@ def generate_pipe_tasks(
 
     def cmd_tee(h, h_next):
         # print(h, h_next)
-        cmd_tee = CMD_TEE.substitute(
-            {
-                "host": h_next,
-                "port1": port1,
-                "port0": port0,
-                "port3": port1,
-                "port2": port0,
-                "file_output": file_output,
-            }
-        )
+        cmd_tee = CMD_TEE.substitute({
+            "host": h_next,
+            "port1": port1,
+            "port0": port0,
+            "port3": port1,
+            "port2": port0,
+            "file_output": file_output,
+        })
         return CMD_BASE.substitute({"inner_cmd": cmd_tee, "ssh": ssh, "host": h})
 
     tees = [cmd_tee(h, hosts_rev[i]) for i, h in enumerate(hosts_rev[1:])]
 
-    cmd_end = CMD_END.substitute(
-        {"port1": port1, "port0": port0, "file_output": file_output}
-    )
+    cmd_end = CMD_END.substitute({
+        "port1": port1,
+        "port0": port0,
+        "file_output": file_output,
+    })
     end = CMD_BASE.substitute({"inner_cmd": cmd_end, "ssh": ssh, "host": hosts_rev[0]})
 
-    start = CMD_START.substitute(
-        {"host": hosts[0], "port1": port1, "port0": port0, "file_input": file_input}
-    )
+    start = CMD_START.substitute({
+        "host": hosts[0],
+        "port1": port1,
+        "port0": port0,
+        "file_input": file_input,
+    })
 
     tasks_cmd = [end] + tees + [start]
 

@@ -1,24 +1,23 @@
+import builtins
+import json
 import os
 import sys
 import time
-
-import json
-import yaml
-
-from io import open
 from functools import update_wrapper
 
 import click
-
-from .platform import Grid5000Platform
-from .default_role import get_nxc_loader
+import yaml
 from halo import Halo
+
+from .default_role import get_nxc_loader
+from .platform import Grid5000Platform
 
 # from .state import State
 
-CONTEXT_SETTINGS = dict(
-    auto_envvar_prefix="nixos_compose", help_option_names=["-h", "--help"]
-)
+CONTEXT_SETTINGS = {
+    "auto_envvar_prefix": "nixos_compose",
+    "help_option_names": ["-h", "--help"],
+}
 
 
 def reraise(tp, value, tb=None):
@@ -27,7 +26,7 @@ def reraise(tp, value, tb=None):
     raise value
 
 
-class LazySpinner(object):
+class LazySpinner:
     def __init__(self):
         self.halo_spinner = None
 
@@ -52,7 +51,7 @@ class LazySpinner(object):
         self.halo_spinner.text = text
 
 
-class Context(object):
+class Context:
     def __init__(self):
         self.t0 = time.time()
         self.nxc_file = None
@@ -110,10 +109,10 @@ class Context(object):
         self.start_option = ()
 
     def init_workdir(self, env_name, env_id):
-        with open(self.env_name_file, "w+") as fd:
+        with builtins.open(self.env_name_file, "w+") as fd:
             fd.write(env_name + "\n")
         if not os.path.exists(self.env_id_file):
-            with open(self.env_id_file, "w+") as fd:
+            with builtins.open(self.env_id_file, "w+") as fd:
                 fd.write(env_id + "\n")
 
     #    @property
@@ -151,20 +150,20 @@ class Context(object):
 
     def wlog(self, msg, *args):
         """Logs a warning message to stderr."""
-        self.log(click.style("Warning: %s" % msg, fg="yellow"), *args, file=sys.stderr)
+        self.log(click.style(f"Warning: {msg}", fg="yellow"), *args, file=sys.stderr)
 
     def elog(self, msg, *args):
         """Logs a error message to stderr."""
-        self.log(click.style("Error: %s" % msg, fg="red"), *args, file=sys.stderr)
+        self.log(click.style(f"Error: {msg}", fg="red"), *args, file=sys.stderr)
 
     def glog(self, msg, *args):
         """Logs a green message."""
-        self.log(click.style("%s" % msg, fg="green"), *args)
+        self.log(click.style(f"{msg}", fg="green"), *args)
 
     def vlog(self, msg, *args):
         """Logs a message to stderr only if verbose is enabled."""
         if self.verbose:
-            self.log(msg, *args, **{"file": sys.stderr})
+            self.log(msg, *args, file=sys.stderr)
 
     def handle_error(self, exception):
         exc_type, exc_value, tb = sys.exc_info()
@@ -178,7 +177,7 @@ class Context(object):
         return time.time() - self.t0
 
     def show_elapsed_time(self):
-        duration = "{:.2f}".format(self.elapsed_time())
+        duration = f"{self.elapsed_time():.2f}"
         self.vlog("Elapsed Time: " + (click.style(duration, fg="green")) + " seconds")
 
     def load_nxc(self, f):
@@ -192,7 +191,7 @@ class Context(object):
             filename_tuple = os.path.splitext(filename)
             extension = filename_tuple[1]
 
-            with open(filename, "r") as roles_f:
+            with builtins.open(filename, "r") as roles_f:
                 if extension in [".yaml", ".yml"]:
                     roles_distribution = yaml.load(roles_f, Loader=get_nxc_loader())
                 else:
@@ -234,7 +233,7 @@ def make_pass_decorator(ensure=False):
                 obj = ctx.find_object(Context)
             try:
                 return ctx.invoke(f, obj, *args[1:], **kwargs)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - top-level handler dispatches to context
                 obj.handle_error(e)
 
         return update_wrapper(new_func, f)
@@ -242,13 +241,13 @@ def make_pass_decorator(ensure=False):
     return decorator
 
 
-class DeprecatedCmdDecorator(object):
+class DeprecatedCmdDecorator:
     """This is a decorator which can be used to mark cmd as deprecated. It will
     result in a warning being emmitted when the command is invoked."""
 
     def __init__(self, message=""):
         if message:
-            self.message = "%s." % message
+            self.message = f"{message}."
         else:
             self.message = message
 
@@ -256,8 +255,7 @@ class DeprecatedCmdDecorator(object):
         @click.pass_context
         def new_func(ctx, *args, **kwargs):
             msg = click.style(
-                "warning: `%s` command is deprecated. %s"
-                % (ctx.info_name, self.message),
+                f"warning: `{ctx.info_name}` command is deprecated. {self.message}",
                 fg="yellow",
             )
             click.echo(msg)
@@ -266,7 +264,7 @@ class DeprecatedCmdDecorator(object):
         return update_wrapper(new_func, f)
 
 
-class OnStartedDecorator(object):
+class OnStartedDecorator:
     def __init__(self, callback):
         self.callback = callback
         self.exec_before = True

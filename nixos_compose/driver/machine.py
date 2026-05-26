@@ -1,7 +1,3 @@
-from contextlib import _GeneratorContextManager
-from pathlib import Path
-from queue import Queue
-from typing import Any, Callable, Dict, List, Optional, Tuple
 import base64
 import io
 import os
@@ -15,9 +11,14 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable
+from contextlib import _GeneratorContextManager
+from pathlib import Path
+from queue import Queue
+from typing import Any
 
-from .logger import rootlog
 from ..flavours import use_flavour_method_if_any
+from .logger import rootlog
 
 CHAR_TO_KEY = {
     "A": "shift-a",
@@ -98,7 +99,7 @@ def retry(fn: Callable, timeout: int = 900) -> None:
         time.sleep(1)
 
     if not fn(True):
-        raise Exception(f"action timed out after {timeout} seconds")
+        raise RuntimeError(f"action timed out after {timeout} seconds")
 
 
 class StartCommand:
@@ -159,19 +160,17 @@ class VmStartCommand(StartCommand):
         if self.flavour.ctx.kernel_params:
             kernel_params = self.flavour.ctx.kernel_params
         env = dict(os.environ)
-        env.update(
-            {
-                "TMPDIR": str(state_dir),
-                "SHARED_DIR": str(shared_dir),
-                "USE_TMPDIR": "1",
-                "QEMU_OPTS": self.qemu_opts,
-                "VM_ID": str(self.vm_id),
-                "QEMU_VDE_SOCKET": str(self.flavour.vlan.socket_dir),
-                "FLAVOUR": f"flavour={self.flavour.name}",
-                "SHARED_NXC_COMPOSITION_DIR": self.flavour.ctx.envdir,
-                "ADDITIONAL_KERNEL_PARAMS": str(kernel_params),
-            }
-        )
+        env.update({
+            "TMPDIR": str(state_dir),
+            "SHARED_DIR": str(shared_dir),
+            "USE_TMPDIR": "1",
+            "QEMU_OPTS": self.qemu_opts,
+            "VM_ID": str(self.vm_id),
+            "QEMU_VDE_SOCKET": str(self.flavour.vlan.socket_dir),
+            "FLAVOUR": f"flavour={self.flavour.name}",
+            "SHARED_NXC_COMPOSITION_DIR": self.flavour.ctx.envdir,
+            "ADDITIONAL_KERNEL_PARAMS": str(kernel_params),
+        })
         return env
 
     def run(
@@ -235,12 +234,12 @@ class Machine:
     keep_vm_state: bool
     allow_reboot: bool
 
-    process: Optional[subprocess.Popen]
-    pid: Optional[int]
-    monitor: Optional[socket.socket]
-    shell: Optional[socket.socket]
-    serial_thread: Optional[threading.Thread]
-    process_shell: Optional[subprocess.Popen]
+    process: subprocess.Popen | None
+    pid: int | None
+    monitor: socket.socket | None
+    shell: socket.socket | None
+    serial_thread: threading.Thread | None
+    process_shell: subprocess.Popen | None
 
     booted: bool
     connected: bool
@@ -305,7 +304,11 @@ class Machine:
     def log_serial(self, msg: str) -> None:
         rootlog.log_serial(msg, self.name)
 
-    def nested(self, msg: str, attrs: Dict[str, str] = {}) -> _GeneratorContextManager:
+    def nested(
+        self, msg: str, attrs: dict[str, str] | None = None
+    ) -> _GeneratorContextManager:
+        if attrs is None:
+            attrs = {}
         my_attrs = {"machine": self.name}
         my_attrs.update(attrs)
         return rootlog.nested(msg, my_attrs)
@@ -324,13 +327,13 @@ class Machine:
             return answer
 
     def send_monitor_command(self, command: str) -> str:
-        with self.nested("sending monitor command: {}".format(command)):
-            message = ("{}\n".format(command)).encode()
+        with self.nested(f"sending monitor command: {command}"):
+            message = (f"{command}\n").encode()
             assert self.monitor is not None
             self.monitor.send(message)
             return self.wait_for_monitor_prompt()
 
-    def wait_for_unit(self, unit: str, user: Optional[str] = None) -> None:
+    def wait_for_unit(self, unit: str, user: str | None = None) -> None:
         """Wait for a systemd unit to get into "active" state.
         Throws exceptions on "failed" and "inactive" states as well as
         after timing out.
@@ -340,17 +343,15 @@ class Machine:
             info = self.get_unit_info(unit, user)
             state = info["ActiveState"]
             if state == "failed":
-                raise Exception('unit "{}" reached state "{}"'.format(unit, state))
+                raise RuntimeError(f'unit "{unit}" reached state "{state}"')
 
             if state == "inactive":
-                status, jobs = self.systemctl("list-jobs --full 2>&1", user)
+                _status, jobs = self.systemctl("list-jobs --full 2>&1", user)
                 if "No jobs" in jobs:
                     info = self.get_unit_info(unit, user)
                     if info["ActiveState"] == state:
-                        raise Exception(
-                            (
-                                'unit "{}" is inactive and there ' "are no pending jobs"
-                            ).format(unit)
+                        raise RuntimeError(
+                            f'unit "{unit}" is inactive and there are no pending jobs'
                         )
 
             return state == "active"
@@ -362,18 +363,18 @@ class Machine:
         ):
             retry(check_active)
 
-    def get_unit_info(self, unit: str, user: Optional[str] = None) -> Dict[str, str]:
-        status, lines = self.systemctl('--no-pager show "{}"'.format(unit), user)
+    def get_unit_info(self, unit: str, user: str | None = None) -> dict[str, str]:
+        status, lines = self.systemctl(f'--no-pager show "{unit}"', user)
         if status != 0:
-            raise Exception(
+            raise RuntimeError(
                 'retrieving systemctl info for unit "{}" {} failed with exit code {}'.format(
-                    unit, "" if user is None else 'under user "{}"'.format(user), status
+                    unit, "" if user is None else f'under user "{user}"', status
                 )
             )
 
         line_pattern = re.compile(r"^([^=]+)=(.*)$")
 
-        def tuple_from_line(line: str) -> Tuple[str, str]:
+        def tuple_from_line(line: str) -> tuple[str, str]:
             match = line_pattern.match(line)
             assert match is not None
             return match[1], match[2]
@@ -384,28 +385,26 @@ class Machine:
             if line_pattern.match(line)
         )
 
-    def systemctl(self, q: str, user: Optional[str] = None) -> Tuple[int, str]:
+    def systemctl(self, q: str, user: str | None = None) -> tuple[int, str]:
         if user is not None:
             q = q.replace("'", "\\'")
             return self.execute(
-                (
-                    "su -l {} --shell /bin/sh -c "
-                    "$'XDG_RUNTIME_DIR=/run/user/`id -u` "
-                    "systemctl --user {}'"
-                ).format(user, q)
+                f"su -l {user} --shell /bin/sh -c "
+                "$'XDG_RUNTIME_DIR=/run/user/`id -u` "
+                f"systemctl --user {q}'"
             )
-        return self.execute("systemctl {}".format(q))
+        return self.execute(f"systemctl {q}")
 
     def require_unit_state(self, unit: str, require_state: str = "active") -> None:
         with self.nested(
-            "checking if unit ‘{}’ has reached state '{}'".format(unit, require_state)
+            f"checking if unit ‘{unit}’ has reached state '{require_state}'"
         ):
             info = self.get_unit_info(unit)
             state = info["ActiveState"]
             if state != require_state:
-                raise Exception(
-                    "Expected unit ‘{}’ to to be in state ".format(unit)
-                    + "'{}' but it is in state ‘{}’".format(require_state, state)
+                raise RuntimeError(
+                    f"Expected unit ‘{unit}’ to to be in state "
+                    + f"'{require_state}' but it is in state ‘{state}’"
                 )
 
     def _next_newline_closed_block_from_shell(self) -> str:
@@ -425,8 +424,8 @@ class Machine:
 
     @use_flavour_method_if_any
     def execute(
-        self, command: str, check_return: bool = True, timeout: Optional[int] = 900
-    ) -> Tuple[int, str]:
+        self, command: str, check_return: bool = True, timeout: int | None = 900
+    ) -> tuple[int, str]:
         # For now we use ssh for shell access (see: start in flavours/vm.py)
         # nixos-test use a backdoor see nixpkgs/nixos/modules/testing/test-instrumentation.nix
 
@@ -466,32 +465,31 @@ class Machine:
         subprocess.run(
             ["socat", "READLINE", f"FD:{self.shell.fileno()}"],
             pass_fds=[self.shell.fileno()],
+            check=False,
         )
 
-    def succeed(self, *commands: str, timeout: Optional[int] = None) -> str:
+    def succeed(self, *commands: str, timeout: int | None = None) -> str:
         """Execute each command and check that it succeeds."""
         output = ""
         for command in commands:
-            with self.nested("must succeed: {}".format(command)):
+            with self.nested(f"must succeed: {command}"):
                 (status, out) = self.execute(command, timeout=timeout)
                 if status != 0:
-                    self.log("output: {}".format(out))
-                    raise Exception(
-                        "command `{}` failed (exit code {})".format(command, status)
+                    self.log(f"output: {out}")
+                    raise RuntimeError(
+                        f"command `{command}` failed (exit code {status})"
                     )
                 output += out
         return output
 
-    def fail(self, *commands: str, timeout: Optional[int] = None) -> str:
+    def fail(self, *commands: str, timeout: int | None = None) -> str:
         """Execute each command and check that it fails."""
         output = ""
         for command in commands:
-            with self.nested("must fail: {}".format(command)):
+            with self.nested(f"must fail: {command}"):
                 (status, out) = self.execute(command, timeout=timeout)
                 if status == 0:
-                    raise Exception(
-                        "command `{}` unexpectedly succeeded".format(command)
-                    )
+                    raise RuntimeError(f"command `{command}` unexpectedly succeeded")
                 output += out
         return output
 
@@ -506,7 +504,7 @@ class Machine:
             status, output = self.execute(command, timeout=timeout)
             return status == 0
 
-        with self.nested("waiting for success: {}".format(command)):
+        with self.nested(f"waiting for success: {command}"):
             retry(check_success, timeout)
             return output
 
@@ -521,7 +519,7 @@ class Machine:
             status, output = self.execute(command, timeout=timeout)
             return status != 0
 
-        with self.nested("waiting for failure: {}".format(command)):
+        with self.nested(f"waiting for failure: {command}"):
             retry(check_failure)
             return output
 
@@ -539,9 +537,8 @@ class Machine:
             self.connected = False
 
     def get_tty_text(self, tty: str) -> str:
-        status, output = self.execute(
-            "fold -w$(stty -F /dev/tty{0} size | "
-            "awk '{{print $2}}') /dev/vcs{0}".format(tty)
+        _status, output = self.execute(
+            f"fold -w$(stty -F /dev/tty{tty} size | awk '{{print $2}}') /dev/vcs{tty}"
         )
         return output
 
@@ -560,11 +557,11 @@ class Machine:
                 )
             return len(matcher.findall(text)) > 0
 
-        with self.nested("waiting for {} to appear on tty {}".format(regexp, tty)):
+        with self.nested(f"waiting for {regexp} to appear on tty {tty}"):
             retry(tty_matches)
 
-    def send_chars(self, chars: List[str]) -> None:
-        with self.nested("sending keys ‘{}‘".format(chars)):
+    def send_chars(self, chars: list[str]) -> None:
+        with self.nested(f"sending keys ‘{chars}‘"):
             for char in chars:
                 self.send_key(char)
 
@@ -572,33 +569,33 @@ class Machine:
         """Waits until the file exists in machine's file system."""
 
         def check_file(_: Any) -> bool:
-            status, _ = self.execute("test -e {}".format(filename))
+            status, _ = self.execute(f"test -e {filename}")
             return status == 0
 
-        with self.nested("waiting for file ‘{}‘".format(filename)):
+        with self.nested(f"waiting for file ‘{filename}‘"):
             retry(check_file)
 
     def wait_for_open_port(self, port: int) -> None:
         def port_is_open(_: Any) -> bool:
-            status, _ = self.execute("nc -z localhost {}".format(port))
+            status, _ = self.execute(f"nc -z localhost {port}")
             return status == 0
 
-        with self.nested("waiting for TCP port {}".format(port)):
+        with self.nested(f"waiting for TCP port {port}"):
             retry(port_is_open)
 
     def wait_for_closed_port(self, port: int) -> None:
         def port_is_closed(_: Any) -> bool:
-            status, _ = self.execute("nc -z localhost {}".format(port))
+            status, _ = self.execute(f"nc -z localhost {port}")
             return status != 0
 
         with self.nested("waiting for TCP port {} to be closed"):
             retry(port_is_closed)
 
-    def start_job(self, jobname: str, user: Optional[str] = None) -> Tuple[int, str]:
-        return self.systemctl("start {}".format(jobname), user)
+    def start_job(self, jobname: str, user: str | None = None) -> tuple[int, str]:
+        return self.systemctl(f"start {jobname}", user)
 
-    def stop_job(self, jobname: str, user: Optional[str] = None) -> Tuple[int, str]:
-        return self.systemctl("stop {}".format(jobname), user)
+    def stop_job(self, jobname: str, user: str | None = None) -> tuple[int, str]:
+        return self.systemctl(f"stop {jobname}", user)
 
     def wait_for_job(self, jobname: str) -> None:
         self.wait_for_unit(jobname)
@@ -619,7 +616,7 @@ class Machine:
             toc = time.time()
 
             self.log("connected to guest root shell")
-            self.log("(connecting took {:.2f} seconds)".format(toc - tic))
+            self.log(f"(connecting took {toc - tic:.2f} seconds)")
             self.connected = True
 
     def copy_from_host_via_shell(self, source: str, target: str) -> None:
@@ -680,10 +677,10 @@ class Machine:
 
     def dump_tty_contents(self, tty: str) -> None:
         """Debugging: Dump the contents of the TTY<n>"""
-        self.execute("fold -w 80 /dev/vcs{} | systemd-cat".format(tty))
+        self.execute(f"fold -w 80 /dev/vcs{tty} | systemd-cat")
 
     def wait_for_console_text(self, regex: str) -> None:
-        with self.nested("waiting for {} to appear on console".format(regex)):
+        with self.nested(f"waiting for {regex} to appear on console"):
             # Buffer the console output, this is needed
             # to match multiline regexes.
             console = io.StringIO()
@@ -700,7 +697,7 @@ class Machine:
 
     def send_key(self, key: str) -> None:
         key = CHAR_TO_KEY.get(key, key)
-        self.send_monitor_command("sendkey {}".format(key))
+        self.send_monitor_command(f"sendkey {key}")
         time.sleep(0.01)
 
     def start(self) -> None:
@@ -736,7 +733,7 @@ class Machine:
 
         try:
             self.monitor, _ = monitor_socket.accept()
-        except socket.timeout:
+        except TimeoutError:
             self.ctx.elog("Time out reached on monitor socket accept (qemu)")
             if self.process.poll():
                 self.ctx.elog(
@@ -778,7 +775,7 @@ class Machine:
         self.pid = self.process.pid
         self.booted = True
 
-        self.log("QEMU running (pid {})".format(self.pid))
+        self.log(f"QEMU running (pid {self.pid})")
 
     def cleanup_statedir(self) -> None:
         if self.ctx.flavour in ["vm", "vm-ramdisk"]:
@@ -791,7 +788,7 @@ class Machine:
             return
 
         assert self.shell
-        self.shell.send("poweroff\n".encode())
+        self.shell.send(b"poweroff\n")
         self.wait_for_shutdown()
 
     def crash(self) -> None:
@@ -821,7 +818,7 @@ class Machine:
         with self.nested("waiting for the X11 server"):
             retry(check_x)
 
-    def get_window_names(self) -> List[str]:
+    def get_window_names(self) -> list[str]:
         return self.succeed(
             r"xwininfo -root -tree | sed 's/.*0x[0-9a-f]* \"\([^\"]*\)\".*/\1/; t; d'"
         ).splitlines()
@@ -833,7 +830,7 @@ class Machine:
             names = self.get_window_names()
             if last_try:
                 self.log(
-                    "Last chance to match {} on the window list,".format(regexp)
+                    f"Last chance to match {regexp} on the window list,"
                     + " which currently contains: "
                     + ", ".join(names)
                 )
@@ -850,9 +847,7 @@ class Machine:
         """Forward a TCP port on the host to a TCP port on the guest.
         Useful during interactive testing.
         """
-        self.send_monitor_command(
-            "hostfwd_add tcp::{}-:{}".format(host_port, guest_port)
-        )
+        self.send_monitor_command(f"hostfwd_add tcp::{host_port}-:{guest_port}")
 
     def block(self) -> None:
         """Make the machine unreachable by shutting down eth1 (the multicast
@@ -897,8 +892,8 @@ class Machine:
         self,
         command: str,
         check_return: bool = True,
-        timeout: Optional[int] = 900,
-    ) -> Tuple[int, str]:
+        timeout: int | None = 900,
+    ) -> tuple[int, str]:
         self.connect()
 
         process_shell = self.process_shell

@@ -1,9 +1,10 @@
 import http.server
-import sys
 import os
 import socket
 import socketserver
+import sys
 import threading
+from typing import ClassVar
 
 
 class HTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -14,11 +15,7 @@ class HTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
     def log_error(self, format, *args):
-        message = "%s - - [%s] %s\n" % (
-            self.address_string(),
-            self.log_date_time_string(),
-            format % args,
-        )
+        message = f"{self.address_string()} - - [{self.log_date_time_string()}] {format % args}\n"
         if HTTPDaemon.ctx:
             HTTPDaemon.ctx.elog(message)
         else:
@@ -39,7 +36,7 @@ class HTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 class HTTPDaemon:
     lock = threading.Lock()
-    machines = []
+    machines: ClassVar[list] = []
     expected_nb_machines = 0
     # get_done_event = threading.Event()
     directory = ""
@@ -59,9 +56,9 @@ class HTTPDaemon:
             target=self.httpd.serve_forever, daemon=True
         )
 
-    def start(self, expected_nb_machines=0, directory=os.getcwd()):
+    def start(self, expected_nb_machines=0, directory=None):
         HTTPDaemon.expected_nb_machines = expected_nb_machines
-        HTTPDaemon.directory = directory
+        HTTPDaemon.directory = directory if directory is not None else os.getcwd()
 
         self.httpd_thread.start()
 

@@ -2,20 +2,28 @@
   description = "nixos-compose";
 
   inputs = {
+    unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs.url = "github:NixOS/nixpkgs/25.05";
     flake-utils.url = "github:numtide/flake-utils";
     kapack.url = "github:oar-team/nur-kapack/25.05";
     kapack.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils, kapack }:
+  outputs =
+    inputs@{ self
+    , nixpkgs
+    , flake-utils
+    , kapack
+    , ...
+    }:
     flake-utils.lib.eachDefaultSystem
-      (system:
+      (
+        system:
         let
           inherit (nixpkgs) lib;
-          mdbook-admonish =
-            nixpkgs.legacyPackages.${system}.callPackage ./docs/mdbook-admonish.nix { };
+          mdbook-admonish = nixpkgs.legacyPackages.${system}.callPackage ./docs/mdbook-admonish.nix { };
           pkgs = nixpkgs.legacyPackages.${system};
+          unstable = inputs.unstable.legacyPackages.${system};
           python3pkgs = pkgs.python3Packages;
           kapackpkgs = kapack.packages.${system};
 
@@ -29,25 +37,33 @@
             name = "${pname}-${version}";
 
             src = builtins.filterSource
-              (path: type: type != "directory" || baseNameOf path != ".git" || path != "result")
-              ./.;
+              (
+                path: type: type != "directory" || baseNameOf path != ".git" || path != "result"
+              ) ./.;
 
             format = "pyproject";
             buildInputs = [ pkgs.poetry ];
-            propagatedBuildInputs = with python3pkgs; [
-              poetry-core
-              click
-              kapackpkgs.execo
-              halo
-              pexpect
-              psutil
-              ptpython
-              pyinotify
-              pyyaml
-              requests
-              tomlkit
-              setuptools
-            ] ++ [ pkgs.taktuk pkgs.nix-output-monitor ];
+            propagatedBuildInputs =
+              with python3pkgs;
+              [
+                poetry-core
+                click
+                kapackpkgs.execo
+                halo
+                pexpect
+                psutil
+                ptpython
+                pyinotify
+                pyyaml
+                requests
+                tomlkit
+                setuptools
+                typing-extensions
+              ]
+              ++ [
+                pkgs.taktuk
+                pkgs.nix-output-monitor
+              ];
           };
 
           doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
@@ -67,7 +83,8 @@
             showTemplates = pkgs.writeText "templates.json" (
               builtins.toJSON (builtins.mapAttrs (name: value: value.description) self.templates)
             );
-          } // flake-utils.lib.flattenTree doc;
+          }
+          // flake-utils.lib.flattenTree doc;
 
           defaultPackage = self.packages.${system}.${packageName};
 
@@ -127,7 +144,11 @@
               '';
             };
             devDoc = pkgs.mkShell {
-              buildInputs = with pkgs; [ mdbook mdbook-mermaid mdbook-admonish ];
+              buildInputs = with pkgs; [
+                mdbook
+                mdbook-mermaid
+                mdbook-admonish
+              ];
             };
 
             default = pkgs.mkShell {
@@ -170,13 +191,19 @@
               root="$(dirname "$root")"
             done
             pushd "$root" > /dev/null
-            ${lib.getExe pkgs.deno} fmt **/*.md **/*.yaml
-            ${lib.getExe pkgs.nixpkgs-fmt} .
-            ${lib.getExe pkgs.taplo} format pyproject.toml
-            # ${lib.getExe pkgs.ruff} check --fix --unsafe-fixes --preview .
-            # ${lib.getExe pkgs.mypy} .
+            ${lib.getExe unstable.deno} fmt **/*.md **/*.yaml
+            ${lib.getExe unstable.nixpkgs-fmt} .
+            ${lib.getExe unstable.taplo} format **/*.toml
+            ${lib.getExe unstable.ruff} format --preview
+            ${lib.getExe unstable.ruff} check --fix --unsafe-fixes --preview .
+            # ${lib.getExe unstable.mypy} .
             popd
           '';
-        }) //
-    { lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix; overlay = import ./overlay.nix { inherit self; }; };
+        }
+      )
+    // {
+      lib = import ./nix/lib.nix;
+      templates = import ./examples/nix_flake_templates.nix;
+      overlay = import ./overlay.nix { inherit self; };
+    };
 }

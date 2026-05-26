@@ -1,29 +1,23 @@
-import click
-
-import time
-import os
-
-import os.path as op
-
-import sys
-import glob
-
 import ast
+import glob
 import json
+import os
+import os.path as op
+import sys
+import time
 
+import click
 import ptpython.repl
 
-from ..context import pass_context, on_finished, on_started
-from ..flavours import get_flavour_by_name
-
 from ..actions import (
+    push_on_machines,
     read_deployment_info,
     read_test_script,
-    push_on_machines,
     realpath_from_store,
 )
-
+from ..context import on_finished, on_started, pass_context
 from ..driver.driver import Driver
+from ..flavours import get_flavour_by_name
 from ..httpd import HTTPDaemon
 from ..setup import apply_setup
 
@@ -70,7 +64,7 @@ def start(ctx, interactive, execute_test_script, port, push_path=None):
             tic = time.time()
             driver.run_tests()
             toc = time.time()
-            ctx.glog(f"test script finished in {(toc-tic):.2f}s")
+            ctx.glog(f"test script finished in {(toc - tic):.2f}s")
         else:
             ctx.glog("just start ???")
             driver.test_script()
@@ -276,7 +270,7 @@ def cli(
     deployment_file,
     tag,
     image_store_ssh,
-    start_option
+    start_option,
     # dry_run,
 ):
     """
@@ -442,7 +436,7 @@ def cli(
             )
             ctx.composition_basename_file = composition_name
         else:
-            raise Exception(
+            raise RuntimeError(
                 "Sorry, provide only flavour or only composition is not supported"
             )
 

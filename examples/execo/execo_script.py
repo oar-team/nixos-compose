@@ -7,12 +7,13 @@ from execo_g5k import (
     oarsub,
     wait_oar_job_start,
 )
+
 from nixos_compose.nxc_execo import get_oar_job_nodes_nxc
 
 
 class MyEngine(Engine):
     def __init__(self):
-        super(MyEngine, self).__init__()
+        super().__init__()
         self.oar_job_id = None
         parser = self.args_parser
         parser.add_argument("--nxc_build_file", help="Path to the NXC build file")
@@ -63,7 +64,7 @@ class MyEngine(Engine):
 
             # Get the machines info, deploy
             logger.info("Deploying ...")
-            nodes, roles = get_oar_job_nodes_nxc(
+            nodes, _roles = get_oar_job_nodes_nxc(
                 self.oar_job_id,
                 site,
                 flavour_name=nxc_flavour,
@@ -73,7 +74,6 @@ class MyEngine(Engine):
             )
             logger.info(f"... done. Nodes used for this experiment: {nodes}")
 
-            #
             logger.debug("Execute on hello")
 
             my_command = 'echo "Hello from $(whoami) at $(hostname) ($(ip -4 addr | grep "/20" | awk \'{print $2;}\'))" > /tmp/hello'
@@ -121,19 +121,17 @@ def reserve_nodes(nb_nodes, site, cluster, job_type, walltime=3600):
     """
     :param walltime: the duration of the job, in seconds (or a datetime, or a string as expected by the oarsub program)
     """
-    jobs = oarsub(
-        [
-            (
-                OarSubmission(
-                    resources="{{cluster='{}'}}/nodes={}".format(cluster, nb_nodes),
-                    walltime=walltime,
-                    job_type=[job_type],
-                ),
-                # additional_options = '-t exotic'),
-                site,
-            )
-        ]
-    )
+    jobs = oarsub([
+        (
+            OarSubmission(
+                resources=f"{{cluster='{cluster}'}}/nodes={nb_nodes}",
+                walltime=walltime,
+                job_type=[job_type],
+            ),
+            # additional_options = '-t exotic'),
+            site,
+        )
+    ])
     return jobs
 
 
@@ -141,7 +139,7 @@ if __name__ == "__main__":
     ENGINE = MyEngine()
     try:
         ENGINE.start()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001 - cleanup OAR job regardless of failure mode
         print(f"Failing with error {ex}")
         oardel([(ENGINE.oar_job_id, None)])
         print("Giving back the resources")

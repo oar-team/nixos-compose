@@ -1,10 +1,10 @@
+import importlib.metadata
 import os
 import os.path as op
-import importlib.metadata
 
 import click
 
-from .context import pass_context, CONTEXT_SETTINGS
+from .context import CONTEXT_SETTINGS, pass_context
 
 click.disable_unicode_literals_warning = True
 version = importlib.metadata.version("nixos-compose")
