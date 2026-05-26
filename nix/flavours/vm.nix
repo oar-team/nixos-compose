@@ -35,11 +35,11 @@
     systemd.services.nxc-bindfs-sudo = {
       before = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
-      serviceConfig.Restart= "always";
+      serviceConfig.Restart = "always";
       script = ''
-        echo "Launch bindfs for sudo (its files required to be owned by root)"
-        ${pkgs.bindfs}/bin/bindfs -f --force-user=root --force-group=root ${pkgs.sudo} ${pkgs.sudo}
-    #   '';
+            echo "Launch bindfs for sudo (its files required to be owned by root)"
+            ${pkgs.bindfs}/bin/bindfs -f --force-user=root --force-group=root ${pkgs.sudo} ${pkgs.sudo}
+        #   '';
     };
 
   };

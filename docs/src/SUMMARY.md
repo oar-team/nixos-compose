@@ -5,8 +5,8 @@
 # User Guide
 
 - [Installation](install/installation.md)
-    - [Local](install/local.md)
-    - [Grid5000](install/grid5000.md)
+  - [Local](install/local.md)
+  - [Grid5000](install/grid5000.md)
 - [Quick start](quick-start.md)
 - [Slow start](slow-start.md)
 

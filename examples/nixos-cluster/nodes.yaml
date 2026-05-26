@@ -1,5 +1,5 @@
 builder:
-    - builder
+  - builder
 node:
-    - foo
-    - bar
+  - foo
+  - bar

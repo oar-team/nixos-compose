@@ -54,11 +54,12 @@ let
   setupRaw = builtins.fromTOML (builtins.readFile file);
   # TODO: add assert to avoid use of reserved keywords as setup variant
   # (i.e. project, options, params, overrides, override-params)
-  setupSel = if (setupRaw ? "project") && (setupRaw.project ? "selected") then
-    assert builtins.hasAttr setupRaw.project.selected setupRaw;
-    lib.recursiveUpdate setupRaw setupRaw.${setupRaw.project.selected}
-  else
-    lib.recursiveUpdate setupRaw {project = { selected = "";};};
+  setupSel =
+    if (setupRaw ? "project") && (setupRaw.project ? "selected") then
+      assert builtins.hasAttr setupRaw.project.selected setupRaw;
+      lib.recursiveUpdate setupRaw setupRaw.${setupRaw.project.selected}
+    else
+      lib.recursiveUpdate setupRaw { project = { selected = ""; }; };
 
   helpers = import ./helpers.nix;
 
@@ -80,13 +81,17 @@ let
     (final: prev:
       let
         overrides = repo:
-          builtins.mapAttrs (name: value:
-            prev.nur.repos.${repo}.${name}.overrideAttrs
-            (old: helpers.mapAttrsToAttrs (adaptAttr prev) value))
-          nurSet.${repo};
-      in helpers.mapAttrNamesToAttrs (repo: {
-        nur.repos.${repo} = prev.nur.repos.${repo} // (overrides repo);
-      }) nurSet);
+          builtins.mapAttrs
+            (name: value:
+              prev.nur.repos.${repo}.${name}.overrideAttrs
+                (old: helpers.mapAttrsToAttrs (adaptAttr prev) value))
+            nurSet.${repo};
+      in
+      helpers.mapAttrNamesToAttrs
+        (repo: {
+          nur.repos.${repo} = prev.nur.repos.${repo} // (overrides repo);
+        })
+        nurSet);
 
   overridePkg = pkgsToOverride: value:
     (final: prev: {
@@ -94,16 +99,18 @@ let
         (old: helpers.mapAttrsToAttrs (adaptAttr prev) value);
     });
 
-  overrides = if setupSel ? "overrides" then
-    let
-      setOverrides = x:
-        if (x == "nur") && (nur != null) then
-          overridesNur (setupSel.overrides.nur)
-        else
-          overridePkg x (setupSel.overrides.${x});
-    in builtins.map setOverrides (builtins.attrNames setupSel.overrides)
-  else
-    [ ];
+  overrides =
+    if setupSel ? "overrides" then
+      let
+        setOverrides = x:
+          if (x == "nur") && (nur != null) then
+            overridesNur (setupSel.overrides.nur)
+          else
+            overridePkg x (setupSel.overrides.${x});
+      in
+      builtins.map setOverrides (builtins.attrNames setupSel.overrides)
+    else
+      [ ];
 
   #
   # Build's Parametrization
@@ -120,7 +127,7 @@ let
   getBuildDeps = prev: deps:
     #TODO: add assert to deps exist in prev ???
     builtins.mapAttrs (n: x: lib.getAttrFromPath (lib.splitString "." x) prev)
-    deps;
+      deps;
 
   lookupOverlayPkgFunc = {
     deps = pkgOverrideDeps;
@@ -148,14 +155,16 @@ let
     (final: prev: { ${pkg} = prev.${pkg}.overrideAttrs (old: op_args); });
 
   buildOverlayPkg = pkg: v:
-    builtins.map (op:
-      assert lib.assertOneOf "setup.toml: build operation" op [
-        "deps"
-        "args"
-        "src"
-        "attrs"
-      ];
-      (lookupOverlayPkgFunc.${op}) pkg v.${op}) (builtins.attrNames v);
+    builtins.map
+      (op:
+        assert lib.assertOneOf "setup.toml: build operation" op [
+          "deps"
+          "args"
+          "src"
+          "attrs"
+        ];
+        (lookupOverlayPkgFunc.${op}) pkg v.${op})
+      (builtins.attrNames v);
 
   #
   # Build's Parametrization Nur part
@@ -175,7 +184,8 @@ let
           ${pkg} =
             prev.nur.repos.${repo}.${pkg}.override (getBuildDeps prev op_args);
         };
-      in { nur.repos.${repo} = prev.nur.repos.${repo} // overridesArgs; });
+      in
+      { nur.repos.${repo} = prev.nur.repos.${repo} // overridesArgs; });
 
   nurPkgOverrideArgs = repo: pkg: op_args:
     (final: prev:
@@ -183,7 +193,8 @@ let
         overridesArgs = {
           ${pkg} = prev.nur.repos.${repo}.${pkg}.override op_args;
         };
-      in { nur.repos.${repo} = prev.nur.repos.${repo} // overridesArgs; });
+      in
+      { nur.repos.${repo} = prev.nur.repos.${repo} // overridesArgs; });
 
   nurPkgOverrideSrc = repo: pkg: src:
     (final: prev:
@@ -192,7 +203,8 @@ let
           ${pkg} = prev.nur.repos.${repo}.${pkg}.overrideAttrs
             (old: (setSrcAttr prev src));
         };
-      in { nur.repos.${repo} = prev.nur.repos.${repo} // overridesAttrs; });
+      in
+      { nur.repos.${repo} = prev.nur.repos.${repo} // overridesAttrs; });
 
   nurPkgOverrideAttrs = repo: pkg: op_args:
     (final: prev:
@@ -200,48 +212,59 @@ let
         overridesAttrs = {
           ${pkg} = prev.nur.repos.${repo}.${pkg}.overrideAttrs (old: op_args);
         };
-      in { nur.repos.${repo} = prev.nur.repos.${repo} // overridesAttrs; });
+      in
+      { nur.repos.${repo} = prev.nur.repos.${repo} // overridesAttrs; });
 
   buildOverlayNurPkg = repo: pkg: v:
-    builtins.map (op:
-      assert lib.assertOneOf "setup.toml: build (nur) operation" op [
-        "deps"
-        "args"
-        "src"
-        "attrs"
-      ];
-      (lookupOverlayNurPkgFunc.${op}) repo pkg v.${op}) (builtins.attrNames v);
+    builtins.map
+      (op:
+        assert lib.assertOneOf "setup.toml: build (nur) operation" op [
+          "deps"
+          "args"
+          "src"
+          "attrs"
+        ];
+        (lookupOverlayNurPkgFunc.${op}) repo pkg v.${op})
+      (builtins.attrNames v);
 
   buildOverlayNur = nurReposPkgs:
     let
       repos = builtins.attrNames nurReposPkgs;
       build_overlay = repo: pkg:
         buildOverlayNurPkg repo pkg nurReposPkgs.${repo}.${pkg};
-    in builtins.map (repo:
-      builtins.map (pkg: build_overlay repo pkg)
-      (builtins.attrNames nurReposPkgs.${repo})) repos;
+    in
+    builtins.map
+      (repo:
+        builtins.map (pkg: build_overlay repo pkg)
+          (builtins.attrNames nurReposPkgs.${repo}))
+      repos;
 
-  buildOverlays = if setupSel ? build then
-    let
-      build_overlay = x:
-        if (x == "nur") && (nur != null) then
-          buildOverlayNur (setupSel.build.nur.repos)
-        else
-          buildOverlayPkg x (setupSel.build.${x});
-    in lib.flatten
-    (builtins.map build_overlay (builtins.attrNames setupSel.build))
-  else
-    [ ];
+  buildOverlays =
+    if setupSel ? build then
+      let
+        build_overlay = x:
+          if (x == "nur") && (nur != null) then
+            buildOverlayNur (setupSel.build.nur.repos)
+          else
+            buildOverlayPkg x (setupSel.build.${x});
+      in
+      lib.flatten
+        (builtins.map build_overlay (builtins.attrNames setupSel.build))
+    else
+      [ ];
 
-  overlays = if nur ? "overlay" then
-  # TODO: failed if buildOverlays comes first: buildOverlays ++ [ nur.overlay ], why ?
-  # nur is null before to apply buildOverlays (???), more investigations are required
-    [ nur.overlay ] ++ overrides ++ buildOverlays
-  else
-    overrides ++ buildOverlays;
+  overlays =
+    if nur ? "overlay" then
+    # TODO: failed if buildOverlays comes first: buildOverlays ++ [ nur.overlay ], why ?
+    # nur is null before to apply buildOverlays (???), more investigations are required
+      [ nur.overlay ] ++ overrides ++ buildOverlays
+    else
+      overrides ++ buildOverlays;
 
-  params = if (setupSel ? "params") && (setupSel ? "override-params") then {
-    params = setupSel.params // setupSel."override-params";
-  } else
-    { };
-in setupSel // { inherit overrides overlays; } // params
+  params =
+    if (setupSel ? "params") && (setupSel ? "override-params") then {
+      params = setupSel.params // setupSel."override-params";
+    } else
+      { };
+in
+setupSel // { inherit overrides overlays; } // params

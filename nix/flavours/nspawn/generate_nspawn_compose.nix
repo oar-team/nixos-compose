@@ -1,5 +1,13 @@
-{ nixpkgs, system, flavour, overlays ? [ ], setup ? { }, nur ? { }, extraConfigurations ? [ ]
-,helpers, ... }:
+{ nixpkgs
+, system
+, flavour
+, overlays ? [ ]
+, setup ? { }
+, nur ? { }
+, extraConfigurations ? [ ]
+, helpers
+, ...
+}:
 composition:
 
 let
@@ -43,9 +51,10 @@ let
   };
 
   # only rolesDistribution, could be extended
-  optionalCompositionAttr = if compositionSet ? rolesDistribution then
-    { roles_distribution = compositionSet.rolesDistribution; }
-                            else {};
+  optionalCompositionAttr =
+    if compositionSet ? rolesDistribution then
+      { roles_distribution = compositionSet.rolesDistribution; }
+    else { };
 
   extraVolumes =
     if compositionSet ? extraVolumes then compositionSet.extraVolumes else [ ];
@@ -53,23 +62,27 @@ let
   nspawnPorts =
     if compositionSet ? nspawnPorts then compositionSet.nspawnPorts else { };
 
-  nspawnComposition = lib.mapAttrs (roleName: _:
-    let
-      builtConfig = allConfig.${roleName};
-    in {
-      toplevel = "${builtConfig.toplevel}";
-      init =  "${builtConfig.toplevel}/init";
-      volumes = extraVolumes;
-      ports =
-        if nspawnPorts ? "${roleName}" then nspawnPorts."${roleName}" else [ ];
-    }) roles;
+  nspawnComposition = lib.mapAttrs
+    (roleName: _:
+      let
+        builtConfig = allConfig.${roleName};
+      in
+      {
+        toplevel = "${builtConfig.toplevel}";
+        init = "${builtConfig.toplevel}/init";
+        volumes = extraVolumes;
+        ports =
+          if nspawnPorts ? "${roleName}" then nspawnPorts."${roleName}" else [ ];
+      })
+    roles;
 
-in pkgs.writeTextFile {
+in
+pkgs.writeTextFile {
   name = "compose-info.json";
   text = builtins.toJSON ({
     roles = builtins.attrNames roles;
     composition = nspawnComposition;
     test_script = testScriptFile;
     flavour = flavour.name;
-  } // optionalCompositionAttr );
+  } // optionalCompositionAttr);
 }

@@ -1,5 +1,8 @@
-{ pkgs ? import <nixpkgs> { }, name ? "nxc-docker-base-image", tag ? "latest"
-, ... }:
+{ pkgs ? import <nixpkgs> { }
+, name ? "nxc-docker-base-image"
+, tag ? "latest"
+, ...
+}:
 
 let
   # Taken from Arion
@@ -18,4 +21,5 @@ let
     '';
     copyToRoot = [ minContents ];
   };
-in baseImage
+in
+baseImage

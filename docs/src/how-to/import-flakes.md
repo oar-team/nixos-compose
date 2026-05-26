@@ -1,16 +1,21 @@
 # Import Flakes
 
-If you want to use packages, modules, or libraries form another Nix Flake, you can make it available in your composition using an overlay.
+If you want to use packages, modules, or libraries form another Nix Flake, you
+can make it available in your composition using an overlay.
 
-In order to add this overlay, you have to edit the `flake.nix` file and add your flake as input. For example:
+In order to add this overlay, you have to edit the `flake.nix` file and add your
+flake as input. For example:
+
 ```nix
-  inputs = {
-    # ...
-    myFlake.url = "github:myTeam/myFlake";
-  };
+inputs = {
+  # ...
+  myFlake.url = "github:myTeam/myFlake";
+};
 ```
 
-Here is how you can add an extra package using an overlay or add a NixOS module using the `extraConfigurations` parameter:
+Here is how you can add an extra package using an overlay or add a NixOS module
+using the `extraConfigurations` parameter:
+
 ```nix
   outputs = { self, nixpkgs, nxc, myFlake }:
     let
@@ -40,7 +45,9 @@ Here is how you can add an extra package using an overlay or add a NixOS module 
 For more details on overlays, checkout the [Nixpkgs documentation on Overlays](https://nixos.org/manual/nixpkgs/stable/#sec-overlays-definition)
 ```
 
-You can now use your package or your module in your composition just like the ones present in `nixpkgs`, for example:
+You can now use your package or your module in your composition just like the
+ones present in `nixpkgs`, for example:
+
 ```nix
 { pkgs }:
 {
@@ -54,4 +61,3 @@ You can now use your package or your module in your composition just like the on
   };
 }
 ```
-

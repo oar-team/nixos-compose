@@ -1,5 +1,14 @@
-{ nixpkgs, system, setup, nur, flavour, helpers, composition
-, composition_name ? "composition", overlays, extraConfigurations }:
+{ nixpkgs
+, system
+, setup
+, nur
+, flavour
+, helpers
+, composition
+, composition_name ? "composition"
+, overlays
+, extraConfigurations
+}:
 let
   multiple_compositions = import ./multiple_compositions.nix;
   generate_docker_compose =
@@ -17,7 +26,8 @@ let
     inherit flavour;
     compositions = { ${composition_name} = composition; };
   };
-in if flavour.name == "docker" then
+in
+if flavour.name == "docker" then
   generate_docker_compose argumentsModule composition
 else if flavour.name == "nspawn" then
   generate_nspawn_compose argumentsModule composition

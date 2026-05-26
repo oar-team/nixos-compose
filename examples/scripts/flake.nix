@@ -9,7 +9,8 @@
   outputs = { self, nixpkgs, nxc }:
     let
       system = "x86_64-linux";
-    in {
+    in
+    {
       packages.${system} = nxc.lib.compose {
         inherit nixpkgs system;
         composition = ./composition.nix;

@@ -8,7 +8,7 @@ let
   #   pkgs.lib.mapAttrsToList (n: m: "${m.closure_info}") rolesInfo;
 
   rolesToplevel =
-     pkgs.lib.mapAttrs (n: m: "${m.config.system.build.toplevel}") allConfig;
+    pkgs.lib.mapAttrs (n: m: "${m.config.system.build.toplevel}") allConfig;
 
   allRoles = builtins.attrNames rolesToplevel;
   allClosureInfo =
@@ -47,7 +47,8 @@ let
     '';
   };
 
-in {
+in
+{
   # roles = rolesInfo;
   roles = rolesToplevel;
   all_store_info = "${allStoreInfo}";

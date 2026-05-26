@@ -1,4 +1,3 @@
-
 `nxc clean`
 
 Clean the nxc folder and nxc.json file
@@ -9,7 +8,4 @@ Clean the nxc folder and nxc.json file
 
 ## Options
 
-- `--help`
-    Show this message and exit.
-    *Default:* `False`
-
+- `--help` Show this message and exit. _Default:_ `False`

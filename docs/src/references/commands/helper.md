@@ -1,9 +1,8 @@
-
 `nxc helper`
 
 Specific and contextual helper information (e.g. g5k_script path for Grid'5000)
-    Warning: Experimental command, may be removed in the future or change without backward compatibility care.
-
+Warning: Experimental command, may be removed in the future or change without
+backward compatibility care.
 
 ## Usage
 
@@ -11,14 +10,8 @@ Specific and contextual helper information (e.g. g5k_script path for Grid'5000)
 
 ## Options
 
-- `-l, --list`
-    List of available helpers
-    *Default:* `False`
+- `-l, --list` List of available helpers _Default:_ `False`
 
 - `options`
 
-
-- `--help`
-    Show this message and exit.
-    *Default:* `False`
-
+- `--help` Show this message and exit. _Default:_ `False`

@@ -5,7 +5,8 @@ with lib;
 
 {
   imports =
-    [ # Enable devices which are usually scanned, because we don't know the
+    [
+      # Enable devices which are usually scanned, because we don't know the
       # target system.
       "${toString modulesPath}/installer/scan/detected.nix"
       "${toString modulesPath}/installer/scan/not-detected.nix"

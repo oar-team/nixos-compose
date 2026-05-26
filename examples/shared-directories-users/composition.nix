@@ -1,13 +1,14 @@
 { pkgs, ... }: {
-  roles = let
-    users = { names = ["user1" "user2"]; prefixHome = "/users"; };
-  in
+  roles =
+    let
+      users = { names = [ "user1" "user2" ]; prefixHome = "/users"; };
+    in
     {
       server = { ... }: {
         nxc.users = users;
         nxc.sharedDirs."/users".export = true;
       };
-      storage =  { ... }: {
+      storage = { ... }: {
         nxc.sharedDirs."/data".export = true;
       };
       client = { ... }: {

@@ -16,7 +16,8 @@
       execo_expe = pkgs.writeScriptBin "execo_expe" ''
         ${nxcEnv}/bin/python3 ${./execo_script.py} $@
       '';
-    in {
+    in
+    {
       packages.${system} = nxc.lib.compose {
         inherit nixpkgs system;
         composition = ./composition.nix;

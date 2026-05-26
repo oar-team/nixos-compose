@@ -12,6 +12,7 @@
     flake-utils.lib.eachDefaultSystem
       (system:
         let
+          inherit (nixpkgs) lib;
           mdbook-admonish =
             nixpkgs.legacyPackages.${system}.callPackage ./docs/mdbook-admonish.nix { };
           pkgs = nixpkgs.legacyPackages.${system};
@@ -52,7 +53,8 @@
           doc = import ./docs/doc.nix { inherit nixpkgs pkgs system; };
 
           packageName = "nixos-compose";
-        in {
+        in
+        {
           packages = {
             ${packageName} = app;
             # "${packageName}-full" = app.overrideAttrs(attr: rec {
@@ -79,8 +81,8 @@
             nxcShell = pkgs.mkShell {
               buildInputs = [
                 (pkgs.python3.withPackages (ps: [
-                    kapackpkgs.execo
-                    self.packages.${system}.${packageName}
+                  kapackpkgs.execo
+                  self.packages.${system}.${packageName}
                 ]))
                 pkgs.docker
                 pkgs.qemu_kvm
@@ -92,7 +94,7 @@
             venvShell = pkgs.mkShell {
               buildInputs = [
                 (pkgs.python3.withPackages (ps: [
-                    kapackpkgs.execo
+                  kapackpkgs.execo
                 ]))
                 pkgs.uv
                 pkgs.poetry
@@ -134,29 +136,47 @@
               inputsFrom = [ self.packages.${system}.${packageName} ];
             };
 
-            poetry-python311 = let
-              overlays = [
-                (final: prev: {
-                  poetry = prev.poetry.override { python3 = prev.python311; };
-                })
-              ];
-              pkgs_python311 = import nixpkgs {
-                inherit system overlays;
-              };
-            in
+            poetry-python311 =
+              let
+                overlays = [
+                  (final: prev: {
+                    poetry = prev.poetry.override { python3 = prev.python311; };
+                  })
+                ];
+                pkgs_python311 = import nixpkgs {
+                  inherit system overlays;
+                };
+              in
               pkgs_python311.mkShell {
-               buildInputs = with pkgs_python311; [
-                 python311
-                 poetry
-               ];
-               shellHook = ''
-                echo "Python version: $(python --version)"
-                echo "Python used by poetry : $(poetry run python --version)"
-               '';
-            };
-
+                buildInputs = with pkgs_python311; [
+                  python311
+                  poetry
+                ];
+                shellHook = ''
+                  echo "Python version: $(python --version)"
+                  echo "Python used by poetry : $(poetry run python --version)"
+                '';
+              };
           };
 
+          formatter = pkgs.writeShellScriptBin "formatter" ''
+            set -eoux pipefail
+            shopt -s globstar
+            root="$PWD"
+            while [[ ! -f "$root/.git/index" ]]; do
+              if [[ "$root" == "/" ]]; then
+                exit 1
+              fi
+              root="$(dirname "$root")"
+            done
+            pushd "$root" > /dev/null
+            ${lib.getExe pkgs.deno} fmt **/*.md **/*.yaml
+            ${lib.getExe pkgs.nixpkgs-fmt} .
+            ${lib.getExe pkgs.taplo} format pyproject.toml
+            # ${lib.getExe pkgs.ruff} check --fix --unsafe-fixes --preview .
+            # ${lib.getExe pkgs.mypy} .
+            popd
+          '';
         }) //
     { lib = import ./nix/lib.nix; templates = import ./examples/nix_flake_templates.nix; overlay = import ./overlay.nix { inherit self; }; };
 }
